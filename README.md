@@ -4,6 +4,48 @@
 
 A macOS app that turns the MacBook notch into a small control panel: clipboard, now playing, timers, calendar and reminders, a file shelf, screen capture, quick translate and the state of coding agents.
 
+## Mới trong bản 0.22.2 · New in 0.22.2
+
+- **Xem trước 3 ngày tới:** trang Lịch có thêm mục "Sắp tới" dưới lịch tháng, cho thấy sự kiện và lời nhắc của ba ngày tới.
+- **Trang Lịch tự vừa vặn:** không còn nút đổi cỡ, trang tự cao vừa đủ cho những gì đang hiện.
+- **Ước tính thời gian dễ dùng hơn:** chọn ngày cho lời nhắc chưa có hạn thì app tự đặt giờ, nên chọn được ngay thời gian dự kiến.
+- **Gọn hơn khi gõ:** bỏ các nút gợi ý tên; app không ghi nhớ những tên bạn đã gõ.
+
+---
+
+- **See the next 3 days:** the Calendar page has a "Coming up" list under the month with the events and reminders of the next three days.
+- **The Calendar page sizes itself:** no more size button; the page is just as tall as what it shows.
+- **Easier time estimates:** picking a day for a reminder with no due date gives it a time too, so you can choose how long it will take right away.
+- **Cleaner typing:** the name suggestions are gone, and the app no longer remembers the names you typed.
+
+## Tính năng · Features
+
+- **Clipboard:** nhớ mọi thứ bạn chép (chữ, liên kết, màu, ảnh, tệp), tìm lại nhanh kể cả chữ trong ảnh, ghim vào board, khoá board bằng mật mã. Cửa sổ Thư viện để xem và sắp xếp tất cả.
+- **Nhạc:** bài đang phát, điều khiển phát nhạc, chọn loa hay tai nghe, lời bài hát.
+- **Hẹn giờ:** nhiều bộ hẹn giờ cùng lúc, có mức sẵn và nhãn.
+- **Lịch và lời nhắc:** ngày của bạn theo giờ, ba ngày tới, thêm sự kiện và lời nhắc, ước tính thời gian làm.
+- **Tệp:** thả tệp lên notch để giữ tạm, nén, đổi định dạng hay đổi cỡ ảnh.
+- **Chụp màn hình:** chụp một vùng, chụp cả trang dài bằng cách cuộn, ghi chú lên ảnh.
+- **Dịch nhanh:** chọn chữ trong bất kỳ app nào rồi dịch ngay.
+- **Agent lập trình:** xem Claude Code và Codex đang làm gì, khi nào cần bạn, khi nào xong.
+- **Thông báo gọn gàng:** pin, Bluetooth, mạng, âm lượng, độ sáng, Caps Lock, bài hát mới và cuộc họp sắp tới hiện ngay cạnh notch.
+- **Cửa sổ:** kéo cửa sổ vào mép màn hình hay dùng phím tắt để chia đôi, chia góc.
+- Dùng được trên mọi màn hình, kể cả màn hình rời không có tai thỏ; giao diện tiếng Việt và tiếng Anh.
+
+---
+
+- **Clipboard:** keeps everything you copy (text, links, colours, pictures, files), finds it again (even the text inside pictures), pins it to boards, and locks boards with a passcode. A Library window to browse and sort it all.
+- **Music:** what is playing, playback controls, picking speakers or headphones, lyrics.
+- **Timers:** several at once, with presets and labels.
+- **Calendar and reminders:** your day hour by hour, the next three days, adding events and reminders, time estimates.
+- **Files:** drop files on the notch to keep them at hand, compress them, convert them or resize pictures.
+- **Screen capture:** capture an area, capture a long page by scrolling, and mark up the picture.
+- **Quick translate:** select text in any app and translate it at once.
+- **Coding agents:** see what Claude Code and Codex are doing, when they need you and when they are done.
+- **Tidy notices:** battery, Bluetooth, network, volume, brightness, Caps Lock, a new song and an upcoming meeting show right beside the notch.
+- **Windows:** drag a window to a screen edge or use a shortcut to fill half or a corner of the screen.
+- Works on every display, external ones without a notch too; in Vietnamese and English.
+
 ## Tải về · Download
 
 Bản mới nhất: **[Releases › Latest](https://github.com/truonggialong/ara-notch/releases/latest)** — tải tệp `AraNotch-<phiên bản>.dmg`, mở ra và kéo AraNotch vào thư mục Applications.
