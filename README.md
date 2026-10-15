@@ -4,19 +4,21 @@
 
 A macOS app that turns the MacBook notch into a small control panel: clipboard, now playing, timers, calendar and reminders, a file shelf, screen capture, quick translate and the state of coding agents.
 
-## Mới trong bản 0.22.2 · New in 0.22.2
+## Mới trong bản 0.23.0 · New in 0.23.0
 
-- **Xem trước 3 ngày tới:** trang Lịch có thêm mục "Sắp tới" dưới lịch tháng, cho thấy sự kiện và lời nhắc của ba ngày tới.
-- **Trang Lịch tự vừa vặn:** không còn nút đổi cỡ, trang tự cao vừa đủ cho những gì đang hiện.
-- **Ước tính thời gian dễ dùng hơn:** chọn ngày cho lời nhắc chưa có hạn thì app tự đặt giờ, nên chọn được ngay thời gian dự kiến.
-- **Gọn hơn khi gõ:** bỏ các nút gợi ý tên; app không ghi nhớ những tên bạn đã gõ.
+- **Cài đặt dễ hiểu hơn:** mỗi tuỳ chọn nằm ở chỗ bạn sẽ tìm, câu chữ ngắn gọn và bớt thuật ngữ.
+- **Đổi thứ tự trang bằng cách kéo:** trong Cài đặt › Trang notch.
+- **Phím tắt rõ ràng hơn:** ô phím ghi "Tắt" khi không dùng; đặt phím là bật, ⌫ là tắt.
+- **Cỡ notch còn 4 mức:** Nhỏ, Vừa, Lớn (mặc định 125%) và Rất lớn.
+- **Âm thanh và biển "Đã chép" tách riêng.**
 
 ---
 
-- **See the next 3 days:** the Calendar page has a "Coming up" list under the month with the events and reminders of the next three days.
-- **The Calendar page sizes itself:** no more size button; the page is just as tall as what it shows.
-- **Easier time estimates:** picking a day for a reminder with no due date gives it a time too, so you can choose how long it will take right away.
-- **Cleaner typing:** the name suggestions are gone, and the app no longer remembers the names you typed.
+- **Clearer Settings:** each option sits where you would look for it, in shorter words with less jargon.
+- **Reorder pages by dragging:** in Settings › Notch pages.
+- **Clearer shortcuts:** a key field says "Off" when unused; set keys to turn a tool on, ⌫ to turn it off.
+- **Four notch sizes:** Small, Medium, Large (the 125% default) and Extra large.
+- **Sound and the "Copied" sign are separate.**
 
 ## Tính năng · Features
 
@@ -69,9 +71,9 @@ AraNotch is not signed with an Apple Developer ID and is not notarized, so macOS
 
 ## Cập nhật · Updates
 
-Từ bản 0.12.0, AraNotch tự kiểm tra bản mới mỗi ngày một lần và cài khi bạn đồng ý. Kiểm tra bằng tay: trang Thông tin trên notch, hoặc Cài đặt › Chung › Cập nhật.
+Từ bản 0.12.0, AraNotch tự kiểm tra bản mới mỗi ngày một lần và cài khi bạn đồng ý. Kiểm tra bằng tay: trang Thông tin trên notch, hoặc nút Kiểm tra ngay ở Cài đặt › Chung › Tự kiểm tra bản mới.
 
-From 0.12.0 on, AraNotch looks for a newer version once a day and installs it when you agree. To check by hand: the About page on the notch, or Settings › General › Updates.
+From 0.12.0 on, AraNotch looks for a newer version once a day and installs it when you agree. To check by hand: the About page on the notch, or Check now in Settings › General › Look for new versions.
 
 ## Quyền riêng tư · Privacy
 
@@ -88,9 +90,9 @@ AraNotch collects nothing and sends nothing to its maker. What leaves the Mac: a
 
 ## Gỡ cài đặt · Removing AraNotch
 
-Cài đặt › Chung › **Gỡ AraNotch…**: gỡ hook và dòng trạng thái khỏi Claude Code (có giữ bản sao lưu), thôi mở cùng máy, xoá bộ nhớ đệm và, nếu bạn chọn, cả lịch sử clipboard và cài đặt, rồi chuyển app vào Thùng rác.
+Cài đặt › Nâng cao › **Gỡ AraNotch**: gỡ hook và dòng trạng thái khỏi Claude Code (có giữ bản sao lưu), thôi mở cùng máy, xoá bộ nhớ đệm và, nếu bạn chọn, cả lịch sử clipboard và cài đặt, rồi chuyển app vào Thùng rác.
 
-Settings › General › **Remove AraNotch…** takes its hooks and status line out of Claude Code (keeping a backup), stops it opening at login, removes its caches and, if you tick it, the clipboard history and settings, then moves the app to the Trash.
+Settings › Advanced › **Remove AraNotch** takes its hooks and status line out of Claude Code (keeping a backup), stops it opening at login, removes its caches and, if you tick it, the clipboard history and settings, then moves the app to the Trash.
 
 ## Mã nguồn · Source
 
