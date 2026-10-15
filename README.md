@@ -4,13 +4,14 @@
 
 A macOS app that turns the MacBook notch into a small control panel: clipboard, now playing, timers, calendar and reminders, a file shelf, screen capture, quick translate and the state of coding agents.
 
-## Mới trong bản 0.23.0 · New in 0.23.0
+## Mới trong bản 0.23.1 · New in 0.23.1
 
 - **Cài đặt dễ hiểu hơn:** mỗi tuỳ chọn nằm ở chỗ bạn sẽ tìm, câu chữ ngắn gọn và bớt thuật ngữ.
 - **Đổi thứ tự trang bằng cách kéo:** trong Cài đặt › Trang notch.
 - **Phím tắt rõ ràng hơn:** ô phím ghi "Tắt" khi không dùng; đặt phím là bật, ⌫ là tắt.
 - **Cỡ notch còn 4 mức:** Nhỏ, Vừa, Lớn (mặc định 125%) và Rất lớn.
 - **Âm thanh và biển "Đã chép" tách riêng.**
+- **Chữ thống nhất hơn:** agent làm xong thì mọi nơi đều ghi "Đã xong"; hướng dẫn cho AI chỉ đúng chỗ bật trong Cài đặt › Agent.
 
 ---
 
@@ -19,6 +20,7 @@ A macOS app that turns the MacBook notch into a small control panel: clipboard, 
 - **Clearer shortcuts:** a key field says "Off" when unused; set keys to turn a tool on, ⌫ to turn it off.
 - **Four notch sizes:** Small, Medium, Large (the 125% default) and Extra large.
 - **Sound and the "Copied" sign are separate.**
+- **Consistent wording:** a finished agent reads "Done" everywhere; the hint for AI agents points to Settings › Agents.
 
 ## Tính năng · Features
 
