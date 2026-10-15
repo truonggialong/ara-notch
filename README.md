@@ -4,23 +4,15 @@
 
 A macOS app that turns the MacBook notch into a small control panel: clipboard, now playing, timers, calendar and reminders, a file shelf, screen capture, quick translate and the state of coding agents.
 
-## Mới trong bản 0.23.1 · New in 0.23.1
+## Mới trong bản 0.24.0 · New in 0.24.0
 
-- **Cài đặt dễ hiểu hơn:** mỗi tuỳ chọn nằm ở chỗ bạn sẽ tìm, câu chữ ngắn gọn và bớt thuật ngữ.
-- **Đổi thứ tự trang bằng cách kéo:** trong Cài đặt › Trang notch.
-- **Phím tắt rõ ràng hơn:** ô phím ghi "Tắt" khi không dùng; đặt phím là bật, ⌫ là tắt.
-- **Cỡ notch còn 4 mức:** Nhỏ, Vừa, Lớn (mặc định 125%) và Rất lớn.
-- **Âm thanh và biển "Đã chép" tách riêng.**
-- **Chữ thống nhất hơn:** agent làm xong thì mọi nơi đều ghi "Đã xong"; hướng dẫn cho AI chỉ đúng chỗ bật trong Cài đặt › Agent.
+- **Chọn ngôn ngữ ngay trong app:** Cài đặt › Chung › Ngôn ngữ: Theo máy, Tiếng Việt hoặc English. Đổi xong, app tự mở lại.
+- **Cài đặt dễ hiểu hơn** (từ 0.23): mỗi tuỳ chọn nằm ở chỗ bạn sẽ tìm, câu chữ ngắn gọn; kéo để đổi thứ tự trang; ô phím ghi "Tắt" khi không dùng; cỡ notch còn 4 mức.
 
 ---
 
-- **Clearer Settings:** each option sits where you would look for it, in shorter words with less jargon.
-- **Reorder pages by dragging:** in Settings › Notch pages.
-- **Clearer shortcuts:** a key field says "Off" when unused; set keys to turn a tool on, ⌫ to turn it off.
-- **Four notch sizes:** Small, Medium, Large (the 125% default) and Extra large.
-- **Sound and the "Copied" sign are separate.**
-- **Consistent wording:** a finished agent reads "Done" everywhere; the hint for AI agents points to Settings › Agents.
+- **Choose the language in the app:** Settings › General › Language: Same as the Mac, Tiếng Việt or English. The app opens again to switch.
+- **Clearer Settings** (since 0.23): each option sits where you would look for it, in shorter words; drag to reorder pages; a key field says "Off" when unused; four notch sizes.
 
 ## Tính năng · Features
 
@@ -34,7 +26,7 @@ A macOS app that turns the MacBook notch into a small control panel: clipboard, 
 - **Agent lập trình:** xem Claude Code và Codex đang làm gì, khi nào cần bạn, khi nào xong.
 - **Thông báo gọn gàng:** pin, Bluetooth, mạng, âm lượng, độ sáng, Caps Lock, bài hát mới và cuộc họp sắp tới hiện ngay cạnh notch.
 - **Cửa sổ:** kéo cửa sổ vào mép màn hình hay dùng phím tắt để chia đôi, chia góc.
-- Dùng được trên mọi màn hình, kể cả màn hình rời không có tai thỏ; giao diện tiếng Việt và tiếng Anh.
+- Dùng được trên mọi màn hình, kể cả màn hình rời không có tai thỏ; giao diện tiếng Việt và tiếng Anh, chọn trong Cài đặt › Chung › Ngôn ngữ.
 
 ---
 
@@ -48,7 +40,7 @@ A macOS app that turns the MacBook notch into a small control panel: clipboard, 
 - **Coding agents:** see what Claude Code and Codex are doing, when they need you and when they are done.
 - **Tidy notices:** battery, Bluetooth, network, volume, brightness, Caps Lock, a new song and an upcoming meeting show right beside the notch.
 - **Windows:** drag a window to a screen edge or use a shortcut to fill half or a corner of the screen.
-- Works on every display, external ones without a notch too; in Vietnamese and English.
+- Works on every display, external ones without a notch too; in Vietnamese and English, chosen in Settings › General › Language.
 
 ## Tải về · Download
 
