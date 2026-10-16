@@ -4,18 +4,21 @@
 
 A macOS app that turns the MacBook notch into a small control panel: clipboard, now playing, timers, calendar and reminders, a file shelf, screen capture, quick translate and the state of coding agents.
 
-## Mới trong bản 0.24.0 · New in 0.24.0
+## Mới trong bản 0.25.0 · New in 0.25.0
 
-- **Chọn ngôn ngữ ngay trong app:** Cài đặt › Chung › Ngôn ngữ: Theo máy, Tiếng Việt hoặc English. Đổi xong, app tự mở lại.
-- **Cài đặt dễ hiểu hơn** (từ 0.23): mỗi tuỳ chọn nằm ở chỗ bạn sẽ tìm, câu chữ ngắn gọn; kéo để đổi thứ tự trang; ô phím ghi "Tắt" khi không dùng; cỡ notch còn 4 mức.
+- **Tự sắp xếp trang Tổng quan như widget:** bấm nút bút chì trên hàng tab, rồi kéo ô sang chỗ khác, đổi cỡ nhỏ, rộng hoặc lớn, bỏ ô không cần và thêm lại bằng "Thêm ô". Nhiều ô hơn hai hàng thì notch tự dài xuống, tối đa bốn hàng.
+- **Mỗi ô có ba cỡ:** ô nhỏ để xem nhanh, ô lớn để xem nhiều hơn (lời bài hát, sáu việc trong ngày với nút Tham gia, tới bốn bộ đếm, năm phiên agent).
+- **Chọn ngôn ngữ ngay trong app** (từ 0.24): Cài đặt › Chung › Ngôn ngữ: Theo máy, Tiếng Việt hoặc English.
 
 ---
 
-- **Choose the language in the app:** Settings › General › Language: Same as the Mac, Tiếng Việt or English. The app opens again to switch.
-- **Clearer Settings** (since 0.23): each option sits where you would look for it, in shorter words; drag to reorder pages; a key field says "Off" when unused; four notch sizes.
+- **Arrange the Overview like widgets:** press the pencil on the tab row, then drag tiles to new places, make them small, wide or large, remove the ones you don't need and add them back with "Add tile". With more tiles than two rows hold, the notch gets taller, up to four rows.
+- **Three sizes for every tile:** small ones for a quick look, large ones for more (lyrics, six items of the day with Join, up to four countdowns, five agent sessions).
+- **Choose the language in the app** (since 0.24): Settings › General › Language: Same as the Mac, Tiếng Việt or English.
 
 ## Tính năng · Features
 
+- **Tổng quan:** những gì cần xem nhanh trên một trang, bạn tự chọn ô nào, ở đâu, cỡ nào.
 - **Clipboard:** nhớ mọi thứ bạn chép (chữ, liên kết, màu, ảnh, tệp), tìm lại nhanh kể cả chữ trong ảnh, ghim vào board, khoá board bằng mật mã. Cửa sổ Thư viện để xem và sắp xếp tất cả.
 - **Nhạc:** bài đang phát, điều khiển phát nhạc, chọn loa hay tai nghe, lời bài hát.
 - **Hẹn giờ:** nhiều bộ hẹn giờ cùng lúc, có mức sẵn và nhãn.
@@ -30,6 +33,7 @@ A macOS app that turns the MacBook notch into a small control panel: clipboard, 
 
 ---
 
+- **Overview:** what you want at a glance on one page; you choose which tiles, where, and how large.
 - **Clipboard:** keeps everything you copy (text, links, colours, pictures, files), finds it again (even the text inside pictures), pins it to boards, and locks boards with a passcode. A Library window to browse and sort it all.
 - **Music:** what is playing, playback controls, picking speakers or headphones, lyrics.
 - **Timers:** several at once, with presets and labels.
