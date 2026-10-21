@@ -4,17 +4,19 @@
 
 A macOS app that turns the MacBook notch into a small control panel: clipboard, now playing, timers, calendar and reminders, a file shelf, screen capture, quick translate and the state of coding agents.
 
-## Mới trong bản 0.25.0 · New in 0.25.0
+## Mới trong bản 0.26.0 · New in 0.26.0
 
-- **Tự sắp xếp trang Tổng quan như widget:** bấm nút bút chì trên hàng tab, rồi kéo ô sang chỗ khác, đổi cỡ nhỏ, rộng hoặc lớn, bỏ ô không cần và thêm lại bằng "Thêm ô". Nhiều ô hơn hai hàng thì notch tự dài xuống, tối đa bốn hàng.
-- **Mỗi ô có ba cỡ:** ô nhỏ để xem nhanh, ô lớn để xem nhiều hơn (lời bài hát, sáu việc trong ngày với nút Tham gia, tới bốn bộ đếm, năm phiên agent).
-- **Chọn ngôn ngữ ngay trong app** (từ 0.24): Cài đặt › Chung › Ngôn ngữ: Theo máy, Tiếng Việt hoặc English.
+- **Bộ widget mới cho Tổng quan:** bảy ô thẻ tối, mỗi ô một con số chính thật to và một màu riêng dễ nhìn; chuyển sang cam đỏ khi có gì cần bạn chú ý (pin yếu, hẹn giờ sắp hết, agent đang chờ). Ô nhỏ đã đủ điều cần biết, ô lớn hơn cho thêm chi tiết và nhiều mục hơn.
+- **Giới hạn Claude đúng hơn:** bật "Lấy giới hạn từ tài khoản Claude" trong Cài đặt › Agent để thấy giới hạn 5 giờ và giới hạn tuần, kể cả khi dùng Claude trong app Claude.
+- **Lịch và agent rõ ràng hơn:** việc quá hạn được đếm và hiện riêng; phiên agent bạn bấm dừng giữa chừng hiện "Đã dừng".
+- **Tự sắp xếp Tổng quan như widget** (từ 0.25): bấm nút bút chì trên hàng tab để kéo, đổi cỡ, bỏ hay thêm ô.
 
 ---
 
-- **Arrange the Overview like widgets:** press the pencil on the tab row, then drag tiles to new places, make them small, wide or large, remove the ones you don't need and add them back with "Add tile". With more tiles than two rows hold, the notch gets taller, up to four rows.
-- **Three sizes for every tile:** small ones for a quick look, large ones for more (lyrics, six items of the day with Join, up to four countdowns, five agent sessions).
-- **Choose the language in the app** (since 0.24): Settings › General › Language: Same as the Mac, Tiếng Việt or English.
+- **A new widget set for the Overview:** seven dark cards, each with one big number and its own easy-to-see colour; a card turns orange when something needs you (low battery, a timer about to end, an agent waiting). A small card already tells you what matters; larger ones add detail and more items.
+- **Claude's limits, right:** turn on "Read limits from the Claude account" in Settings › Agents to see the five-hour and weekly limits, even when you use Claude in the Claude app.
+- **A clearer calendar and agent list:** overdue reminders are counted and shown on their own; an agent session you stopped midway shows "Stopped".
+- **Arrange the Overview like widgets** (since 0.25): press the pencil on the tab row to drag, resize, remove or add tiles.
 
 ## Tính năng · Features
 
@@ -26,7 +28,7 @@ A macOS app that turns the MacBook notch into a small control panel: clipboard, 
 - **Tệp:** thả tệp lên notch để giữ tạm, nén, đổi định dạng hay đổi cỡ ảnh.
 - **Chụp màn hình:** chụp một vùng, chụp cả trang dài bằng cách cuộn, ghi chú lên ảnh.
 - **Dịch nhanh:** chọn chữ trong bất kỳ app nào rồi dịch ngay.
-- **Agent lập trình:** xem Claude Code và Codex đang làm gì, khi nào cần bạn, khi nào xong.
+- **Agent lập trình:** xem Claude Code và Codex đang làm gì, khi nào cần bạn, khi nào xong, và còn bao nhiêu giới hạn sử dụng.
 - **Thông báo gọn gàng:** pin, Bluetooth, mạng, âm lượng, độ sáng, Caps Lock, bài hát mới và cuộc họp sắp tới hiện ngay cạnh notch.
 - **Cửa sổ:** kéo cửa sổ vào mép màn hình hay dùng phím tắt để chia đôi, chia góc.
 - Dùng được trên mọi màn hình, kể cả màn hình rời không có tai thỏ; giao diện tiếng Việt và tiếng Anh, chọn trong Cài đặt › Chung › Ngôn ngữ.
@@ -41,7 +43,7 @@ A macOS app that turns the MacBook notch into a small control panel: clipboard, 
 - **Files:** drop files on the notch to keep them at hand, compress them, convert them or resize pictures.
 - **Screen capture:** capture an area, capture a long page by scrolling, and mark up the picture.
 - **Quick translate:** select text in any app and translate it at once.
-- **Coding agents:** see what Claude Code and Codex are doing, when they need you and when they are done.
+- **Coding agents:** see what Claude Code and Codex are doing, when they need you, when they are done, and how much of their usage limits is left.
 - **Tidy notices:** battery, Bluetooth, network, volume, brightness, Caps Lock, a new song and an upcoming meeting show right beside the notch.
 - **Windows:** drag a window to a screen edge or use a shortcut to fill half or a corner of the screen.
 - Works on every display, external ones without a notch too; in Vietnamese and English, chosen in Settings › General › Language.
