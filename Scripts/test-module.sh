@@ -1,6 +1,6 @@
 #!/bin/bash
 # Runs one module's tests, after checking the module boundaries. Run Scripts/test.sh afterwards
-# for the whole suite before calling a fix done (docs/modules/README.md).
+# for the whole suite before calling a fix done (Modules/README.md).
 # Usage: Scripts/test-module.sh <Module>
 set -euo pipefail
 cd "$(dirname "$0")/.."

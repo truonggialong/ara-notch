@@ -22,22 +22,22 @@ cp "$BIN_DIR/AraNotch" "$APP/Contents/MacOS/AraNotch"
 cp "$BIN_DIR/aranotch-mcp" "$APP/Contents/MacOS/aranotch-mcp"
 # The helper Claude Code runs as a hook to report its sessions (see the Agents settings tab).
 cp "$BIN_DIR/aranotch-hook" "$APP/Contents/MacOS/aranotch-hook"
-cp Resources/Info.plist "$APP/Contents/Info.plist"
-cp -R Resources/*.lproj "$APP/Contents/Resources/"
-cp Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
+cp App/Resources/Info.plist "$APP/Contents/Info.plist"
+cp -R App/Resources/*.lproj "$APP/Contents/Resources/"
+cp App/Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 # What the app does with privacy-sensitive interfaces: no tracking, nothing collected.
-cp Resources/PrivacyInfo.xcprivacy "$APP/Contents/Resources/PrivacyInfo.xcprivacy"
+cp App/Resources/PrivacyInfo.xcprivacy "$APP/Contents/Resources/PrivacyInfo.xcprivacy"
 
 # The app's own licence (GPL-3.0) and the notices of the software it includes. The notices name
 # the Sparkle version in Package.resolved: a new Sparkle needs its licence copied in again.
 SPARKLE_VERSION="$(/usr/bin/python3 -c 'import json,sys; print(next(p["state"]["version"] for p in json.load(sys.stdin)["pins"] if p["identity"] == "sparkle"))' < Package.resolved)"
-if ! grep -q "^Sparkle $SPARKLE_VERSION " Resources/ThirdPartyNotices.txt; then
-    echo "Resources/ThirdPartyNotices.txt does not name Sparkle $SPARKLE_VERSION: copy its LICENSE in again" >&2
+if ! grep -q "^Sparkle $SPARKLE_VERSION " App/Resources/ThirdPartyNotices.txt; then
+    echo "App/Resources/ThirdPartyNotices.txt does not name Sparkle $SPARKLE_VERSION: copy its LICENSE in again" >&2
     exit 1
 fi
 # Both open from the About page, so they end in .txt.
 cp LICENSE "$APP/Contents/Resources/LICENSE.txt"
-cp Resources/ThirdPartyNotices.txt "$APP/Contents/Resources/ThirdPartyNotices.txt"
+cp App/Resources/ThirdPartyNotices.txt "$APP/Contents/Resources/ThirdPartyNotices.txt"
 
 # The updater (Sparkle) is a framework inside the app; the program finds it there.
 mkdir -p "$APP/Contents/Frameworks"

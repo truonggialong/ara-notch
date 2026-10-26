@@ -96,9 +96,9 @@ Settings › Advanced › **Remove AraNotch** takes its hooks and status line ou
 
 ## Mã nguồn · Source
 
-Mã nguồn nằm trong kho này, chia theo tính năng: mỗi tính năng là một module Swift Package (`Sources/<Tên>Core` cho phần logic có test, `Sources/<Tên>Feature` cho giao diện), có sổ riêng trong `docs/modules/`. Bắt đầu từ `docs/modules/README.md`. Dựng bằng `Scripts/build-app.sh`, chạy test bằng `Scripts/test.sh` (macOS 15, Apple Silicon).
+Mã nguồn nằm trong kho này, chia theo tính năng: mỗi tính năng có một thư mục `Modules/<Tên>/` chứa phần logic có test (`Core/`), giao diện (`Feature/`), test (`Tests/`) và sổ riêng (`README.md`). `App/` chỉ lắp ráp các tính năng. Bắt đầu từ `Modules/README.md`. Dựng bằng `Scripts/build-app.sh`, chạy test bằng `Scripts/test.sh` (macOS 15, Apple Silicon).
 
-The source code is in this repository, split by feature: each feature is a Swift Package module (`Sources/<Name>Core` for the tested logic, `Sources/<Name>Feature` for the interface), with its own guide in `docs/modules/`. Start at `docs/modules/README.md`. Build with `Scripts/build-app.sh`, test with `Scripts/test.sh` (macOS 15, Apple Silicon).
+The source code is in this repository, split by feature: each feature has one folder `Modules/<Name>/` holding its tested logic (`Core/`), its interface (`Feature/`), its tests (`Tests/`) and its own guide (`README.md`). `App/` only puts the features together. Start at `Modules/README.md`. Build with `Scripts/build-app.sh`, test with `Scripts/test.sh` (macOS 15, Apple Silicon).
 
 ## Giấy phép · License
 

@@ -1,4 +1,4 @@
-// Draws the app icon and writes Resources/AppIcon.icns: the notch on an off-white sheet,
+// Draws the app icon and writes App/Resources/AppIcon.icns: the notch on an off-white sheet,
 // with a live activity in the theme's orange under it and two quiet pills below.
 // Usage: swift Scripts/make-icon.swift [preview.png]   (from the repository root; needs iconutil)
 import AppKit
@@ -73,7 +73,7 @@ if CommandLine.arguments.count > 1 {
 }
 let tool = Process()
 tool.executableURL = URL(fileURLWithPath: "/usr/bin/iconutil")
-tool.arguments = ["-c", "icns", iconset.path, "-o", "Resources/AppIcon.icns"]
+tool.arguments = ["-c", "icns", iconset.path, "-o", "App/Resources/AppIcon.icns"]
 try tool.run()
 tool.waitUntilExit()
-print(tool.terminationStatus == 0 ? "wrote Resources/AppIcon.icns" : "iconutil failed")
+print(tool.terminationStatus == 0 ? "wrote App/Resources/AppIcon.icns" : "iconutil failed")

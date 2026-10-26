@@ -4,9 +4,9 @@
 
 ## Làm việc theo module
 
-- Trước mọi việc với mã, đọc `docs/modules/README.md` (bản đồ module, luật ranh giới, quy trình sửa lỗi), rồi sổ của module liên quan `docs/modules/<Module>.md`.
+- Trước mọi việc với mã, đọc `Modules/README.md` (bản đồ module, luật ranh giới, quy trình sửa lỗi), rồi sổ của module liên quan `Modules/<Module>/README.md`.
 - Repo này không dùng graphify (đã bỏ ngày 2026-10-26). Không chạy `graphify` ở đây, kể cả khi hướng dẫn chung trong `~/CLAUDE.md` nói khác.
-- Sửa lỗi trong đúng module chứa lỗi, theo 5 bước ở `docs/modules/README.md`: tìm module, tái hiện bằng test trong module đó, sửa trong module đó, kiểm chứng, ghi sổ. Không sửa cục bộ ở module khác để che lỗi.
+- Sửa lỗi trong đúng module chứa lỗi, theo 5 bước ở `Modules/README.md`: tìm module, tái hiện bằng test trong module đó, sửa trong module đó, kiểm chứng, ghi sổ. Không sửa cục bộ ở module khác để che lỗi.
 - Đổi giao diện công khai mà module khác dùng (hàm `public`, khoá lưu UserDefaults, case của `ShortcutAction`): báo chủ dự án trước.
 
 ## Lệnh

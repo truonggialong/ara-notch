@@ -5,7 +5,7 @@
 # Builds the disk image (Scripts/make-dmg.sh), signs it with the update key and writes the
 # feed the app reads, appcast.xml, into build/release/v<version>/ beside the image. The feed
 # names one release, this one: the app asks for the file attached to whichever release is the
-# latest (see SUFeedURL in Resources/Info.plist).
+# latest (see SUFeedURL in App/Resources/Info.plist).
 #
 # The update key is a file, not a keychain item: $ARANOTCH_UPDATE_KEY or
 # ~/.aranotch/update-signing.key (made by Scripts/update/make-signing-key.swift). Keep a copy
@@ -37,7 +37,7 @@ TOOLS=".build/artifacts/sparkle/Sparkle/bin"
 [[ -f "$KEY" ]] || { echo "no update key at $KEY (see Scripts/update/make-signing-key.swift)" >&2; exit 1; }
 
 Scripts/make-dmg.sh
-VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' Resources/Info.plist)"
+VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' App/Resources/Info.plist)"
 TAG="v$VERSION"
 DMG="build/AraNotch-$VERSION.dmg"
 OUT="build/release/$TAG"
