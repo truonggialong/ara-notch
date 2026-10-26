@@ -39,6 +39,9 @@ struct AboutPage: View {
                         row("about.notch", value: L10n.string(geometry.hasPhysicalNotch ? "about.notch.physical" : "about.notch.virtual"))
                         row("about.size", value: sizeText(geometry.closedRect.size))
                     }
+                    if let licence = Self.bundledText("LICENSE"), let notices = Self.bundledText("ThirdPartyNotices") {
+                        LicenceRow(licence: licence, notices: notices)
+                    }
                 }
                 HStack(spacing: 6 * ui) {
                     if let onShowGuide {
@@ -70,6 +73,12 @@ struct AboutPage: View {
             .monospacedDigit()
     }
 
+    /// A text file the build copies into the app (see Scripts/build-app.sh); none when the
+    /// program runs outside an app bundle.
+    private static func bundledText(_ name: String) -> URL? {
+        Bundle.main.url(forResource: name, withExtension: "txt")
+    }
+
     private var version: String {
         let info = Bundle.main.infoDictionary
         let short = info?["CFBundleShortVersionString"] as? String ?? "–"
@@ -80,5 +89,45 @@ struct AboutPage: View {
     private func sizeText(_ size: CGSize) -> String {
         let format = FloatingPointFormatStyle<Double>.number.precision(.fractionLength(0...1))
         return "\(Double(size.width).formatted(format)) × \(Double(size.height).formatted(format))"
+    }
+}
+
+/// "Licence · GPL-3.0 · Acknowledgements", set like the fact rows above it; each name opens
+/// its file from the app.
+private struct LicenceRow: View {
+    @Environment(\.araScale) private var ui
+    @Environment(\.araHue) private var hue
+    let licence: URL
+    let notices: URL
+
+    var body: some View {
+        HStack(spacing: 4 * ui) {
+            Text(L10n.string("about.licence"))
+                .font(.system(size: 10 * ui, weight: .semibold))
+                .foregroundStyle(AraPalette.label(in: hue))
+            dot
+            link("GPL-3.0", opening: licence)
+            dot
+            link(L10n.string("about.licence.notices"), opening: notices)
+        }
+        .lineLimit(1)
+    }
+
+    private var dot: some View {
+        Text("·")
+            .font(.system(size: 10 * ui, weight: .semibold))
+            .opacity(0.45)
+    }
+
+    private func link(_ title: String, opening url: URL) -> some View {
+        Button {
+            NSWorkspace.shared.open(url)
+        } label: {
+            Text(title)
+                .font(.system(size: 10 * ui, weight: .medium))
+                .underline()
+                .opacity(0.68)
+        }
+        .buttonStyle(.plain)
     }
 }

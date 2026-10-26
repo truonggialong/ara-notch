@@ -35,7 +35,8 @@ if ! grep -q "^Sparkle $SPARKLE_VERSION " Resources/ThirdPartyNotices.txt; then
     echo "Resources/ThirdPartyNotices.txt does not name Sparkle $SPARKLE_VERSION: copy its LICENSE in again" >&2
     exit 1
 fi
-cp LICENSE "$APP/Contents/Resources/LICENSE"
+# Both open from the About page, so they end in .txt.
+cp LICENSE "$APP/Contents/Resources/LICENSE.txt"
 cp Resources/ThirdPartyNotices.txt "$APP/Contents/Resources/ThirdPartyNotices.txt"
 
 # The updater (Sparkle) is a framework inside the app; the program finds it there.

@@ -580,6 +580,8 @@
 "welcome.permission.reminders.reason" = "Để liệt kê lời nhắc và tạo lời nhắc từ một clip";
 "welcome.done" = "Bắt đầu dùng AraNotch";
 "about.guide" = "Xem hướng dẫn";
+"about.licence" = "Giấy phép";
+"about.licence.notices" = "Ghi công";
 "page.media.untitled" = "Đang phát";
 "page.media.soundOnly" = "Đang phát âm thanh";
 "page.media.alsoPlaying" = "Cũng đang phát: %@";

@@ -40,7 +40,7 @@ Hỏi và hiển thị trạng thái các quyền (Trợ năng, Lịch, Lời nh
 
 ## Tệp
 
-- `Sources/AraNotch/AboutPage.swift` — The app's own card: its icon, its name in the display face, and the facts about this copy and this notch.
+- `Sources/AraNotch/AboutPage.swift` — The app's own card: its icon, its name in the display face, the facts about this copy and this notch, and its licence and acknowledgements.
 - `Sources/AraNotch/AppDelegate.swift`
 - `Sources/AraNotch/AppRelauncher.swift` — Opens the app again, for a change that takes effect only at launch (the language).
 - `Sources/AraNotch/AppUpdater.swift` — Looks for a newer version of the app among its releases, and downloads and installs it.
@@ -59,7 +59,8 @@ Hỏi và hiển thị trạng thái các quyền (Trợ năng, Lịch, Lời nh
 
 ## Giấy phép và ghi công
 
-- `build-app.sh` chép `LICENSE` (GPL-3.0 của AraNotch) và `Resources/ThirdPartyNotices.txt` vào `Contents/Resources/` của app. Đó là cách giữ điều kiện của giấy phép MIT mà Sparkle dùng.
+- `build-app.sh` chép `LICENSE` (GPL-3.0 của AraNotch, đổi tên thành `LICENSE.txt`) và `Resources/ThirdPartyNotices.txt` vào `Contents/Resources/` của app. Đó là cách giữ điều kiện của giấy phép MIT mà Sparkle dùng.
+- Trang Giới thiệu có dòng "Giấy phép · GPL-3.0 · Ghi công" (`LicenceRow` trong `AboutPage.swift`). Bấm vào mỗi chữ thì mở tệp tương ứng bằng app đọc chữ mặc định. Dòng này ẩn khi chạy ngoài gói app (không có hai tệp đó).
 - `ThirdPartyNotices.txt` ghi rõ phiên bản Sparkle. Nếu phiên bản trong `Package.resolved` khác, script dừng lại; khi đó chép lại `LICENSE` của Sparkle từ `.build/checkouts/Sparkle/` rồi đổi số phiên bản trong tệp.
 - Thêm thư viện bên ngoài nào khác thì cũng chép giấy phép của nó vào tệp này.
 
@@ -79,3 +80,4 @@ Mỗi dòng: ngày — lỗi hoặc thay đổi — test đã thêm — commit.
 
 - 2026-10-26 — tái cấu trúc theo module (nhánh `refactor/feature-modules`): Overview và Tools chuyển ra module riêng; `AboutPage` có tệp riêng, `Pages.swift` bị bỏ; dòng "Đặt lại bố cục" của Cài đặt › Trang lấy từ `OverviewController.makeSettingsRow()`.
 - 2026-10-26 — app chưa kèm giấy phép nào, trong khi giấy phép MIT của Sparkle đòi kèm lời ghi công. `build-app.sh` nay chép `LICENSE` và `Resources/ThirdPartyNotices.txt` vào app, và dừng lại nếu tệp ghi công không đúng phiên bản Sparkle. Không có test tự động: đã dựng app, so tệp, kiểm chữ ký, và thử trường hợp lệch phiên bản.
+- 2026-10-26 — trang Giới thiệu có dòng "Giấy phép · GPL-3.0 · Ghi công", bấm vào mở tệp trong app; giấy phép trong app nay tên là `LICENSE.txt`. Không có test tự động: chụp trang bằng `--snapshot-dir` trên bản thử riêng; chưa bấm bằng chuột thật.

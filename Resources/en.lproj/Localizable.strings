@@ -580,6 +580,8 @@
 "welcome.permission.reminders.reason" = "To list your reminders and make one from a clip";
 "welcome.done" = "Start using AraNotch";
 "about.guide" = "Show the guide";
+"about.licence" = "Licence";
+"about.licence.notices" = "Acknowledgements";
 "page.media.untitled" = "Playing";
 "page.media.soundOnly" = "Playing sound";
 "page.media.alsoPlaying" = "Also playing: %@";
