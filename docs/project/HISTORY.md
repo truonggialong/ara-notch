@@ -1,0 +1,654 @@
+# AraNotch — Lịch sử xây dựng
+
+Ghi lại các vòng làm việc, quyết định và lỗi đã gặp, theo thứ tự thời gian. Bổ sung một mục mới sau mỗi vòng, và cập nhật sổ của module liên quan trong `docs/modules/`. (Trước 2026-10-26 dự án dùng đồ thị graphify; các mục cũ dưới đây còn nhắc tới nó.)
+
+## 2026-10-11 — Khởi đầu
+
+**Yêu cầu của chủ dự án:** xem tryonenotch.com và một bài đăng Facebook của tác giả OneNotch, rồi làm một ứng dụng tương tự.
+
+**Nghiên cứu:** đã đọc trang chủ, trang tính năng, câu hỏi thường gặp, trang so sánh và toàn bộ changelog của OneNotch (17 bản từ v1.0.0 ngày 27/6/2026 tới v2.0.4 ngày 8/10/2026), cùng nội dung bài đăng Facebook. Hình ảnh của video trong bài đăng chưa xem được.
+
+**Quyết định của chủ dự án:**
+
+- Mục đích: phát hành thành sản phẩm cho người khác.
+- Định vị: bộ tính năng rộng như OneNotch.
+- Vạch phát hành: gần ngang toàn bộ tính năng OneNotch rồi mới phát hành.
+- Cách làm: Claude tự thực hiện.
+
+**Giả định do Claude chốt:** tên tạm AraNotch; macOS 15 trở lên, Apple silicon; Swift 6, SwiftUI và AppKit, build bằng Swift Package Manager; phân phối ngoài Mac App Store.
+
+**Môi trường:** MacBook Pro M4 có notch (màn hình 1512×982 điểm, notch 185×32), macOS 27.0.1, chỉ có Command Line Tools, chưa có Xcode.
+
+## Vòng 1 — Khung notch
+
+- Làm: hình học notch, máy trạng thái đóng mở, danh sách trang, cài đặt, bộ gom cử chỉ vuốt; cửa sổ notch, theo dõi con trỏ, view; app, icon thanh menu, Cài đặt.
+- Lỗi môi trường: build lại test thì trình biên dịch không nạp được plugin macro của Swift Testing khi chỉ có Command Line Tools. Cách vòng: `Scripts/test.sh` nạp plugin tường minh.
+- Lỗi do Claude gây ra và đã sửa: test cài đặt để lại tệp rác trong `~/Library/Preferences`. Giờ test dùng `InMemoryDefaults`.
+- Chủ dự án từ chối quyền điều khiển máy hai lần, nên vòng này kiểm bằng ảnh app tự vẽ (`--snapshot-dir`).
+
+## Vòng 2a — Clipboard cơ bản
+
+- Làm: mô hình, phân loại nội dung, phân tích màu, quy tắc riêng tư, truy vấn tìm kiếm, kho SQLite, cài đặt; theo dõi và đọc ghi clipboard, trang Clipboard trên notch.
+- Lỗi tìm ra khi kiểm chứng: bỏ sót nội dung khi app khác xoá clipboard rồi mới ghi sau một khoảnh khắc. Sửa bằng `PasteboardChangeTracker` thử lại lượt đọc rỗng hai lần.
+- Phát hiện: SDK macOS 27 biến `@State` của SwiftUI thành macro, plugin chỉ có trong Xcode. Quy ước: dùng `ObservableObject` thay cho `@State`.
+
+## Vòng 2b — Panel clipboard và bàn phím
+
+- Làm: lựa chọn mục, bảng ánh xạ phím, vị trí panel; phím tắt toàn cục ⌘⇧C bằng Carbon; panel nổi; bộ định tuyến phím.
+- Quyết định: ⌘1 đến ⌘9 dán thẳng mục thứ n.
+- Ghi chú: lệnh `log` của zsh che mất `/usr/bin/log`; phải gọi đường dẫn đầy đủ khi đọc log hệ thống.
+
+## Vòng 2c — Tô màu code và giữ định dạng
+
+- Làm: `CodeDetector`, `CodeTokenizer`; lưu RTF và HTML kèm mục văn bản; lược đồ kho phiên bản 2.
+- Quyết định: code không phải loại mục mới, chỉ nhận diện lúc hiển thị, để không đổi mã băm.
+
+## Vòng 2d — Xem trước liên kết
+
+- Quyết định của chủ dự án: mặc định bật, có công tắc để tắt.
+- Làm: `LinkPreviewPolicy` (không tự tải liên kết nội bộ, có thông tin đăng nhập, hoặc trông giống liên kết dùng một lần), `LinkMetadataParser`, lược đồ kho phiên bản 3, `LinkPreviewFetcher`.
+- Kiểm chứng bằng một máy chủ web cục bộ để không gửi yêu cầu ra internet.
+
+## Vòng 5a — Thông báo hệ thống
+
+- Làm: hàng đợi hoạt động trực tiếp và hình học `compactRect` trong khung notch; bộ dò sự kiện nguồn, Caps Lock, mạng; ba công tắc trong Cài đặt.
+- Quyết định: Caps Lock được đọc mỗi 0,3 giây thay vì theo dõi phím, để không cần quyền Trợ năng.
+
+## Vòng dọn dẹp — Cài đặt chia tab
+
+- Làm: `SettingsTab`, `SettingsNavigation`; mỗi mảng tự cung cấp tab của mình.
+- Đo bộ nhớ: bộ nhớ riêng của app khi rảnh là 33 MB (`footprint`). Con số 102 MB báo trước đó là RSS, tính cả trang framework dùng chung, nên gây hiểu nhầm.
+
+## Vòng 3a — Board và ghim
+
+- Làm: bảng `boards` và `board_items`, lược đồ kho phiên bản 4; hàng chip board, hàng soạn board, mục menu "Ghim vào".
+- Thay đổi hành vi: "Xoá lịch sử" giữ lại mục đã ghim; giới hạn số mục chỉ tính mục chưa ghim.
+
+## Chạy thử bằng tay lần đầu
+
+**Yêu cầu của chủ dự án:** chạy thử app để tìm lỗi từng tính năng, sửa lỗi trước rồi bổ sung tính năng còn thiếu, không cần hỏi lại, tự gộp về `main`.
+
+Chủ dự án cấp quyền điều khiển máy cho AraNotch và TextEdit. Đã thử: rê chuột mở notch, chuyển tab, Cài đặt, ghi clipboard thật, bấm thẻ, tìm kiếm, phím mũi tên, ⌘⇧C, panel, ghim qua menu chuột phải, Caps Lock thật, xem trước liên kết thật.
+
+Ba lỗi tìm ra và đã sửa (commit `8ff352a`):
+
+1. Ô tên board không nhận bàn phím: cửa sổ notch là first responder nhưng không phải key window. Sửa: gọi `makeKey()` khi một ô xin tiêu điểm.
+2. ⌘W, ⌘Q, ⌘A, ⌘X, ⌘C, ⌘V không hoạt động vì app phụ trợ không có menu chính. Sửa: thêm `MainMenu`.
+3. App tự ghi lại chữ cắt hay chép trong ô tìm kiếm của chính nó. Sửa: bỏ qua thay đổi clipboard khi một cửa sổ của app đang giữ tiêu điểm, và đọc clipboard ngay trước khi notch hoặc panel có thể nhận tiêu điểm.
+
+## Vòng 3a bổ sung — Board trong panel
+
+- Làm: panel dùng chung danh sách với trang notch, có hàng chip board, biểu tượng ghim và menu chuột phải.
+
+## Vòng 9a — Hẹn giờ
+
+- Làm: `CountdownTimer`, `TimerFormat`, cài đặt; trang Hẹn giờ; đếm ngược bên notch; báo hết giờ kèm âm thanh.
+- Đã thử bằng tay: bắt đầu, tạm dừng, tiếp tục, đếm ngược khi notch đóng.
+
+## Vòng 3b — Khoá board bằng mật mã
+
+- Làm: `VaultCrypto` (PBKDF2-HMAC-SHA256 600 000 vòng, AES-256-GCM, khoá dữ liệu được bọc bằng khoá suy từ mật mã); két trong kho, lược đồ phiên bản 5; hàng nhập mật mã; tự khoá sau 5 phút.
+- Quyết định thiết kế: mục trong board bị khoá chỉ thuộc về board bị khoá và không hiện ở "Tất cả".
+- Lỗi thứ tư tìm ra khi thử bằng tay: ô nhập mật mã không tự nhận bàn phím khi vừa hiện ra. Sửa tận gốc bằng `FieldFocus`, thử lại cho tới khi ô lên màn hình.
+
+## Yêu cầu về bộ nhớ dự án
+
+**Yêu cầu của chủ dự án:** dùng graphify để lưu lịch sử phiên làm việc và kho dữ liệu tính năng; mỗi khi có tính năng mới thì bổ sung vào graphify; dùng nó để nhớ toàn bộ tính năng và lịch sử chỉnh sửa, tránh bỏ sót kế hoạch. Ưu tiên bổ sung tính năng theo kế hoạch và chạy tốt trên máy của chủ dự án; chưa cần cải thiện UX/UI.
+
+- Làm: viết `docs/project/FEATURES.md` (sổ tính năng) và tài liệu này; dựng đồ thị graphify trên mã nguồn và tài liệu.
+- Quy trình từ nay: sau mỗi tính năng, cập nhật hai tài liệu trên rồi chạy `graphify . --update`; trước khi chọn việc tiếp theo, đọc mục "Tính năng còn thiếu" trong sổ tính năng.
+
+## Vòng A1 đến A4 — Tiện ích clipboard và thông báo Bluetooth
+
+- Làm: thông báo thiết bị Bluetooth (`BluetoothMonitor`, `BluetoothDeviceKind`, `BluetoothEventFilter`); âm thanh và thông báo "Đã chép"; tự xoá mục chưa ghim theo thời gian (`ClipRetention`, `deleteUnpinned(olderThan:)`); giao diện danh sách app không ghi lại.
+- Lỗi nghiêm trọng tìm ra trước khi gộp: `IOBluetoothDevice.register(forConnectNotifications:)` chặn luồng chính cho tới khi người dùng trả lời hộp thoại xin quyền Bluetooth, làm cả app treo lúc khởi động. Sửa: hỏi quyền trước bằng CoreBluetooth (không chặn), chỉ đăng ký IOBluetooth khi đã được cho phép.
+- Cửa sổ Cài đặt cao lên 640 điểm để chứa mục app không ghi lại.
+- Chưa thử bằng tay menu "Thêm app đang chạy": một hộp thoại hệ thống đang hiện trên màn hình và Claude không được phép thao tác với nó.
+- Từ vòng này, các thay đổi nhỏ trên phần đã có không viết spec và plan riêng; ghi vào sổ tính năng và lịch sử này.
+
+## Vòng A5 — Sửa và dọn văn bản
+
+- Làm: `TextTransform` (17 công cụ, 5 nhóm) trong ClipboardCore; menu chuột phải dùng chung `ClipContextMenu` cho trang notch và panel, có mục con "Sửa văn bản"; tham số kiểm chứng `--transform <tên công cụ>`.
+- Quyết định: kết quả là một mục mới (giữ app nguồn của mục gốc) và được chép sẵn lên clipboard; mục gốc không đổi. Định dạng JSON chỉ dàn lại khoảng trắng nên giữ nguyên thứ tự khoá và cách viết số. Mục trong board bị khoá không có menu này, để nội dung két không rơi ra lịch sử thường.
+- Đã thử bằng tay: chuột phải vào thẻ trên notch, chọn snake_case; mục mới hiện đầu hàng và clipboard nhận đúng kết quả.
+- Bài học khi chạy thử: chạy thẳng tệp thực thi của app từ shell làm app bị macOS dừng (thiếu mô tả quyền Bluetooth của tiến trình cha). Phải mở qua `open … --args`.
+- Hộp thoại hệ thống (UserNotificationCenter) vẫn nằm trên màn hình của chủ dự án; Claude không thao tác với nó, nên phần chọn mục menu được làm bằng phím mũi tên.
+
+## Vòng A6 — Sao lưu và nhập
+
+- Làm: `ClipBackup` (tệp JSON phiên bản 1, dữ liệu nhị phân dạng Base64), `makeBackup` và `restore` trong kho; mục "Sao lưu" trong tab Clipboard của Cài đặt với hai nút Xuất và Nhập; tham số kiểm chứng `--export-backup <tệp>` và `--restore-backup <tệp>`.
+- Quyết định có liên quan quyền riêng tư (chọn phương án an toàn hơn, không hỏi lại): bản sao lưu không bao giờ chứa mục trong két hay board bị khoá, kể cả khi két đang mở; khi nhập không ghim vào board bị khoá.
+- Quyết định: nhập là gộp, không thay thế. Mục đã có giữ nguyên ngày và vị trí; mục mới giữ ngày gốc; giới hạn số mục chỉ áp dụng sau khi đã ghim xong, để mục đã ghim trong bản sao lưu không bị cắt.
+- Thay đổi trong kho: tách `insert` (nội bộ) khỏi `add` để có thể thêm mục mà không đẩy mục trùng lên đầu và không cắt lịch sử ngay.
+- Thêm `Scripts/graph-update.py` (hai bước `prepare` và `finish`) để cập nhật đồ thị graphify sau mỗi vòng.
+
+## Vòng A7 — Cửa sổ Library
+
+- Làm: `LibraryFilter` và `LibrarySidebar` trong ClipboardCore; `LibraryView`, `LibraryModel`, `LibraryWindowController` trong ClipboardFeature; mục "Thư viện clipboard…" (⌘L) trong menu của icon thanh menu; tham số kiểm chứng `--show-library`, `--library-filter`, `--library-layout`.
+- Dọn dẹp đi kèm: phần xem trước lớn của panel được tách thành `ClipPreviewView` để panel và inspector dùng chung.
+- Quyết định: Library dùng chung dữ liệu và các hành động với trang notch (cùng `ClipboardViewModel`), nhưng có bộ lọc, ô tìm kiếm và lựa chọn riêng. Board bị khoá không xuất hiện trong Library.
+- Đã thử bằng tay: lọc theo app Safari, lọc theo Ảnh, tìm "hop" ra "Lịch họp…", đổi giữa lưới và danh sách, nút Sao chép đưa đúng nội dung lên clipboard.
+
+## Vòng A8 — Công cụ màu
+
+- Làm: `ClipColor.parse(_:allowingBareHex:)`, `ClipColor.Format` và `formatted(as:)` (HEX, RGB, HSL, có kênh alpha); bộ phân loại và kho nhận tuỳ chọn `recognisesBareHexColors`; cài đặt `bareHexColors` (mặc định tắt) cùng công tắc trong tab Clipboard; mục menu "Chép màu dạng"; tham số kiểm chứng `--copy-color <hex|rgb|hsl>`.
+- Quyết định: mã hex trần chỉ nhận 6 hoặc 8 chữ số, không nhận 3 chữ số vì quá dễ trùng từ hay số thường. Loại của mục được chốt lúc chép (loại nằm trong mã băm), nên bật tắt tuỳ chọn không đổi mục cũ.
+- Dọn dẹp đi kèm: công cụ văn bản và chép màu dùng chung một hàm `derive` trong `ClipboardController`.
+- Khi chạy thử đã ghi tạm khoá `clipboard.bareHexColors` vào cài đặt thật của app rồi xoá đi sau đó.
+
+## Vòng A9 — Kéo thả
+
+- Làm: `moveItem(_:inBoard:before:at:)` trong kho; `ClipDrag` (nội dung cho app khác, kèm mã mục cho chính app qua kiểu `com.aranotch.clip-id` khai báo trong Info.plist); thẻ trên notch, dòng trong panel và mục trong Library đều kéo được; chip board và dòng board trong Library nhận thả để ghim; thả lên thẻ khác trong một board để đổi thứ tự.
+- Quyết định: thứ tự trong board được ghi bằng cách viết lại ngày ghim, không thêm cột và không đổi phiên bản lược đồ. Mục ghim sau vẫn đứng đầu.
+- Chưa làm: chọn nhiều mục để kéo cùng lúc. Tách thành mục A9b trong sổ tính năng.
+- Đã thử bằng tay cả ba đường: ghim bằng kéo, sắp xếp bằng kéo, kéo chữ sang TextEdit (tài liệu thử đã bỏ, không lưu).
+- Bộ nhớ dự án: phần nội dung graphify của hai tài liệu này từ nay nằm trong `Scripts/graph-docs.py` dưới dạng dữ liệu. Sau mỗi vòng chỉ cần thêm vài dòng vào đó rồi chạy `graph-update.py`, không phải nhờ một subagent đọc lại tài liệu (mỗi lượt như vậy tốn hơn một trăm nghìn token).
+
+## Vòng A10 — Ghim panel
+
+- Làm: nút ghim trên panel; panel đã ghim không đóng khi mất tiêu điểm, và sau khi dán hay chép thì vẫn hiện nhưng trả bàn phím về app của người dùng (ẩn rồi hiện lại không nhận tiêu điểm) để lệnh dán tới đúng nơi. Esc vẫn đóng panel.
+- Quyết định: giao diện sáng cho panel là việc thuần giao diện, dời sang nhóm D mới trong sổ tính năng theo ưu tiên của chủ dự án (tính năng trước, giao diện sau).
+
+## Khảo sát A11 — Đọc bài đang phát
+
+Thử trực tiếp trên máy chủ dự án (macOS 27.0.1), không cài thêm gì:
+
+- Gọi `MRMediaRemoteGetNowPlayingInfo` của framework riêng MediaRemote từ một tệp thực thi tự build (ký ad-hoc như AraNotch): trả về rỗng. Hạn chế của Apple từ macOS 15.4 vẫn còn.
+- Gọi cùng hàm đó qua một trình thông dịch do Apple ký thì có dữ liệu. Cụ thể `/usr/bin/osascript -l JavaScript` nạp MediaRemote và đọc `MRNowPlayingRequest` (app đang phát, đang phát hay dừng, tên bài, nghệ sĩ, album, thời lượng, vị trí, ảnh bìa nếu có): mỗi lần gọi mất khoảng 0,1 giây, không hiện hộp thoại xin quyền nào.
+- Gửi lệnh điều khiển (`MRMediaRemoteSendCommand`) thì tệp tự build gọi thẳng được; đã thử lệnh tạm dừng lúc không có gì đang phát.
+- Kết luận cho A12a: chạy một tiến trình `osascript` phụ sống cùng app để đọc và in ra thay đổi; gửi lệnh trực tiếp từ app. Không cần quyền Tự động hoá và không phải tải mã của bên thứ ba.
+- Rủi ro đã biết: đây là API riêng của Apple, có thể đổi hoặc bị chặn ở bản macOS sau; cách này không dùng được cho bản phát hành qua Mac App Store (dự án vốn phân phối ngoài App Store).
+
+## Vòng A12a — Trang Đang phát
+
+- Làm: hai module mới `MediaCore` (`NowPlaying`, `NowPlayingParser`, `MediaCommand`, `MediaSettingsStore`) và `MediaFeature` (`NowPlayingHelper` chạy `osascript`, `MediaCommands`, `MediaController`, `NowPlayingPageView`, tab Nhạc trong Cài đặt); tham số kiểm chứng `--simulate-now-playing <json>`.
+- Quyết định: tiến trình phụ chỉ in ra khi có thay đổi và tự thoát khi tiến trình cha không còn; nếu nó chết thì khởi động lại tối đa 3 lần. Vị trí phát được tính từ lần báo cuối cộng thời gian trôi, nên thanh tiến độ chạy mượt mà không cần hỏi hệ thống liên tục. Ảnh bìa chỉ gửi một lần mỗi khi đổi.
+- Quyết định về quyền riêng tư: tính năng bật mặc định vì dữ liệu chỉ hiển thị trên máy, có công tắc tắt hẳn (khi tắt thì không chạy tiến trình phụ).
+- Dữ liệu thật trên máy lúc thử là một mục đang tạm dừng trong app Claude; trang hiện đúng. Không bấm nút phát để tránh làm máy phát tiếng lúc chủ dự án không có mặt.
+
+## Vòng A12b — Thiết bị âm thanh và sóng nhạc
+
+- Làm: `AudioOutput` (loại kết nối, biểu tượng) trong MediaCore; `AudioOutputs` đọc và đổi thiết bị ra mặc định qua Core Audio; menu chọn thiết bị ở góc trang Đang phát; `PlayingBarsView`; tham số kiểm chứng `--print-audio-outputs <tệp>`.
+- Quyết định: sóng nhạc là hoạt hình giả, vì đo âm thanh thật cần quyền ghi âm thanh hệ thống (thuộc nhóm B).
+- Để lại cho chủ dự án quyết (mục A12c): lời bài hát cần gửi tên bài và nghệ sĩ tới một dịch vụ bên ngoài, tức là để lộ thói quen nghe nhạc cho bên thứ ba.
+
+## Vòng A16, A18, A20 — Tuỳ chọn của notch
+
+- Làm: `PageRegistry` biết thứ tự, trang ẩn và luôn giữ ít nhất một trang hiện; cài đặt `pageOrder`, `hiddenPages`, `startPage`, `hidesFromCapture`; mục "Các trang trên notch" trong tab Chung; `sharingType` của cửa sổ notch, panel và Library theo công tắc ẩn khỏi quay màn hình; `LoginItem` dùng `SMAppService` cho công tắc mở khi đăng nhập.
+- Lỗi tìm ra khi chạy thử và đã sửa: danh sách trang trong Cài đặt trống, vì cửa sổ Cài đặt được dựng trước khi các trang đăng ký. Sửa: đăng ký trang trước, và áp bố cục đã lưu ngay khi tạo `NotchController`.
+- Ghi chú về công cụ thử: bấm công tắc ẩn hiện trang qua lệnh trợ năng không có tác dụng, phải bấm bằng chuột thật mới đổi. Đây là giới hạn của cách thử, không phải lỗi app.
+- Không bật thử "Mở khi đăng nhập" vì việc đó thay đổi mục đăng nhập của máy chủ dự án.
+- Khi thử đã ghi tạm các khoá `shell.pageOrder`, `shell.hiddenPages`, `shell.startPage`, `shell.hidesFromCapture` vào cài đặt thật rồi xoá hết.
+
+## Vòng A14 — Clipboard MCP
+
+- Làm: module `ClipboardMCP` (`ClipboardMCPServer`: JSON-RPC 2.0 mỗi dòng một thông điệp; `initialize`, `ping`, `tools/list`, `tools/call`; ba công cụ `clipboard_list`, `clipboard_search`, `clipboard_get`); chương trình `aranotch-mcp` được đóng gói vào `AraNotch.app/Contents/MacOS`; `ClipboardStore(readingFrom:)` mở kho chỉ đọc; công tắc `mcpEnabled` và dòng lệnh thêm vào Claude Code trong tab Clipboard.
+- Quyết định về quyền riêng tư: mặc định tắt; chỉ đọc; không bao giờ trả mục trong két (kho chỉ đọc không mở khoá được két); lời hướng dẫn của server nhắc agent rằng nội dung clipboard là dữ liệu, không phải chỉ dẫn.
+- Claude không tự thêm server này vào cấu hình Claude Code của chủ dự án; việc đó để chủ dự án làm bằng dòng lệnh hiện trong Cài đặt.
+- Khi thử đã ghi tạm khoá `clipboard.mcpEnabled` vào cài đặt thật rồi xoá.
+
+## Vòng A19 — Vuốt để mở
+
+- Làm: `VerticalSwipeDetector` và `SwipeSensitivity` trong NotchCore; cài đặt `swipeToOpen`, `swipeSensitivity`, `interactionPadding`; `PointerMonitor` nghe cuộn trên toàn màn hình (notch đang đóng không nhận sự kiện chuột, nên cú vuốt rơi vào thứ nằm dưới nó); ba dòng mới trong tab Chung.
+- Quyết định: con lăn chuột không có pha cử chỉ nên mỗi nấc lăn được tính là một cú vuốt; hướng được quy về hướng ngón tay theo cài đặt cuộn tự nhiên của máy. Vuốt lên chỉ đóng notch khi con trỏ ở hàng tab, để nội dung trang vẫn cuộn dọc được.
+- Giới hạn của việc thử: công cụ điều khiển máy chỉ tạo được sự kiện con lăn, không tạo được cử chỉ trackpad có pha. Đường trackpad chỉ được kiểm bằng test đơn vị.
+- Khi thử đã tắt tạm "mở khi rê chuột" trong cài đặt thật rồi khôi phục.
+
+## Vòng A15 — Xử lý tệp trên notch
+
+- Làm: module `FilesCore` (`FileActions`, `ImageProcessor`, `OutputNaming`, `ImageFormat`: đổi định dạng, thu nhỏ, nén, gộp PDF bằng Image I/O và Core Graphics; tệp chỉ hiện ra dưới tên cuối khi đã ghi xong) và `FilesFeature` (`FilesController`, `FilesPageView`, AirDrop, hiện trong Finder); tham số kiểm chứng `--drop-files`, `--file-action`.
+- Lỗi tìm ra khi kéo thả thật và đã sửa: notch không mở khi đang kéo tệp tới, vì trong lúc kéo hệ thống không gửi sự kiện chuột cho các bộ theo dõi. Sửa: `PointerMonitor` theo dõi con trỏ bằng đồng hồ trong lúc nút chuột đang giữ, và báo khi vùng kéo thả của hệ thống đang mang tệp.
+- Sửa kèm: mục loại tệp kéo ra từ lịch sử giờ mang đường dẫn tệp (file URL) như Finder, thay vì nội dung tệp.
+- Quyết định: kết quả không bao giờ ghi đè (trùng tên thì thêm số); thư mục gốc không ghi được thì kết quả vào Downloads. Tệp gốc không bị đụng tới.
+- Trong lúc thử, Stage Manager trên máy chủ dự án nhiều lần đẩy cửa sổ Library sang dải bên trái, và hộp thoại hệ thống vẫn chặn một số cú bấm; vì vậy các nút xử lý chưa được bấm tay.
+
+## Vòng A9b — Chọn nhiều mục
+
+- Làm: `ClipMultiSelection` trong ClipboardCore; Library dùng lựa chọn nhiều mục; `ClipDrag` mang nhiều mã mục trong một lần kéo và nơi nhận xử lý lần lượt từng mục; inspector khi chọn nhiều có Ghim vào, Chép chữ, Xoá.
+- Lỗi tìm ra khi thử và đã sửa: ⌘-bấm bị coi như bấm thường. Nguyên nhân: thẻ có cả cử chỉ bấm đúp, nên cú bấm đơn bị giữ lại hết thời gian chờ bấm đúp rồi mới xử lý, lúc đó phím ⌘ đã nhả; ngoài ra app đọc trạng thái bàn phím thay vì phím của chính cú bấm. Sửa: Library chỉ còn cử chỉ bấm đơn và đọc phím từ sự kiện đang xử lý. Thử gắn cử chỉ bấm "đồng thời" thì lại làm mất khả năng kéo, nên không dùng.
+- Chưa giải quyết được: thả lên dòng board ở thanh bên của Library không được nhận, dù đã thử đổi dòng thành nút và cho dòng có nền. Đã gỡ phần nhận thả ở đó và ghi vào giới hạn; chip board trên notch nhận thả bình thường.
+- Môi trường thử: chủ dự án có nhiều app khác đang mở và bật Stage Manager; công cụ điều khiển máy ẩn các app đó mỗi lần chụp, và hộp thoại hệ thống vẫn chặn vài cú bấm.
+
+## Vòng A17 — Chọn màn hình
+
+- Làm: `DisplayMode` và `DisplayChooser` trong NotchCore; cài đặt `displayMode`; `NotchController` chọn màn hình theo cài đặt và, ở chế độ theo con trỏ, dời notch đang đóng sang màn hình con trỏ vừa vào; một ô chọn trong tab Chung.
+- Quyết định: kiểu Pill cho màn hình không có notch là việc giao diện, dời sang nhóm D (mục D2).
+- Giới hạn của việc thử: máy chủ dự án chỉ có một màn hình, nên hành vi với hai màn hình mới chỉ được kiểm bằng test đơn vị.
+
+## Quyết định của chủ dự án ngày 2026-10-11 (tối)
+
+- Lời bài hát: không làm. Nguyên văn: "Không cần lời bài hát, chỉ cần tên bài hát và tên nghệ sĩ". Mục A12c bị bỏ; không có dữ liệu nghe nhạc nào rời khỏi máy.
+- Theo dõi phiên Claude Code (A13): cho phép Claude sửa `~/.claude/settings.json` để thêm hook, với điều kiện có sao lưu.
+- Việc kế tiếp sau A13: nhóm B cần quyền Trợ năng.
+
+## Vòng A13 — Theo dõi phiên Claude Code
+
+- Làm: module `AgentCore` (`AgentEvent`, `AgentHookInput`, `AgentEventParser`, `AgentSessions`, `ClaudeHooksInstaller`, `AgentSettingsStore`) và `AgentFeature` (`ClaudeHooks` cài và gỡ có sao lưu, `AgentEventSpool`, `AgentController`, trang Agent, tab Agent); chương trình `aranotch-hook` đóng gói trong app và được chép tới `~/Library/Application Support/AraNotch/bin` khi cài hook.
+- Quyết định về quyền riêng tư: chương trình hook chỉ ghi tên sự kiện, mã phiên, thư mục, tên công cụ và lời nhắn của agent (cắt còn 200 ký tự). Câu lệnh, nội dung người dùng gõ và đường dẫn bản ghi hội thoại bị bỏ ngay tại hook, không bao giờ tới tệp của app.
+- Quyết định về an toàn: lệnh hook có dạng `'<chương trình>' 2>/dev/null || true`, nên dù chương trình mất hay lỗi thì Claude Code vẫn chạy bình thường. Mỗi lần sửa `settings.json` đều tạo bản sao lưu có dấu thời gian và ghi tệp một cách nguyên tử; tệp không phải JSON hợp lệ thì không đụng tới.
+- Đã làm trên máy chủ dự án (được cho phép): cài hook vào `~/.claude/settings.json`; bản sao lưu là `settings.json.aranotch-backup-20261011-235410`. Các khoá khác trong tệp giữ nguyên, nhưng thứ tự khoá và cách xuống dòng thay đổi vì tệp được ghi lại.
+- Kiểm chứng thật: ngay sau khi cài, phiên Claude Code đang chạy (chính phiên dựng app này) đã gửi sự kiện và hiện trên trang Agent.
+- Chưa làm: hạn mức sử dụng (không có nguồn dữ liệu đáng tin) và Codex (chưa được phép sửa cấu hình Codex). Tách thành mục A13b.
+
+## Nhóm B, đợt đầu — Copy Stack và chia cửa sổ (đã viết, chưa thử thật)
+
+- Làm: `CopyStack` trong ClipboardCore, `PasteKeyTap` (bắt ⌘V bằng event tap), nút chồng trên trang Clipboard, thông báo số mục đang chờ, cài đặt thứ tự dán; module `WindowsCore` (`SnapZone`, `SnapGeometry`, `WindowSettingsStore`) và `WindowsFeature` (`GlobalHotKeys`, `WindowMover` qua giao diện Trợ năng, `WindowsController`, tab Cửa sổ); tham số kiểm chứng `--copy-stack`, `--snap <vùng>`.
+- Quyết định: chia cửa sổ mặc định tắt vì phím tắt toàn cục có thể trùng với app quản lý cửa sổ khác. Copy Stack chỉ bật khi người dùng bấm nút, và tự kết thúc sau khi dán mục cuối. Lệnh dán do chính app gửi được đánh dấu để Copy Stack không tính nhầm.
+- Chưa thử chạy thật: cả hai cần quyền Trợ năng mà chỉ chủ dự án cấp được trong Cài đặt hệ thống.
+- Phát hiện: app ký ad-hoc nên yêu cầu ký của nó là mã băm của chính bản dựng; mỗi lần dựng lại, macOS coi là app khác và quyền Trợ năng mất. Máy chưa có chứng chỉ ký mã nào.
+
+## 2026-10-12 — Thử thật ba tính năng cần Trợ năng
+
+- Chủ dự án đã cấp quyền Trợ năng cho bản dựng hiện tại. Không dựng lại app trong lúc thử, để quyền còn hiệu lực.
+- Tự dán (B1): bấm một thẻ trên notch, nội dung được dán vào tài liệu TextEdit đang mở.
+- Chia cửa sổ (B4): năm vùng qua tham số `--snap` cho đúng toạ độ (màn hình 1512×982, vùng làm việc 1512×949); phím tắt ⌃⌥→, ⌃⌥J, ⌃⌥← dời cửa sổ TextEdit đúng chỗ.
+- Copy Stack (B2): bấm nút chồng, chép ba dòng, notch báo "Stack: 3"; ⌘V ba lần dán đúng thứ tự đã chép; lần thứ tư dán thường vì chồng đã tự kết thúc.
+- Không phát hiện lỗi nào ở ba tính năng này. Tài liệu TextEdit dùng để thử đã bỏ, không lưu. Clipboard của chủ dự án bị ghi đè bằng chữ thử (trước đó không có chữ để khôi phục).
+
+## Nhóm B — Âm lượng và độ sáng trên notch (B3, đã viết, chưa thử phím thật)
+
+- Làm: `MediaKeyEvent` và `LevelStepper` trong SystemEventsCore; `MediaKeyTap` (bắt phím âm lượng, tắt tiếng, độ sáng bằng event tap và không cho hệ thống thấy), `VolumeControl` (Core Audio), `BrightnessControl` (framework riêng DisplayServices), thanh mức bên notch; công tắc trong tab Thông báo, mặc định tắt; sự kiện giả lập `volume-up`, `volume-down`, `brightness-up`, `brightness-down`.
+- Quyết định: nếu không điều khiển được mức (thiết bị không có âm lượng chỉnh được, hoặc thiếu DisplayServices) thì phím được trả lại cho hệ thống. Phím nhả được nuốt cùng phím nhấn. Đèn bàn phím chưa làm.
+- Cách thử để không làm mất quyền Trợ năng của bản đang dùng: ráp một bản app riêng trong thư mục tạm rồi chạy sự kiện giả lập. Âm lượng 75 → 81 → 75; độ sáng xuống một nấc rồi lên lại.
+- Chưa thử: đường bắt phím thật. Nó cần bản dựng mới có quyền Trợ năng và cần người bấm phím âm lượng trên bàn phím.
+- `Scripts/build-app.sh` giờ ký bằng chứng chỉ "AraNotch Dev" nếu máy có, để quyền hệ thống không mất sau mỗi lần dựng.
+
+## 2026-10-12 — Chứng chỉ ký mã "AraNotch Dev"
+
+- Chủ dự án chọn tạo chứng chỉ tự ký để khỏi phải cấp quyền lại sau mỗi lần dựng. Claude không được phép tự thay đổi keychain, nên chủ dự án tự làm.
+- Certificate Assistant của macOS 27 báo lỗi "The specified item could not be found in the keychain" ở bước cuối và không tạo được chứng chỉ (khoá được tạo nhưng chứng chỉ thì không).
+- Cách giải quyết: `Scripts/make-dev-certificate.sh` tạo khoá và chứng chỉ bằng `openssl` rồi nhập vào keychain `login` bằng `security import`. Chủ dự án tự chạy script; kết quả "1 identity imported".
+- Chứng chỉ hiện là "not trusted" trong danh sách nhưng `codesign` vẫn ký được. Yêu cầu ký của app giờ là `identifier "com.aranotch.app" and certificate leaf = …`, không còn là mã băm của bản dựng.
+- App chính thức đã được dựng lại với chữ ký mới (có cả B3). Vì chữ ký đổi, quyền Trợ năng phải được cấp thêm một lần.
+
+## 2026-10-12 — Thử B3, làm B4b, và quyết định về dịch
+
+- Chủ dự án đã cấp quyền Trợ năng cho bản ký bằng chứng chỉ mới. Sau đó app được dựng lại với mã mới và quyền vẫn còn: chứng chỉ đã giải quyết được việc mất quyền sau mỗi lần dựng.
+- B3 (âm lượng, độ sáng trên notch): gửi phím âm lượng giả lập vào hệ thống bằng một chương trình nhỏ; âm lượng đổi đúng một nấc mỗi phím (75 → 81 → 75) và notch hiện thanh mức, tức là app đã nhận phím và hệ thống không xử lý thêm. Chưa có người bấm phím thật để xác nhận bằng mắt rằng khung của macOS không hiện.
+- B4b (kéo cửa sổ vào mép): `EdgeSnap` trong WindowsCore, `EdgeSnapMonitor` với khung xem trước trong WindowsFeature, công tắc riêng trong tab Cửa sổ (mặc định tắt). Thử tay: kéo cửa sổ TextEdit vào mép trái, cửa sổ chiếm nửa trái.
+- Quyết định của chủ dự án về dịch nhanh (B5), nguyên văn: "Dùng bộ dịch link với google translate".
+
+## Vòng B5 — Dịch nhanh bằng Google Translate
+
+- Quyết định của chủ dự án (2026-10-12): dùng "đường miễn phí không chính thức" của Google Translate; ngôn ngữ đích mặc định là tiếng Việt, đoạn đã là tiếng Việt thì dịch sang tiếng Anh. Chủ dự án đã được báo trước rằng đường này Google không cam kết và không đúng điều khoản khi dùng trong sản phẩm phát hành.
+- Làm: module `TranslateCore` (`GoogleTranslate` dựng yêu cầu và đọc trả lời, `TranslationPlan`, `TranslateLanguage`, `TranslateSettingsStore`) và `TranslateFeature` (`TranslateController`: đọc vùng chọn qua Trợ năng, gọi Google bằng phiên mạng không lưu gì, khung kết quả không giành tiêu điểm, Sao chép và Thay vùng chọn; tab Dịch); tham số kiểm chứng `--translate <chữ>`.
+- Quyết định kỹ thuật: đoạn chữ đi trong thân yêu cầu (POST), không nằm trong địa chỉ. Tính năng mặc định tắt vì nó giữ một phím tắt toàn cục và gửi chữ ra ngoài.
+- Dọn dẹp đi kèm: `GlobalHotKeys` chuyển sang NotchShell để dùng chung; mỗi bộ đăng ký phím tắt chỉ nhận phím của chính nó. Phím ⌘⇧C của clipboard trước đây nhận mọi sự kiện phím tắt tới tay nó; nay đã kiểm tra đúng mã của mình.
+- Thử tay trong TextEdit: ⌘⇧G dịch câu đang chọn; Thay vùng chọn đổi câu thành bản dịch.
+- Lệnh `osascript` dùng để đọc lại nội dung TextEdit bị treo hơn hai phút (nhiều khả năng macOS hỏi quyền điều khiển TextEdit); đã huỷ và kiểm tra bằng ảnh màn hình.
+
+## Vòng B7 — Lịch, lời nhắc và báo trước cuộc họp
+
+- Làm: module `CalendarCore` (`AgendaEvent`, `Agenda` chia hôm nay và ngày mai, `MeetingAlertPlanner` báo mỗi cuộc họp một lần, `MeetingLink` tìm link họp, `AgendaReminder`, `CalendarSettingsStore`) và `CalendarFeature` (`AgendaSource` đọc EventKit, `CalendarController`, trang Lịch hai cột, tab Lịch); khoá mô tả quyền Lịch và Lời nhắc trong `Info.plist`; tham số kiểm chứng `--simulate-agenda` và `--print-agenda` (chỉ ghi số lượng, không ghi tên sự kiện).
+- Quyết định: app không hỏi quyền lúc khởi động; macOS chỉ hỏi khi người dùng bấm nút trên trang Lịch. Không dò định kỳ: app đặt một hẹn giờ duy nhất tới thời điểm kế tiếp có thay đổi (giờ báo trước, giờ bắt đầu, giờ kết thúc, nửa đêm) và đọc lại khi kho lịch báo thay đổi hoặc máy thức dậy. Sự kiện đã huỷ và sự kiện người dùng đã từ chối không được hiện.
+- Lỗi tìm thấy khi thử với dữ liệu thật: app sập ngay khi đọc lời nhắc. Nguyên nhân: EventKit trả kết quả trên hàng đợi riêng, còn khối lệnh nhận kết quả được viết trong một hàm thuộc luồng chính nên Swift 6 kiểm tra luồng và dừng app. Bản giả lập không lộ lỗi này vì nó không gọi EventKit. Sửa: chuyển lời gọi sang hàm `nonisolated`. Đây là lý do phải thử với quyền thật, không chỉ với dữ liệu giả lập.
+- Thử tay: Claude bấm nút xin quyền trong app; hộp hỏi của macOS do chủ dự án trả lời. Sau đó trạng thái hai quyền là đã cấp; app đọc được 5 sự kiện trong 30 ngày tới (hôm nay và ngày mai trống) và 20 lời nhắc chưa xong, hiện đúng trên trang, cái quá hạn tô đỏ.
+- Bấm nút qua giao diện Trợ năng (AXPress) lần đầu không cho thấy hộp hỏi nào trong nhật ký; bấm chuột thật thì có. Giống ghi chú cũ về các nút SwiftUI.
+- Chưa thử: báo trước cuộc họp với sự kiện thật, nút Tham gia, đánh dấu xong một lời nhắc thật (Claude không tự sửa dữ liệu Lời nhắc của chủ dự án), trạng thái bị từ chối quyền.
+
+## Vòng B3b — Đèn bàn phím trên notch
+
+- Làm: `MediaKeyEvent` nhận thêm hai phím đèn bàn phím (mã 21 và 22); `KeyboardLightControl` đọc và chỉnh mức đèn qua lớp `KeyboardBrightnessClient` của framework riêng CoreBrightness; thanh mức bên notch dùng chung với âm lượng và độ sáng; sự kiện giả lập `keyboard-light-up`, `keyboard-light-down`. Không thêm công tắc mới: dùng chung công tắc "Hiện âm lượng, độ sáng và đèn bàn phím trên notch".
+- Thử trước khi viết: một đoạn mã nhỏ chỉ đọc cho thấy máy này đọc được mức đèn (0,299). Phím bật tắt đèn (mã 23) để nguyên cho hệ thống.
+- Thử tay: qua sự kiện giả lập và qua phím giả lập gửi vào hệ thống khi công tắc bật, mức đổi đúng một nấc mỗi phím và notch hiện thanh mức. Mức đèn và cài đặt tạm đã được trả về như cũ.
+- Giới hạn: bàn phím MacBook này không có phím đèn bàn phím, nên chưa có ai bấm phím thật; đổi đèn trong Trung tâm điều khiển không hiện trên notch.
+
+## Vòng B5b — Smart Selection
+
+- Làm: `SelectionGesture`, `SmartSelection`, `SelectionTracker` trong TranslateCore; `SelectionReader` (đọc vùng chọn qua Trợ năng, dùng chung với dịch nhanh, bỏ qua ô mật khẩu, chờ app tối đa 0,3 giây) và `SmartSelectionController` với thanh nút trong TranslateFeature; công tắc trong tab Dịch, mặc định tắt; tham số kiểm chứng `--selection-bar`.
+- Quyết định: chỉ đọc vùng chọn sau một lần kéo hoặc bấm đúp, không đọc sau bấm thường; không bao giờ tự gửi ⌘C để dò vùng chọn; thanh không hiện lại cho cùng một đoạn chữ cho tới khi có một lần bấm thường. Tính năng đặt chung module với dịch vì dùng chung phần đọc vùng chọn và khung dịch.
+- Thử tay trong TextEdit: bấm đúp, bấm ba lần và kéo đều làm thanh hiện; Sao chép và Dịch chạy đúng; bấm thường và gõ phím làm thanh ẩn. Tài liệu thử đã bỏ, không lưu; cài đặt tạm đã xoá.
+- Sơ suất khi thử: lúc lưu rồi trả lại clipboard của chủ dự án bằng `pbpaste` và `pbcopy`, shell không ở chế độ UTF-8 nên chữ có dấu bị hỏng. Đã đặt lại đúng câu cũ. Về sau phải đặt `LANG=en_US.UTF-8` trước khi dùng hai lệnh này.
+- macro `#expect` của Swift Testing không cho gọi hàm `mutating` ngay trong biểu thức; phải lấy kết quả ra một hằng trước.
+
+## Vòng B6 — Chụp vùng màn hình, chú thích, đọc chữ (đã viết, chưa chụp thật)
+
+- Làm: module `CaptureCore` (`Annotation`, `AnnotationDocument` có hoàn tác và làm lại, `ArrowGeometry`, `RecognizedLines` xếp chữ theo thứ tự đọc, `CaptureNaming`, `CaptureSettingsStore`) và `CaptureFeature` (`ScreenCapturer` gọi công cụ `screencapture -i` của macOS, `TextRecognizer` dùng Vision, `AnnotationDrawing` vẽ chung cho cửa sổ và ảnh kết quả, cửa sổ chỉnh sửa, `CaptureController`, tab Chụp màn hình, mục trong menu trên thanh menu); tham số kiểm chứng `--annotate`, `--ocr`, `--render-sample`, `--capture-out`.
+- Quyết định: dùng công cụ chụp sẵn của macOS cho bước chọn vùng thay vì tự viết lớp phủ chọn vùng; ít mã, giống thói quen ⌘⇧4, đổi lại không tuỳ biến được giao diện chọn. Đọc chữ chạy trên ảnh gốc, không tính hình vẽ thêm. Phím tắt mặc định tắt. Chụp cuộn tách thành mục B6b.
+- Thử: đọc chữ một ảnh có chữ tiếng Việt cho đúng từng dòng; lần đầu mất 31 giây (macOS nạp mô hình), lần sau 1 giây. Trong cửa sổ chỉnh sửa: kéo vẽ mũi tên, hoàn tác, làm lại, Sao chép; ảnh trên clipboard có mũi tên đã vẽ.
+- Chưa thử: chụp thật. App chưa có quyền Ghi màn hình, và Claude không tự bật quyền trong Cài đặt hệ thống. Claude cũng không gọi thử lệnh chụp để tránh làm macOS hiện hộp hỏi quyền khi chủ dự án chưa sẵn sàng.
+- Trở ngại khi thử: bảng "Emoji & Symbols" đang mở trên màn hình che đúng cửa sổ chỉnh sửa, nên phải thao tác qua công cụ điều khiển app ở nền. Một lệnh dọn thư mục tạm dùng biến shell bị lớp an toàn của Claude Code chặn; từ đó dùng thư mục tạm mới thay vì xoá.
+
+## 2026-10-12 — Lỗi cửa sổ chú thích trống, và bản phát hành .dmg
+
+- Chủ dự án đã cấp quyền Ghi màn hình và chụp thử; báo lại: "cửa sổ chú thích không hiện ảnh".
+- Tái hiện: chụp một vùng cố định qua app thì cửa sổ mở với vùng ảnh đen, ảnh sao chép ra cũng trống. Mở cùng loại ảnh từ một tệp có sẵn thì lại hiện đúng.
+- Nguyên nhân: ảnh tạo thẳng từ tệp chỉ được giải mã khi vẽ lần đầu, mà tệp tạm của lần chụp bị xoá ngay sau khi nạp. Mọi lần chụp thật đều dính; các lần thử trước không lộ vì chúng mở ảnh từ tệp không bị xoá.
+- Sửa: đọc cả tệp vào bộ nhớ rồi mới tạo ảnh. Có test tự động tái hiện đúng lỗi (đỏ trước, xanh sau) trong `CaptureFeatureTests`. Thêm tham số `--capture-rect` để thử chụp thật mà không cần người kéo chọn.
+- Quyết định của chủ dự án về nhóm C, nguyên văn: "nhóm C, tôi chỉ cần phát hành bản dmg và sử dụng full tính năng của ứng dụng này". Vì thế không làm iCloud, Developer ID, notarize, tự cập nhật, giấy phép Free và Pro.
+- Làm: `Scripts/make-dmg.sh` (dựng release, đóng `.dmg` bằng `diskutil image` trên macOS mới, `hdiutil` trên bản cũ), `Scripts/make-icon.swift` và biểu tượng app. Thử: gắn ổ ảnh, kiểm tra chữ ký, chạy app từ ổ ảnh.
+- Hệ quả đã báo chủ dự án: không có Developer ID nên máy khác sẽ bị macOS chặn lần mở đầu (`spctl` trả về "rejected").
+
+## Nhóm D — Giao diện sáng cho panel và kiểu Pill
+
+- Chủ dự án bảo "hãy thực hiện theo như kế hoạch"; kế hoạch đã nêu là làm nhóm D trước vì không cần quyền hay tài khoản.
+- D1: `PanelAppearance` (theo hệ thống, tối, sáng) trong ClipboardCore, mặc định theo hệ thống. Cách làm: không ép màu trong SwiftUI nữa mà đặt giao diện cho chính cửa sổ panel; các màu trắng cố định trong panel đổi thành màu chữ chính của hệ thống, nền và màu tô mã nguồn thành màu tự đổi theo giao diện. Các view dùng chung với notch và Thư viện vẫn đúng vì hai nơi đó ép giao diện tối.
+- D2: `NotchStyle` và hình học viên Pill trong `NotchGeometry` (viên cao 30, cách thanh menu 6, panel mở xuống từ mép trên của viên); công tắc `pillStyle`; hình bo tròn bốn góc trong `NotchRootView`. Màn hình có notch thật bỏ qua kiểu này.
+- Để thử trên máy chỉ có màn hình có notch: tham số `--no-hardware-notch` cho app coi màn hình như không có notch.
+- Thử tay: ảnh panel ở hai giao diện; viên Pill mở, đổi trang, đóng bằng chuột thật.
+
+## Vòng B6b — Chụp cuộn, và cửa sổ Cài đặt có danh sách bên trái
+
+- Làm: `ScrollStitcher` và `RowSignature` trong CaptureCore; trong CaptureFeature có `RegionSelector` (lớp phủ kéo chọn vùng), `FrameRows` (đổi khung hình thành chữ ký từng hàng, ghép ảnh), `ScrollCaptureSession` (chụp, cuộn, chụp, ghép); cửa sổ chú thích cuộn được với ảnh cao; tham số `--capture-scroll` và lưu từng khung ra thư mục để soi.
+- Ba lần sai rồi mới đúng, đều lộ ra khi thử thật chứ không phải trong test:
+  1. Lệnh cuộn theo điểm ảnh không làm trang nhúc nhích; cuộn theo dòng thì có. Con trỏ phải được dời tới bằng sự kiện di chuột thật, nhảy im lặng không đủ.
+  2. Trên máy này chiều cuộn giả lập bị đảo và bước cuộn không theo số dòng yêu cầu. Phiên chụp giờ tự dò chiều (`movedBack`) và tự chỉnh bước theo quãng trang vừa đi.
+  3. So khớp bằng mã băm từng hàng điểm ảnh thất bại: sau khi cuộn, cùng một nội dung không được vẽ ra đúng từng giá trị điểm ảnh (chỉ 9% số hàng giống hệt), và gạch chân chính tả hiện trễ. Đổi sang độ sáng trung bình của 16 dải cột mỗi hàng, cho lệch nhỏ, chọn vị trí có tổng lệch nhỏ nhất; đo trên khung thật thì vị trí đúng nổi rõ (0,31 so với 0,54 của vị trí sai gần nhất).
+- Trong lúc thử, vùng chụp nằm trên cửa sổ app Claude chứ không phải TextEdit như dự tính, nên khung hội thoại của chủ dự án bị cuộn vài lần. Không có gì bị sửa.
+- Phát hiện kèm theo: cửa sổ Cài đặt có mười mục nhưng hàng tab chỉ hiện tám; Lịch và Chụp màn hình không bấm tới được. Đã đổi sang danh sách mục ở bên trái, cửa sổ rộng 660.
+
+## Vòng E — Cải tiến rút ra từ góp ý của người dùng Supaste
+
+- Chủ dự án đưa bảng góp ý công khai của Supaste (81 góp ý) và hỏi AraNotch học được gì, có lỗi tương tự không. Đối chiếu với mã cho thấy AraNotch đã có nhiều thứ họ xin (nhạc trên notch, MCP, khay tệp), nhưng yếu ở đúng những chỗ họ bị chê: phím tắt cố định, Thư viện không xoá bằng phím, không có phím ẩn notch, âm thanh chỉ bật hoặc tắt.
+- Quyết định của chủ dự án, nguyên văn: "Hãy loại bỏ 3 chức năng này, còn lại hãy thực hiện" (ba chức năng: gõ tắt, hành động AI bằng khoá API, tự đưa ảnh chụp màn hình vào lịch sử).
+- Phím tắt: `KeyCombo`, `ShortcutAction`, `ShortcutStore` trong NotchCore; `ShortcutCenter`, `KeyLabel`, ô ghi phím và mục Phím tắt trong NotchShell. Ba phím tắt cũ (clipboard, dịch, chụp) chuyển sang hệ thống mới; lớp `HotKey` riêng của clipboard bị bỏ. Bài học lấy từ lỗi sập của Supaste với bàn phím Đức: tên phím được tra theo bộ gõ hiện tại và không bao giờ thất bại (phím không tra được hiện bằng số).
+- Clipboard: kho dữ liệu lên phiên bản 6 (cột tiêu đề và cột chữ đọc từ ảnh); `updateText`, `setTitle`, `setRecognizedText`; cửa sổ sửa clip; dán chữ thuần; mục Mở, Mở bằng, Hiện trong Finder; phím trong Thư viện; chọn âm và âm lượng; dán theo số.
+- Đọc chữ trong ảnh: phần nhận dạng chữ nằm ở CaptureFeature; ClipboardFeature nhận nó qua một hàm do app gắn vào, nên hai module không phụ thuộc nhau.
+- Lỗi và sơ suất khi thử:
+  1. Phím ⌘A trong Thư viện lúc đầu không chạy vì ô tìm luôn giữ bàn phím. Sửa: phím tác động lên danh sách khi ô tìm trống, lên ô tìm khi đã gõ chữ.
+  2. Thử dán theo số bằng ⌃1 làm macOS chuyển sang Desktop 1 (phím hệ thống), màn hình của chủ dự án bị đổi Desktop một lần. Đã bỏ ⌃ đơn và ⌥ đơn khỏi danh sách lựa chọn.
+  3. Lần hút màu thứ hai bị công cụ điều khiển máy chặn vì kính lúp là tiến trình của hệ thống; app thử bị tắt khi kính lúp còn mở, để lại một tiến trình phụ của macOS, đã dọn.
+- Đo hiệu năng với 1.000 clip: không thấy vấn đề (xem mục giới hạn trong `FEATURES.md`); có bốn test giữ ngưỡng.
+- Chưa thử: chép chữ từ màn hình (cần người kéo chọn vùng), dòng báo cạnh notch sau khi hút màu, ⌥↩, Mở bằng.
+
+## Vòng A13b — Hạn mức Claude và Codex, theo dõi phiên Codex; tự thử hai luồng chụp
+
+- Chủ dự án: "Hãy tự thử. Cho phép sửa cấu hình Codex, làm tiếp A13b và các phần còn lại", và cho phép mở app Supaste để tham khảo nếu cần (chưa cần tới).
+- Tìm nguồn dữ liệu trước khi viết:
+  - Codex: mỗi phiên có một tệp `rollout-….jsonl` trong `~/.codex/sessions`, trong đó có dòng bắt đầu và kết thúc lượt và dòng `token_count` kèm hạn mức 5 giờ, hạn mức tuần. Đủ để làm mà không sửa cấu hình. Ô `notify` trong `config.toml` đang trỏ tới chương trình của Codex Computer Use, nên không đụng vào.
+  - Claude Code: tài liệu status line cho biết hạn mức (`rate_limits.five_hour`, `rate_limits.seven_day`) chỉ được đưa cho lệnh status line. Không có tệp nào trên máy chứa nó.
+- Làm: `AgentUsage`, `UsageWindow`, `ClaudeStatusInput`, `ClaudeStatusLine`, `ClaudeStatusLineInstaller`, `CodexRolloutParser`, `CodexRolloutEvent` trong AgentCore; chế độ `--statusline` của `aranotch-hook`; `CodexWatcher` (được hệ thống báo khi nhật ký đổi, không dò định kỳ); dải hạn mức và nhãn Codex trên trang Agent; mục "Hạn mức và Codex" trong Cài đặt.
+- Quyết định: status line riêng của người dùng không bao giờ bị thay; tệp hạn mức chỉ chứa số; các dòng nhật ký Codex chứa nội dung trao đổi bị bỏ qua mà không giải mã; theo dõi Codex mặc định tắt (trên máy chủ dự án đã bật theo yêu cầu).
+- Không cài status line vào Claude Code thật của chủ dự án: nó đổi giao diện Claude Code và sửa `~/.claude/settings.json`, mà quyền trước đây chỉ cho phần hook. Chờ chủ dự án bấm nút hoặc nói đồng ý.
+- Tự thử hai luồng chụp (trước đó chưa thử được): công cụ điều khiển máy không xin được quyền với lớp chọn vùng của macOS vì nó không phải một app, nhưng thao tác kéo vẫn đi qua. "Chụp vùng màn hình" mở cửa sổ chú thích với ảnh vùng đã kéo (xác nhận lỗi ảnh trống đã hết); "Chép chữ từ màn hình" đưa chữ vào clipboard và notch báo số dòng.
+- Sau đó chủ dự án trả lời "Đồng ý, hãy cài status line". Đã cài qua chính app (`--install-claude-statusline`): bản sao lưu `settings.json.aranotch-backup-20261012-075916`, mọi khoá khác của tệp cài đặt giữ nguyên, sáu hook vẫn còn. Chương trình ở chỗ đã cài chạy đúng với dữ liệu mẫu. Tệp hạn mức thật chưa xuất hiện vì chưa có phiên Claude Code nào chạy status line từ lúc cài.
+- Kiểm tra với dữ liệu thật: lần đầu tệp hạn mức không xuất hiện. Nguyên nhân: lệnh `claude` trong Terminal trên máy này chưa đăng nhập (dừng ở màn hình đăng nhập), còn phiên trong app Claude trên máy tính không chạy status line. Sau khi chủ dự án đăng nhập và chạy `claude xin chào` trong Terminal, tệp được ghi và trang Agent hiện Claude 5 giờ 9%, tuần 15%, cạnh Codex tuần 57%.
+
+## Vòng F — So sánh với app Supaste và bảy mục làm thêm
+
+- Chủ dự án bảo mở Supaste (bản 1.8, đã cài sẵn) để so sánh. Công cụ điều khiển máy không nhận ra Supaste nên không bấm vào giao diện được; việc so sánh dựa trên câu chữ giao diện và tên thành phần trong tệp chương trình của nó, các cài đặt nó lưu, và trang chủ. Supaste được tắt lại sau đó vì nó cũng vẽ lên vùng notch.
+- Kết quả so sánh đưa ra bảy đề xuất; chủ dự án trả lời: "Làm hết cả 7 mục, kiểm tra Apple Intelligence luôn".
+- Apple Intelligence: bộ công cụ dựng có framework FoundationModels và dựng được; trên máy này mô hình báo `modelNotReady` (máy đủ điều kiện, mô hình chưa sẵn sàng). Tính năng được làm với kiểm tra trạng thái, gói vẫn nhắm macOS 15 nên mọi lời gọi tới mô hình nằm sau kiểm tra macOS 26.
+- Làm (lõi có test trước): `CapturePause`, `ClearRange`, `SensitiveText`, `ClipReminderPreset`, `ClipReminderText`, `SavedFilter`, `ClipSortOrder` trong ClipboardCore; hàng phím số thứ hai và `NotchSize` trong NotchCore; `SubjectCutout` trong CaptureFeature; `TextAssistant` trong TranslateFeature; tạo lời nhắc trong CalendarFeature. Ba tính năng nằm ở module khác (đọc chữ, tách nền, lời nhắc, mô hình) được app gắn vào clipboard qua các hàm, để các module không phụ thuộc nhau.
+- Quyết định: chỉ bỏ qua lần chép mà cả nội dung là một bí mật, không soi bên trong đoạn văn; nhắc hẹn dùng Lời nhắc của macOS thay vì tự làm hệ thống nhắc riêng; hai hàng phím số không được dùng chung tổ hợp.
+- Thử tay: bỏ qua khoá giả và số thẻ thử; tạm dừng ghi; cỡ notch Lớn; lưu và dùng bộ lọc; ghi chú mới; dán mục gần nhất bằng ⌃⇧1, ⌃⇧3; tách nền ảnh chim cánh cụt; tạo rồi xoá một lời nhắc thật.
+- Thiếu sót tìm thấy khi thử: thẻ trên notch không hiện tiêu đề của clip (chỉ dòng trong panel có). Đã thêm dòng tiêu đề vào thẻ.
+- Chưa thử: Apple Intelligence (mô hình chưa sẵn sàng), mục "Nhắc tôi" trong menu chuột phải (sẽ để lại lời nhắc thật), menu tạm dừng trên thanh menu, xoá theo khoảng qua giao diện.
+
+
+## Vòng G — Thử tay nốt các phần chưa bấm tay và bốn sửa đổi
+
+- Chủ dự án: "Hãy thử nốt các phần chưa bấm tay". Một bản thử được chạy trên thư mục dữ liệu tạm, với bảng tạm thật của máy; bảng tạm của chủ dự án được cất đi và trả lại sau đó.
+- Thử tay lần đầu và đạt: ⌥↩ dán chữ thường; Tách nền, Lưu ảnh thành JPEG; "Nhắc tôi" (lời nhắc thật được tạo, rồi được đánh dấu xong trên trang Lịch, không lời nhắc nào khác của chủ dự án bị đụng tới); menu thanh trạng thái: Ghi chú mới, Tạm dừng 10 phút, Ghi lại; cỡ notch Rất lớn; thứ tự lịch sử; xoá 15 phút gần đây với hộp xác nhận; gán, dùng, bỏ phím tắt; các công cụ của trình chú thích và nút Lưu; Mở liên kết (mở một thẻ apple.com trong Chrome).
+- Lỗi tìm thấy khi thử, đã sửa có test trước: (1) cửa sổ Ghi chú mới hiện lệch lên góc trên bên phải và không ô nào nhận phím, phải bấm chuột trước; nguyên nhân là cửa sổ được canh giữa khi chưa có kích thước, và không ô nào được giao bàn phím. (2) notch tự đóng trong lúc menu chuột phải còn mở, khi con trỏ sang menu con nằm ngoài notch.
+- Thiếu sót tìm thấy, đã làm thêm: (3) menu thanh trạng thái không cho biết đang tạm dừng hay không, và "Ghi lại" lúc nào cũng bấm được; (4) phím tắt đã bỏ không có cách trả về mặc định ngoài xoá khoá cài đặt bằng tay. Thêm ⌘↩ để lưu ghi chú, vì ↩ xuống dòng trong ô nội dung.
+- Quyết định: việc "menu đang mở" là một cờ trong máy trạng thái của notch (bỏ qua con trỏ rời đi và cú bấm bên ngoài, vẫn nghe lệnh đóng); bộ đếm an toàn tự xoá cờ khi vòng lặp chính không còn ở chế độ theo dõi menu, để một thông báo bị lỡ không giữ notch mở mãi.
+- Phát hiện: bật ⇧⌘2 thì CleanShot X của chủ dự án cũng mở khung chụp cùng lúc; macOS không báo trùng phím giữa các app. Khung chụp của AraNotch được tắt bằng lệnh, khung của CleanShot X đóng khi AraNotch được đưa lên trước. Ghi vào giới hạn; công tắc này vốn mặc định tắt.
+- Nhầm lẫn khi thử, không phải lỗi: ba lần chép bằng lệnh trong lúc cửa sổ Cài đặt đang giữ bàn phím không được ghi; đó là quy tắc "chép từ chính AraNotch thì bỏ qua". Ghi vào giới hạn.
+- Vẫn chưa thử được: thông báo sau khi lấy màu (công cụ điều khiển máy không bấm được vào ống lấy màu), Apple Intelligence (mô hình chưa sẵn sàng), kiểu viên thuốc trên màn hình ngoài thật.
+- Sau khi đọc báo cáo, chủ dự án: "Hãy sửa thẻ ảnh trên notch để không bị cắt". Thẻ ảnh trước đó phóng ảnh cho đầy khung nên ảnh tách nền mất phần đầu. Giờ thẻ hiện trọn ảnh. Quyết định: ảnh quá dài hoặc quá rộng, hiện trọn thì chỉ còn một vệt mảnh không nhận ra được (ảnh chụp cuộn), vẫn lấp đầy thẻ nhưng bắt đầu từ đầu ảnh; ngưỡng là một phần năm bề ngang hoặc bề cao của thẻ. Quy tắc nằm trong `ClipThumbnailPlacement` (ClipboardCore), có test trước.
+
+## Vòng H — Giao diện kính, bộ icon và lượt rà soát trải nghiệm
+
+- Chủ dự án gửi hai ảnh tham khảo (một trình phát nhạc kính mờ có các bìa xếp chồng và thanh điều khiển dạng viên; một chồng thẻ xoè sau tấm "thư mục" kính) và yêu cầu: nâng cấp giao diện theo đó; tạo bộ icon cho toàn ứng dụng để thay chú thích, nút quá dài và chữ không cần thiết; rồi vào vai bậc thầy về giao diện, trải nghiệm, phản hồi thao tác để kiểm tra app và đề xuất các vấn đề cần cải thiện.
+- Trước khi sửa, mọi màn hình được chụp lại bằng `--snapshot-dir` làm mốc "trước"; ảnh trước và sau nằm ở `docs/project/ui-glass/`.
+- Làm một nền thiết kế dùng chung trong NotchShell (`Design/`): `AraTheme` (bán kính, nhịp chuyển động), bề mặt kính `araGlass`, ánh sáng màu sau trang `AraAmbientGlow`, nút icon `AraIconButton` và `AraPressStyle` (sáng khi rê, lún khi nhấn), `AraChip`, `AraPillButton`, `AraHoverLift`, `AraProgressLine`, `AraEmptyState`, và danh mục icon `AraIcon`.
+- Quyết định: bộ icon là một danh mục gọi theo nghĩa trên thư viện ký hiệu của macOS, không phải icon vẽ tay. Lý do: nhất quán với hệ điều hành, đủ nét ở mọi cỡ, có sẵn biến thể đặc và rỗng; vẽ riêng hơn tám mươi icon bằng mã mà không nhìn được từng nét thì chất lượng khó bảo đảm. Icon vẽ riêng được ghi thành đề xuất E13. Hai test giữ cho danh mục không có icon trống và không thiếu tên ở ngôn ngữ nào.
+- Quyết định: kính trên notch cần có gì đó phía sau để "bắt sáng", nên mỗi trang có một ánh sáng màu riêng ở đáy, phía trên vẫn đen để liền với notch thật. Lịch ban đầu dùng màu đỏ, trông như báo lỗi, nên đổi sang chàm.
+- Quyết định: chữ và icon trên màu nhấn chọn đậm hoặc trắng theo độ sáng của màu nhấn. Máy chủ dự án đặt màu nhấn vàng, chữ trắng trên vàng trước đây khó đọc (nút Bắt đầu, hàng đang chọn trong panel và Thư viện).
+- Quyết định: trạng thái rê chuột giữ trong một đối tượng (`AraHover`) vì bộ công cụ dựng trên máy này không mở được `@State`; `@StateObject` và `@Namespace` thì dùng được.
+- Lỗi tự gây ra và đã sửa khi thử tay: thẻ clip kẹt ở trạng thái "nhấc lên" sau khi bị kéo đi, vì macOS không báo con trỏ rời đi trong lúc kéo; việc bắt đầu kéo được chuyển vào `AraHoverLift` để bỏ trạng thái rê đúng lúc.
+- Rà soát với con mắt người thiết kế, các điểm đã sửa ngay trong vòng: không nút nào phản hồi khi rê hay nhấn; tương phản trên màu nhấn; nút chữ dài ở trang Tệp, Hẹn giờ, trình chú thích, khung dịch; không có dấu hiệu nơi thả khi kéo tệp hay kéo clip sang bảng; hàng cuối danh sách bị cắt cụt ở mép; gợi ý tìm kiếm dài bị cắt trong ô 210 điểm; nhãn nguồn bằng chữ trên thẻ.
+- Các điểm chưa sửa được ghi thành nhóm E (mười lăm đề xuất) trong sổ tính năng, chờ chủ dự án chọn.
+- Chưa thấy tận mắt: viền sáng của vùng thả khi đang kéo (không chụp được giữa lúc kéo). Giao diện sáng của panel đã được chụp lại sau khi kính đổi sang theo màu chữ chính và vẫn đúng.
+
+## Vòng I — Cả mười lăm đề xuất trải nghiệm, và một lỗi sập app
+
+- Sau khi đọc danh sách nhóm E, chủ dự án: "Làm hết cả 15 mục". Làm theo bốn cụm: khung notch (E1, E5, E6, E13, E14, E15), clipboard (E2, E3), các trang (E4, E10, E11, E12), các cửa sổ (E7, E8, E9).
+- Lỗi sập app có từ trước, lộ ra khi chụp ảnh kiểm tra: `BluetoothMonitor.deviceConnected` là hàm gắn với luồng chính nhưng IOBluetooth gọi nó trên hàng đợi riêng, nên Swift dừng app. Nhật ký sập của máy cho thấy đã bốn lần (tối 11/10 và sáng 12/10), có lần là app thường của chủ dự án. Sửa: hai hàm nhận thông báo thành `nonisolated` và chuyển việc về luồng chính. Không viết được test tự động (gọi IOBluetooth từ tiến trình test sẽ bị macOS hỏi quyền Bluetooth); bằng chứng là một thiết bị kết nối trong lúc thử và app hiện tên nó bên notch thay vì sập. Cùng loại với lỗi EventKit ở vòng B7.
+- Quyết định (E1): chú giải tức thì là một cửa sổ nhỏ riêng, đặt theo vị trí nút trên màn hình, vì vẽ trong notch sẽ bị cắt bởi mép notch và bởi vùng cuộn.
+- Quyết định (E2): xoá là "ẩn ngay, xoá thật sau 8 giây" giữ trong bộ nhớ, không thêm cột vào cơ sở dữ liệu; thoát app thì xoá nốt. Lúc đầu để 6 giây, khi thử thấy không kịp bấm nên tăng lên 8.
+- Lỗi tự gây ra và đã sửa (E2): dải "Đã xoá · Hoàn tác" vẽ đè lên các thẻ thì nút Hoàn tác không nhận được chuột, cú bấm rơi xuống thẻ bên dưới và dán nhầm clip đó, còn clip bị xoá thì mất thật. Nguyên nhân: lớp cho phép kéo (`onDrag`) của thẻ nhận chuột của mọi thứ vẽ đè lên nó. Dải được chuyển sang hàng riêng (thay chỗ các bảng trên notch, thay dòng phím tắt trong panel, trên thanh công cụ của Thư viện).
+- Quyết định (E15): notch chỉ lấy bàn phím khi được mở bằng phím tắt. Mở bằng rê chuột mà lấy bàn phím thì sẽ cướp phím của app người dùng đang gõ.
+- Quyết định (E10): app chứa agent là app xa nhất trong chuỗi tiến trình cha của hook. Lần đầu lấy app gần nhất, và với Claude Code đó là chính gói `claude.app` của nó, không phải cửa sổ người dùng nhìn thấy; có test giữ trường hợp này. Hook chỉ ghi thêm đường dẫn app.
+- Quyết định (E8): giao diện Sáng/Tối là của cả app (`NSApp.appearance`); các cửa sổ trước đây ép tối (Thư viện, khung dịch, thanh chọn chữ, trình chú thích) được đổi sang màu theo hệ thống. Cài đặt riêng của panel bị bỏ, giá trị cũ của nó được đọc làm giá trị đầu.
+- Quyết định (E13): vẽ riêng chín hình cho những chỗ làm nên "mặt" của app (tab, nút cài đặt, thanh menu), kiểm bằng cách kết xuất ra ảnh phóng to; các icon hành động vẫn dùng thư viện ký hiệu.
+- Quyết định (E7): chú thích dài trong Cài đặt rút còn một dòng, bấm để mở, thay vì bỏ hẳn; ô tìm đọc chính các chuỗi giao diện đang dùng nên không cần bảng từ khoá riêng.
+- Trong lúc thử, chủ dự án cũng đang dùng máy (mở menu Wi-Fi); việc điều khiển máy được dừng cho tới khi menu đó đóng.
+- Chưa thử tay, vì sẽ đụng tới thứ thật của chủ dự án hoặc công cụ không làm được: tua bài, phím cách trên trang Nhạc, rung, kéo thẻ kết quả ra ngoài, thêm và bỏ mức sẵn hẹn giờ bằng chuột, lời nhắc thật qua nút +, chuỗi tiếng Việt dài. Bấm vào hàng agent thì đã thử sau khi mở lại app thường: phiên Claude Code đang chạy hiện trên trang Agent và bấm vào đưa Claude lên trước.
+
+## Vòng J — Thử tay nốt phần còn lại của vòng I
+
+- Chủ dự án: "Hãy thử nốt các phần chưa thử tay". Để tua bài và bấm phím cách mà không đụng tới nhạc của chủ dự án, một tệp âm thanh im lặng dài hai phút được phát trong QuickTime Player (chủ dự án cho phép điều khiển app này), rồi app được thoát.
+- Lỗi tìm thấy khi thử, đã sửa có test trước: QuickTime Player phát một tệp thường thì không báo tên bài, và trang Nhạc coi như "chưa có gì đang phát". Giờ bài không có tên lấy tên tệp (bỏ đuôi). Lần sửa đầu hiện ra "id=6571367", vì macOS đưa vị trí tệp dưới dạng tham chiếu theo số; phải đổi sang đường dẫn thật mới có tên.
+- Sửa thêm khi nhìn thấy: không có ảnh bìa thì ba ô xếp như lá bài hiện ba nốt nhạc chồng nhau; giờ chỉ còn một ô. Ô gõ lời nhắc mới không nhận con trỏ dù đã được yêu cầu, vì lúc yêu cầu ô chưa kịp có trên màn hình; notch giờ tìm lại vài lần, cách nhau một nhịp ngắn. Vì ô tên của trang Hẹn giờ nay nhận con trỏ khi tới bằng Tab, phím ↑ và ↓ được cho phép chỉnh số phút cả khi con trỏ đang ở ô đó.
+- Đã thử và đạt: phím cách trên trang Nhạc; kéo tua (notch 0:36, QuickTime Player cùng vị trí); kéo thẻ kết quả vào TextEdit; thêm và bỏ một mức sẵn hẹn giờ; lời nhắc thật qua nút + (rồi đánh dấu xong, không đụng lời nhắc khác); chuỗi tiếng Việt trên mọi trang và cửa sổ, bằng cách đặt tạm `AppleLanguages` của app.
+- Dọn dẹp: phím tắt tạm, ngôn ngữ tạm và danh sách mức sẵn được xoá; số phút hẹn giờ của chủ dự án đã bị một lần thử ở vòng I đổi từ 15 thành 16, nay trả về 15; âm lượng vẫn 38.
+- Vẫn chưa kiểm được: rung (công cụ không cảm nhận được), và viền sáng của nơi thả trong lúc đang kéo (không chụp được giữa lúc kéo).
+- Sau đó chủ dự án bảo thử tua với Music và Spotify. Công cụ điều khiển máy chặn hai app này theo chính sách, nên không tự thử được và cũng không vòng qua. Thay vào đó chủ dự án tự phát nhạc trong Spotify và kéo thanh tiến độ trên notch, còn một trình theo dõi chỉ đọc (vị trí phát mà macOS báo, không đọc tên bài) ghi lại: năm lần vị trí nhảy, ví dụ từ giây 209 tới 311 và từ 425 về 320 của một bài dài 551 giây, và bài phát tiếp từ chỗ mới. Trình theo dõi thấy vị trí nhảy chứ không thấy nút nào gây ra; việc kéo trên notch là theo lời chủ dự án. Music chưa được thử.
+
+## Vòng K — Đang phát từ mọi app
+
+- Chủ dự án, sau khi tự kéo tua trên Spotify: "tôi không sử dụng apple music nên không cần kiểm tra, tuy nhiên hãy hiển thị cả những lần tôi phát nhạc, video, clip bằng những ứng dụng khác, những nền tảng khác". Music vì thế không thử nữa.
+- Tìm hiểu: trang Đang phát vốn không lọc theo app, nên app nào báo bài cho macOS (Spotify, trình duyệt, QuickTime) đều hiện; thiếu là (1) không nói app nào đang phát, (2) thứ không có tên thì không hiện, (3) app chỉ phát tiếng mà không báo gì thì vô hình. macOS có danh sách các tiến trình đang gửi âm thanh ra (đọc được, không cần quyền), dùng cho (3).
+- Quyết định: nghe thay đổi của danh sách đó thay vì hỏi định kỳ, nên lúc yên lặng không tốn gì. Tiến trình phụ được quy về app chịu trách nhiệm cho nó (trình duyệt cho các tiến trình con, Safari cho tiến trình web của hệ thống); dịch vụ nền không thuộc app nào thì bỏ.
+- Quyết định: tiếng phải kéo dài 2 giây mới tính, và app đã tính được giữ thêm 3 giây sau khi im, để tiếng báo tin nhắn không hiện lên và trình phát không nhấp nháy giữa hai clip.
+- Quyết định: bài đang phát đứng trước; bài đang dừng nhường chỗ cho app đang phát tiếng. Lý do thấy khi thử: sau khi một video trong app Claude dừng, macOS vẫn nêu clip cũ đó là "đang phát" trong khi Spotify mới là thứ đang kêu.
+- Không làm được: tên nội dung và điều khiển cho app thứ hai trở đi (macOS chỉ đưa thông tin của một app), và tên nền tảng web.
+- Tác dụng phụ của lần thử: video mẫu phát trong app Claude đã thế chỗ Spotify làm app "đang phát" của macOS; nó tự trở lại khi Spotify sang bài hoặc khi bấm dừng rồi phát.
+
+## Vòng L — Chủ đề thẻ giấy minh hoạ
+
+- Chủ dự án gửi ảnh một tấm danh thiếp minh hoạ (thẻ kem trên nền đỏ rượu, hình cô gái với con mèo trên đầu, viền đỏ gạch một độ dày, chữ bo tròn, các dòng `NHÃN | giá trị`, một dòng chữ xoay dọc) và viết: "Tôi đã đổi ý, hãy thay đổi giao diện ứng dụng theo phong cách thiết kế này, tôi muốn thực hiện theo chủ đề này với chế độ dark mode. [...] hãy phân tích kỹ phong cách thiết kế này rồi mới áp dụng, hãy hỏi tôi nếu bạn có bất cứ việc gì cần quyết định liên quan đến giao diện của ứng dụng". Từ đây, việc gì thuộc về vẻ ngoài thì hỏi chủ dự án, không tự quyết.
+- Phân tích: phong cách này đối nghịch với kính (phẳng, viền, giấy; không chuyển màu, không mờ, không ánh sáng), nên thay hẳn chứ không trộn.
+- Chủ dự án chọn (qua bốn câu hỏi kèm hình dựng thử): bảng tối "Đêm đỏ rượu"; có cả Sáng và Tối; mèo ở mọi chỗ trống, cửa sổ Chào mừng, trang Giới thiệu và icon app; bám sát tấm thẻ (tên trang viết dọc, dòng `NHÃN | giá trị`, vân giấy).
+- Giữa chừng, khi đã thấy bản một màu, chủ dự án viết: "Hãy trộn cả những màu khác để tăng sinh động, tránh ứng dụng chỉ có 1 màu". Hỏi tiếp bằng hình dựng thử ba cách; chủ dự án chọn cách C (mỗi trang một màu và mỗi loại clip một màu thẻ), mức vừa phải (thẻ tô màu trầm, viền và nhãn màu tươi).
+- Quyết định kỹ thuật: bảng màu là số thuần ở lõi và có test độ tương phản, viết trước khi vẽ; màu vẽ ra đi theo giao diện của khung nhìn, nên "cái được chọn" chỉ cần lật sáng tối bên trong nó là mọi màu con lật theo. Vì thế thẻ được chọn ở chế độ tối chính là tấm thẻ kem của chế độ sáng.
+- Quyết định: notch luôn là bảng Tối, và phần trên cùng vẫn đen tuyệt đối rồi mới chuyển sang nền nâu đỏ, để không lộ đường nối với notch thật của máy.
+- Quyết định: thẻ văn bản là tờ giấy kem ở cả hai chế độ; vì kem cũng là màu của "cái được chọn", thẻ clip được chọn đánh dấu bằng một vòng cách thẻ vài điểm, thấy được trên mọi màu thẻ.
+- Quyết định: nhãn trong một trang lấy màu của trang, còn giá trị bên cạnh lấy màu mực nhạt của chính màu đó, để nhãn và giá trị không trùng màu (trên trang Đang phát cả hai từng cùng là xanh trời).
+- Quyết định: con mèo là hình thuần, dùng chung cho app và cho kịch bản vẽ icon (`Scripts/make-icon.sh` biên dịch kịch bản cùng tệp hình), nên icon và app luôn là một con mèo.
+- Bỏ đi: ánh sáng màu sau mỗi trang, nền mờ từ ảnh bìa của trang Đang phát, hai kiểu chip (kính ở notch, phẳng ở bảng), phần chọn màu chữ theo màu nhấn của hệ thống (không còn dùng màu nhấn của hệ thống), chuỗi "Đang làm · %@".
+- Chưa làm: cài đặt để đổi hoặc tắt màu theo trang; thử tay chế độ Sáng trên màn hình thật.
+- Thử tay lượt hai (chủ dự án: "Hãy thử nốt các phần chưa thử tay"): vòng chọn bằng bàn phím, cửa sổ soạn và sửa clip, chế độ Sáng trên màn hình thật, đều đúng. Sửa một chỗ thấy khi thử: menu "Ghim vào" trong Thư viện còn là nút menu của macOS (nền trắng, mũi tên màu nhấn của hệ thống); nay có viền như các nút khác. Viền phải đặt quanh menu chứ không đặt trong nhãn của nó, vì menu không viền chỉ vẽ chữ và icon của nhãn.
+- Thấy một lần, không lặp lại được: ngay sau khi app vừa mở cùng lúc Thư viện và Cài đặt, notch mở bằng phím tắt không nhận phím mũi tên; mở lại với riêng Cài đặt thì nhận bình thường.
+- Thử tay lượt ba (chủ dự án: "Hãy thử nốt bản dịch, thanh chọn chữ và chú thích ảnh"): cả ba đúng ở chế độ Sáng trên màn hình thật. Sửa một chỗ thấy khi thử: ô gõ chữ của trình chú thích ảnh cắt mất cuối dòng gợi ý ("Type, then click the pict"); nới ô từ 150 lên 200 điểm.
+
+## Vòng M — Giao diện Design System, và bản 0.2.0 sau khi xem OneNotch
+
+- Chủ dự án gửi một tờ "Design System" (nền trắng ngà, thẻ trắng, nút viên đen và be, nhấn cam, tiêu đề chữ có chân) cùng một video, và viết: "Hãy đổi cho tôi sang giao diện như này. Ngoài ra, hãy xem video này để nghiên cứu các tính năng đang còn thiếu của ứng dụng. Tôi cũng đã tải onenotch về máy, bạn có thể khởi động app, nghiên cứu các tính năng mà onenotch có để tham khảo, cả về UX/UI, phản hồi tương tác của ứng dụng và thực hiện cho tôi 1 bản vá lỗi mới cho aranotch".
+- Video là bản giới thiệu OneNotch (109 giây). Trích một khung hình mỗi hai giây để xem. Thứ nó có mà AraNotch thiếu: dấu hiệu đang phát thường trực ở notch đóng, lời bài hát, chip lọc theo loại kèm số đếm, thả tệp thẳng lên ô hành động với vòng phần trăm, kéo cửa sổ lên notch để chọn vùng, bộ công cụ chú thích rộng hơn, bảng dịch có đọc và đổi ngôn ngữ, dải tuần và âm lịch, báo chế độ Tập trung, pin AirPods.
+- OneNotch 2.0.4 đã cài sẵn trong /Applications (đã công chứng). Mở được, nhưng công cụ điều khiển máy không tìm thấy nó để xin quyền, nên không bấm thử được; đọc tên tính năng và cài đặt trong gói app để lập danh sách, rồi đóng lại.
+- Chủ dự án chọn (qua câu hỏi kèm hình dựng thử): Sáng và Tối theo hệ thống; từ chủ đề cũ chỉ giữ màu theo trang và theo loại clip (bỏ mèo, tên trang viết dọc, dòng `NHÃN | giá trị`); tính năng: "tất cả", gồm cả lời bài hát dù phải gửi tên bài ra ngoài.
+- Quyết định: thẻ không viền, tách khỏi nền bằng một bậc sắc độ như tờ mẫu; "viền" chỉ còn ở ô nhập. Test bảng màu viết lại trước khi vẽ.
+- Quyết định: nút chính không có màu trang thì là viên đen (viên sáng khi tối); thẻ được chọn không có màu trang thì là màu cam; trang Clipboard lấy luôn màu cam làm màu trang.
+- Quyết định: dấu hiệu đang phát là một loại hoạt động mới, "nghỉ" bên notch chừng nào còn đúng, không có hạn; mọi thông báo có hạn đều đè lên nó rồi nó trở lại. Làm ở hàng chờ trong lõi, có test.
+- Quyết định: chip loại không thêm trạng thái mới mà gõ bộ lọc `@loại` vào ô tìm, như các bộ lọc đã lưu vẫn làm.
+- Quyết định: lời bài hát mặc định tắt và ghi rõ trong Cài đặt cái gì được gửi đi đâu.
+- Thấy khi thử tay và đã sửa: dấu tick "Đã chép" trên thẻ không bao giờ thấy được khi bấm thẻ (notch đóng ngay sau khi dán), nên chuyển sang nút chép nhanh, đặt ở chân thẻ cho khỏi bị tên nút che; ba nút nhanh lẫn vào thẻ đang nhô nên cho nằm trên viên màu đảo; bảng dịch nhảy tới con trỏ khi đổi ngôn ngữ, nay ở nguyên chỗ; nút đổi mời dịch tiếng Anh sang tiếng Anh, nay ẩn khi vô nghĩa.
+- Phiên bản: 0.2.0 (số dựng 2). Gọi là bản vá theo lời chủ dự án, nhưng đổi cả giao diện và thêm bảy nhóm tính năng nên tăng số giữa.
+- Chưa làm trong bản này: xem mục giới hạn của sổ tính năng (chọn vùng cửa sổ từ notch, quay màn hình, thước đo và kính lúp, Tập trung, pin AirPods, duyệt agent trên notch).
+- Thử tay lượt hai của bản 0.2.0 (chủ dự án: "Hãy thử nốt các phần chưa thử tay"): thả tệp thật từ Finder lên ô Nén, lời bài hát tải thật từ dịch vụ, công tắc âm lịch, chế độ Sáng với Cài đặt, Thư viện và Chào mừng, đều đúng. Sửa một chỗ: nền của các ô thả tệp hơi trong nên chữ của trang bên dưới lộ ra; nay đặc hẳn.
+- Bài học khi thử: thao tác kéo bằng công cụ phải đưa con trỏ tới chỗ cần bấm trước rồi mới nhấn giữ, và phải đi chậm qua notch để notch kịp mở; nhấn giữ sai chỗ đã mở nhầm Xem nhanh của Finder và vẽ khung chọn trên Desktop (không tệp nào bị đổi).
+
+## Vòng N — Notch hiển thị lớn hơn (0.2.1)
+
+- Chủ dự án: "Giao diện của aranotch tôi đã hài lòng, tuy nhiên còn vấn đề cần cải thiện là notch quá bé, các chi tiết rất bé. Khó xem bằng mắt thường. Hãy phóng to hơn icon, font chữ cũng cần được phóng to. Bạn hãy đề xuất cho tôi phương án".
+- Số liệu lúc đó: notch mở 640 × 200, chữ phần lớn 10 đến 12 điểm, icon tab 15 điểm; cài đặt "Cỡ notch" có sẵn chỉ nới khung và thẻ clip, không đổi cỡ chữ.
+- Đề xuất ba phương án kèm hình vẽ đúng kích thước thật: phóng đồng đều, chỉ tăng chữ và icon, hoặc khung lớn hơn kèm sắp xếp lại. Chủ dự án chọn phương án thứ ba, mặc định 125%, và phóng cả thông báo cạnh notch đóng (không phóng các cửa sổ). Sau khi thấy 125% chạy trên máy, chủ dự án viết: "hãy giảm xuống cỡ 110%".
+- Quyết định kỹ thuật: thử nghiệm trước cho thấy phóng cả trang bằng một tỉ lệ thì chữ vẫn sắc nét, ô nhập vẫn gõ được với con trỏ đúng chỗ, tên nút và vị trí bấm vẫn đúng; nên làm bằng cách đó thay vì sửa cỡ ở hơn trăm chỗ. Bố cục chủ dự án đã duyệt vì thế được giữ nguyên tỉ lệ.
+- Quyết định: thang cỡ 100, 110, 125, 150%; giữ tên các mức đã lưu nên không ai mất lựa chọn cũ.
+- Quyết định: hàng tab và thông báo cạnh notch nằm trong chiều cao của notch thật nên chỉ phóng tới 130%.
+- Sắp xếp lại ở mức nhẹ: thẻ clip rộng hơn để bốn thẻ vừa một hàng, chữ trong thẻ lớn hơn một điểm, ẩn thanh cuộn của các danh sách trên notch. Các trang khác chỉ phóng to, không đổi bố cục.
+
+## Vòng O — Nút trên notch, độ mượt khi rê chuột, trang Lịch (0.2.2)
+
+- Chủ dự án (kèm ảnh chụp hai chip bị cắt viền): "hãy kiểm tra UX/UI của những button trên notch. Tôi thấy có vài chỗ bị lỗi, ví dụ như trên ảnh tôi cung cấp. Ngoài ra, việc di chuyển con trỏ chuột qua các clipboard để thực hiện tác vụ rất chậm, còn giật lag. Tính năng calendar không thể tương tác. Hãy đề xuất cho tôi các phương án để giải quyết các lỗi này".
+- Chẩn đoán bằng số liệu: hàng chip cao 22 điểm trong khi chip cao 24 điểm nên viền bị cắt; nút nhanh che chữ của thẻ; nút "+" của trang Lịch nằm trong hàng cao 12 điểm; khi con trỏ đi liên tục qua hàng thẻ, luồng chính bận khoảng một nửa thời gian, phần lớn do con trỏ bị đặt lại liên tục vì thẻ nổi lên, do vẽ lại icon ứng dụng cỡ gốc và do bố cục lại mỗi khung hình.
+- Chủ dự án chọn trong các phương án: nút nhanh "Ở chân thẻ"; thẻ "Chỉ sáng lên, không phóng to"; trang Lịch "Đầy đủ hơn: thêm sự kiện"; con lăn chuột cuộn ngang "Có".
+- Quyết định: thẻ và các dòng không nổi thì đổi tông ngay, không hoạt ảnh. Lý do là số đo: bỏ hiệu ứng nổi mới giảm CPU từ khoảng 34% xuống 30%; bỏ luôn hoạt ảnh đổi tông mới xuống khoảng 12%, vì mỗi hoạt ảnh bắt cả trang vẽ lại từng khung hình khi con trỏ đi qua một hàng thẻ.
+- Quyết định: ba nút nhanh luôn có sẵn trong mọi thẻ và chỉ đổi độ trong, để rê chuột không làm bố cục lại; icon ứng dụng nguồn được vẽ sẵn một lần ở cỡ nhỏ.
+- Quyết định: đổi hướng con lăn ở ngay chỗ app nhận sự kiện cuộn, chỉ khi sự kiện không có pha chạm (tức là chuột), nên trackpad và các trang cuộn dọc không đổi.
+- Sửa khi thử tay: sự kiện cuộn đã đổi hướng lúc đầu không cuộn gì, vì ghi số dòng vào sự kiện làm hệ thống tính lại hai số còn lại; nay đọc hết rồi mới ghi. Kiểu liên kết `calshow:` chỉ có trên iPhone, Lịch trên máy Mac không nhận; đổi sang `ical://ekevent/…` và thử với một sự kiện thật thì mở đúng. Chọn giờ từ menu dài làm con trỏ ra xa nên notch tự đóng và dòng nháp nằm sai ngày khi mở lại; nay notch chờ con trỏ quay lại khi đang gõ, và ngày đã chọn được giữ khi còn dòng nháp. Nút xoá ở chân thẻ có đĩa nền lộ ra trên thẻ màu; nay trơn như hai nút kia.
+- Không làm: không tự tạo sự kiện thử trong lịch thật của chủ dự án (lịch có thể đang chia sẻ với người khác); phần ghi vào lịch thật mới thử bằng dữ liệu giả lập.
+- Cùng ngày, chủ dự án cài NotchNook và yêu cầu nghiên cứu để đề xuất cải thiện. Công cụ điều khiển máy không cấp quyền được cho NotchNook (như OneNotch) và từ chối bấm vào cửa sổ của nó, nên chỉ quan sát: danh sách tính năng và cài đặt trong gói ứng dụng, bốn video minh hoạ đi kèm, hiệu ứng khi rê chuột tới notch, và các bài đánh giá. Các đề xuất rút ra được trình chủ dự án chọn, chưa làm trong vòng này.
+
+## Vòng P — Bốn nhóm cải thiện rút ra từ NotchNook (0.3.0)
+
+- Chủ dự án: "Hãy chạy thử ứng dụng notchnook mà tôi mới cài đặt, nghiên cứu các tính năng, UX/UI của notchnook, phản hồi tương tác của ứng dụng này và đề xuất cho tôi các phương án để cải thiện các tính năng, các vấn đề của aranotch".
+- Điều quan sát được ở NotchNook (bản 1.6.5): một màn "Nook" xếp nhiều ô cạnh nhau (nhạc, lịch, việc cần làm, hẹn giờ, ghi chú, phím tắt, gương) và một màn "Tray" cho tệp; notch phồng có độ nảy và đổ bóng khi con trỏ chạm, mặc định phải bấm mới mở; nút khoá để notch không tự đóng và tuỳ chọn không đóng khi đang gõ; nhiều hẹn giờ với bánh xe giờ phút giây và nút 1 phút, 5 phút; vuốt ngang đổi bài, vuốt dọc mở, đóng, ẩn; khi chưa có nhạc thì mời mở ứng dụng nghe nhạc.
+- Giới hạn của lần nghiên cứu: công cụ điều khiển máy không cấp quyền được cho NotchNook và từ chối bấm, cuộn vào cửa sổ của nó, nên không vào được bên trong; chỉ rê chuột tới notch và chụp cửa sổ của nó, còn lại đọc từ gói ứng dụng, bốn video minh hoạ và các bài đánh giá.
+- Đề xuất bốn nhóm kèm bản vẽ trang Tổng quan; chủ dự án trả lời "Tất cả".
+- Quyết định: trang Tổng quan là một trang mới đứng đầu, các tab cũ giữ nguyên; mỗi ô do tính năng của nó vẽ, trang chỉ xếp chúng cạnh nhau, nên thêm ô sau này không đụng tới các ô khác.
+- Quyết định: "đang gõ" nghĩa là ô nhập trên notch đang giữ bàn phím và có chữ; ô trống thì notch vẫn đóng như thường, để trang Clipboard (ô tìm tự nhận bàn phím) không bị giữ mở mãi.
+- Quyết định: notch đã ghim cũng không đóng sau khi dán hay mở một mục, giống bảng clipboard đã ghim; ghim hết hiệu lực khi notch đóng.
+- Quyết định: dòng nói thêm khi chạm chỉ hiện khi notch được đặt "chỉ mở khi bấm"; với "mở khi rê chuột" notch mở sau một phần mười giây nên dòng đó vô nghĩa, chỉ giữ hiệu ứng phồng.
+- Quyết định: thời lượng hẹn giờ lưu theo giây; các mức sẵn vẫn theo phút; mỗi cột giờ, phút, giây dừng ở hai đầu của nó chứ không quay vòng.
+- Không thử tay: vuốt ngang chuyển bài và bấm mở ứng dụng nhạc, vì cả hai tác động tới ứng dụng nghe nhạc thật của chủ dự án.
+- Sơ suất khi thử: bản thử dùng chung vùng cài đặt thật nên lần thử hẹn giờ đã đổi thời lượng đã lưu của chủ dự án từ 15 phút; đã trả lại 15 phút.
+
+## Vòng Q — Chọn giờ, chọn ngày bằng hình và bớt bàn phím (0.4.0)
+
+- Chủ dự án: "Khi điền thông tin liên quan đến thời gian, hãy hiển thị hình đồng hồ 24h và có lựa chọn số phút nằm bên trong kim giờ. Hoặc chọn kim giờ xong tiếp tục chọn đến kim phút. Điều này áp dụng cho toàn bộ các tính năng liên quan đến việc chọn giờ. ... Việc chọn ngày tháng năm phải hiển thị hình lịch theo tháng ... Hạn chế toàn bộ thao tác phím bấm trên bàn phím để sử dụng các tính năng. Từ việc này, hãy xem còn chỗ nào cần cải thiện theo yêu cầu hạn chế toàn bộ thao tác phím bấm trên bàn phím thay bằng hình hiển thị trực quan".
+- Rà soát trước khi đề xuất: giờ của sự kiện là một menu 48 dòng chữ; lời nhắc mới không đặt được hạn; nhắc việc từ clip chỉ có năm mức sẵn; thời lượng hẹn giờ là ba cột số với nút cộng trừ; chụp vùng, chụp cuộn, đọc chữ, lấy màu, dịch, bảng clipboard chỉ gọi được bằng phím tắt hoặc menu; bảng khoá phải gõ mật mã; Thư viện chọn nhiều phải giữ ⌘.
+- Trình hai kiểu mặt đồng hồ bằng bản vẽ. Lần hỏi đầu chủ dự án chọn kiểu một mặt, rồi yêu cầu "hãy hỏi lại" và chọn kiểu hai bước; hẹn giờ đổi sang mặt đồng hồ; phần bớt bàn phím: "tất cả" (trang Công cụ, Touch ID, gợi ý tên, nút cho các phím).
+- Quyết định: bộ chọn hiện ngay trong trang của notch, thay chỗ danh sách, vì vùng trang 612 × 154 điểm vừa một lịch tháng sáu hàng và một mặt đồng hồ; riêng nhắc việc từ clip (gọi được từ notch, bảng và Thư viện) dùng một bảng nhỏ nổi cạnh con trỏ.
+- Quyết định: trên mặt chọn giờ, kéo được từ vòng ngoài sang vòng trong vì hai vòng cùng là giờ; trên mặt thời lượng, kéo bắt đầu ở vòng nào thì ở yên vòng đó, vì một vòng là phút, vòng kia là giờ. Lỗi này lộ ra khi thử tay: kéo kim phút ngang qua tâm đã đổi cả giờ.
+- Quyết định: Touch ID là tuỳ chọn mặc định tắt. Mật mã phải nằm ở nơi app đọc lại được thì vân tay mới thay được nó; app ký bằng chứng thư tự tạo không dùng được mục Chuỗi khoá gắn sinh trắc, nên app tự hỏi vân tay rồi mới đọc mật mã. Điều này được ghi rõ ngay dưới công tắc.
+- Quyết định: bảng mới có tên sẵn thay vì ô trống, vì ô tên nằm trên một hàng, không có chỗ cho chip gợi ý.
+- Không thử tay Touch ID: việc đó ghi vào Chuỗi khoá thật và cần vân tay của chủ dự án.
+- Sơ suất khi thử: lần bấm đầu rơi vào lúc notch chưa mở nên trúng cửa sổ Finder của chủ dự án (không có gì thay đổi); các bản thử lại đổi thời lượng hẹn giờ đã lưu và ghi tên gần đây vào vùng cài đặt thật, đã trả lại.
+- Bản 0.4.1, cùng ngày: khi viết hướng dẫn thử Touch ID cho chủ dự án thì thấy một lỗi qua đọc mã: hộp thoại vân tay của hệ thống kéo con trỏ ra khỏi notch, notch đóng và quên mất đang hỏi mật mã để làm gì, nên vân tay đúng cũng không mở được gì. Nay notch được giữ mở trong lúc hỏi vân tay và câu hỏi được đặt lại nếu đã mất. Vẫn chưa thử tay.
+- Bản 0.4.2, cùng ngày. Chủ dự án: "các thanh ngang như overview, clipboard, .... 2 menu cuối bị mất tầm nhìn do tai thỏ, hãy khắc phục đẩy sang phía bên kia". Nguyên nhân: hai trang mới (Tổng quan, Công cụ) nâng số tab lên chín, trong khi bên trái tai thỏ chỉ vừa sáu; tôi không thấy vì ảnh chụp màn hình và ảnh chụp cửa sổ không thể hiện tai thỏ. Nay hàng tab biết bề rộng của tai thỏ và tự chia hai bên. Bài học: mỗi lần thêm tab phải tô vùng tai thỏ lên ảnh chụp để kiểm tra.
+- Bản 0.4.3, cùng ngày. Chủ dự án: "Khi kéo file vào để lưu, cả 4 lựa chọn hiện ra rất lớn, mặc dù nhu cầu có thể chỉ là lưu trữ bình thường, không muốn dùng các chức năng. Hãy thiết kế lại bố cục và cho tôi 3 lựa chọn". Trình ba bố cục bằng bản vẽ: cột tác vụ bên phải, dải tác vụ ở đáy, hoặc thả trước rồi mới chọn tác vụ; chủ dự án chọn cột bên phải. Lý do tôi khuyên phương án này: tệp thường được kéo từ dưới lên, nên gặp vùng lưu trước, khó thả nhầm vào tác vụ. Sửa kèm: nhãn thư mục ghi "1 files" nay ghi "1 file".
+- Bản 0.4.4, cùng ngày. Chủ dự án: "mỗi khi kéo file lên aranotch, mission control tự động bật, hãy khắc phục vấn đề này". Nguyên nhân: notch chỉ mở khi con trỏ đang kéo tệp chạm vào chính nó, tức 36 điểm trên cùng của màn hình, mà đẩy một vật đang kéo vào mép trên là cử chỉ macOS dùng để bật Mission Control. Quyết định: không đụng tới cài đặt hệ thống; cho notch mở từ xa hơn (80 điểm mỗi bên, 64 điểm phía dưới) để tệp được thả vào trang đã mở mà không cần lên tới mép. Thử tay cho thấy notch mở dưới con trỏ đứng yên thì trang chưa biết có tệp đang kéo, nên trang Tệp được báo ngay lúc notch mở vì kéo tệp.
+
+## Vòng R — Tổng quan bảy ô (0.5.0)
+
+- Chủ dự án: "Bố cục của overview vẫn chưa khoa học, các khoảng trống vẫn còn rất nhiều. Hãy đề xuất cho tôi thêm các tính năng để bổ sung vào overview và mỗi tính năng cho tôi 3 lựa chọn hiển thị cho cửa sổ overview".
+- Đề xuất bốn ô mới lấy từ những tính năng đã có, mỗi ô ba kiểu bằng bản vẽ. Chủ dự án chọn: clipboard gần đây kiểu dải thẻ nhỏ; công cụ nhanh kiểu hàng nút tròn; agent kiểu chấm trạng thái từng phiên; máy và thiết bị kiểu thanh pin và âm lượng.
+- Quyết định (hệ quả của bốn lựa chọn, tôi tự suy ra): bảy ô xếp ba cột theo việc đi với nhau (nhạc với công cụ, lịch với clipboard, hẹn giờ với agent và máy); trong mỗi cột một ô co giãn, các ô còn lại giữ chiều cao vừa đủ, nên trang luôn kín dù tắt ô nào.
+- Quyết định: ba ô cũ được nén lại: nút điều khiển nhạc lên dòng tên ô, mỗi sự kiện một dòng, hẹn giờ thành một hàng không có tên ô.
+- Quyết định: ô máy ghép từ hai tính năng (pin của phần sự kiện hệ thống, âm lượng của phần nhạc), mỗi tính năng tự vẽ dòng của mình.
+- Chưa thử tay các ô mới: chủ dự án đang dùng máy lúc bản này xong, nên tôi không giành chuột.
+
+## Vòng S — Trang Lịch: tháng và biểu đồ ngày (0.6.0)
+
+- Chủ dự án: "cửa sổ calendar cần hiển thị nhiều thông tin hơn ... notch có thể mở rộng xuống dưới nhiều hơn để hiển thị nhiều thông tin hơn. Hãy cho tôi 3 lựa chọn về bố cục hiển thị".
+- Trình ba bố cục bằng bản vẽ (tháng với ngày và lời nhắc; lưới tuần theo giờ; lịch trình nhiều ngày). Chủ dự án: "Chọn A, nhưng chế độ xem chi tiết ngày hãy hiển thị theo dạng gantt chart, thanh ngang là giờ, thanh dọc là các lời nhắc + sự kiện ... notch có thể dài ra theo chiều dọc màn hình ... nhưng không được dài ra theo chiều ngang"; về độ cao: "Cho phép độ cao được mở rộng theo phụ thuộc của dữ liệu, hãy cho thêm tùy chọn chỉnh kích thước khi cần thiết".
+- Quyết định: notch nhận chiều cao theo từng trang. Mỗi trang có thể xin một tờ cao hơn tờ thường; notch dài xuống khi trang đó đang hiện và trở lại khi sang trang khác. Chiều rộng không bao giờ đổi; trần là 80% chiều cao màn hình.
+- Quyết định (thấy khi chụp với lịch thật, nơi có 20 lời nhắc quá hạn hoặc không giờ làm notch cao gần 600 điểm): hàng không có giờ không được gì từ trục giờ, nên xếp bên dưới thành hai cột. Cùng dữ liệu đó notch còn 405 điểm.
+- Quyết định: "tuỳ chọn chỉnh kích thước" là một nút trên trang đổi vòng qua ba cỡ, và cùng lựa chọn đó trong Cài đặt; cỡ gọn giữ nguyên bố cục dải tuần cũ.
+- Sửa khi thử: ở chiều cao nhỏ nhất cột tháng không vừa nên cả trang bị đẩy lên; chiều cao nhỏ nhất của bố cục mới được nâng từ 200 lên 232 điểm tờ.
+- Thử ở nền qua trợ năng thay vì giành chuột, vì chủ dự án đang dùng máy; bấm bằng toạ độ làm con trỏ thật nhảy và notch đóng, bấm theo phần tử thì không.
+- Bản 0.6.1, cùng ngày. Chủ dự án: "biểu đồ gantt của tôi đâu?". Lỗi của tôi: ở 0.6.0 tôi tự ý tách lời nhắc không có giờ ra khỏi biểu đồ và ẩn trục giờ khi ngày không có mục nào có giờ; hôm đó lịch thật không có sự kiện nên trang chỉ còn hai danh sách. Chủ dự án đã nói rõ từ đầu rằng mỗi hàng là một lời nhắc hoặc sự kiện. Nay mọi mục là một hàng và trục giờ luôn hiện; với lịch thật (20 lời nhắc) notch cao 598 điểm, trong mức trần 80% màn hình. Bài học: khi chủ dự án đã mô tả cụ thể cách hiển thị, không đổi nó để tiết kiệm chỗ mà không hỏi.
+- Bản 0.6.2, cùng ngày. Chủ dự án gửi lại ảnh bố cục của 0.6.0 (hàng có giờ trên trục giờ, bên dưới là "Overdue" và "No time set" xếp hai cột) và hỏi: "tại sao không thực hiện theo lựa chọn này?". Tôi đã hiểu sai câu "biểu đồ gantt của tôi đâu?": điều thiếu chỉ là trục giờ bị ẩn khi ngày không có mục nào có giờ, chứ không phải bố cục. Bản 0.6.1 vì thế đổi nhầm thứ chủ dự án thích. Nay trả lại bố cục đó và giữ trục giờ luôn hiện. Bài học: khi chủ dự án hỏi một thứ "đâu rồi", phải xem họ đang thấy gì với dữ liệu thật của họ và hỏi lại nếu có hai cách hiểu, trước khi đổi thiết kế.
+
+## Vòng T — Sửa lời nhắc ngay trên trang Lịch (0.7.0)
+
+- Chủ dự án: "Các task trong menu calendar, hãy cho tôi chỉnh trực tiếp thông tin cho từng task, tôi không muốn mở reminder của macos. Nhưng yêu cầu vẫn phải đầy đủ tính năng cho 1 task như reminder".
+- Trình các cách đặt ô chỉnh. Chủ dự án chọn "B · Mở rộng ngay tại hàng" (ô chỉnh mở dưới chính hàng của lời nhắc, mỗi mục một chip, bấm chip thì ra lựa chọn). Nhắc theo địa điểm: "Không cần".
+- Quyết định: "đầy đủ như Reminder" nghĩa là mọi thứ macOS cho ứng dụng khác đổi: tên, ghi chú, ngày, giờ, lặp lại, báo sớm, mức ưu tiên, danh sách, xoá. Cờ, thẻ, việc con, ảnh đính kèm và "khi nhắn tin" thì hệ thống không mở cho ứng dụng khác; ghi rõ trong sổ giới hạn thay vì làm giả.
+- Quyết định: chỉ ghi lại những gì đã đổi. Đọc mã trước khi phát hành thì thấy bản đầu ghi đè mọi thứ mỗi lần bấm Xong, nên chỉ đổi tên một lời nhắc lặp "hai tuần một lần" cũng sẽ biến nó thành "hằng tuần" và xoá các chuông báo đặt ở nơi khác. Cũng trong lần đọc đó: báo sớm được ghi theo một cách nhưng đọc lại theo cách khác, nên mở lại sẽ mất; đã sửa để đọc được cả hai.
+- Quyết định (thấy khi thử): chip danh sách đứng cạnh tên chứ không cùng hàng với bốn chip kia, vì năm chip không vừa bề rộng ô; nhãn chip rút ngắn ("Không lặp", "Đúng giờ", "Sớm 15 phút") để hàng lựa chọn không tràn; ô chỉnh tính chỗ theo điểm chứ không theo số dòng, vì tính theo dòng làm hàng nút bị cắt khi mở lựa chọn.
+- Quyết định: ba kiểu hạn là ba chip riêng ("Không hạn", "Cả ngày", "Có giờ") thay cho một nút bật tắt, để thấy ngay muốn có giờ thì bấm đâu. Khi bảng chọn ngày giờ mở thì notch về chiều cao nhỏ nhất, vì lịch tháng và mặt đồng hồ không cần trang cao.
+- Quyết định: ở cỡ trang gọn ô chỉnh hiện một mình, vì cột lời nhắc chỉ rộng nửa trang và trang chỉ cao 200 điểm.
+- Sửa khi thử: lúc thêm chữ cho ô chỉnh, tôi đã ghi đè một chuỗi có sẵn dùng cho thông báo cuộc họp ("5 phút nữa" thành "Trước 5 phút"); thấy khi rà khác biệt với nhánh chính, đã trả lại và dùng khoá riêng.
+- Thử ở nền qua trợ năng với dữ liệu giả lập. Một lần bấm rơi vào lúc cửa sổ đang co nên notch của bản thử đóng lại; không chạm gì ngoài bản thử. Cỡ trang Lịch đã lưu bị đổi sang "Gọn" trong lúc thử và đã trả về "Cao vừa đủ cho ngày".
+- Bản 0.7.1, cùng ngày. Chủ dự án: "tôi phát hiện có lỗi khi đang bổ sung thông tin vào 1 task, cửa sổ chuyển sang đồng hồ và lịch nhưng đã tự mất. Hãy vá lỗi này lại". Nguyên nhân: ở 0.7.0 tôi cho notch co về chiều cao nhỏ nhất khi bảng chọn ngày giờ mở; con trỏ khi đó còn ở chỗ chip vừa bấm, tức là đã nằm ngoài notch mới, nên lần nhích chuột kế tiếp bị coi là con trỏ rời đi và notch đóng, kéo theo bảng chọn. Tôi không thấy khi thử vì bản thử được giữ mở sẵn và con trỏ thật không nằm trên nó. Sửa ở chỗ chung chứ không riêng bảng chọn: mỗi khi trang thấp đi mà con trỏ đang ở trên phần bị mất, notch chờ con trỏ quay lại (cùng cơ chế đã dùng sau khi chọn từ một menu dài). Lỗi tương tự vốn có từ 0.6.0 khi đánh dấu xong lời nhắc cuối danh sách và từ 0.7.0 khi bấm Xong hay Huỷ trong ô chỉnh; cùng được sửa. Chưa thử tay với con trỏ thật vì chủ dự án đang dùng máy; đã chạy lại luồng sửa lời nhắc ở nền.
+- Bản 0.7.2, cùng ngày. Chủ dự án, sau khi dùng 0.7.1: "hãy sửa lại cách sửa, mỗi khi chỉnh đồng hồ và ngày ở chế độ này, notch sẽ được ghim không thu lại đến khi ấn "done"". Cách của 0.7.1 (notch chờ con trỏ quay lại) chỉ giữ được tới lúc con trỏ vào bảng chọn; sau đó lỡ trượt ra ngoài là notch lại đóng và mất bảng chọn. Làm theo đúng lời: một trang có thể xin notch ở yên trong lúc nó có việc dang dở kết thúc bằng nút của chính nó; trang Lịch xin như vậy chừng nào bảng chọn ngày giờ còn mở. Khi đó notch như được ghim (con trỏ rời đi, bấm ra ngoài đều không đóng) và nút ghim sáng lên để thấy vì sao; "Xong" thì trả lại như cũ. Tôi tự quyết: áp dụng cho cả bốn bảng chọn của trang Lịch chứ không riêng bảng sửa lời nhắc; Esc vẫn đóng được, để luôn có lối ra; notch vẫn co về chiều cao nhỏ nhất khi bảng chọn mở như 0.7.0; cách chờ con trỏ của 0.7.1 được giữ cho những chỗ khác mà trang thấp đi dưới con trỏ. Tôi hiểu "không thu lại" là không đóng; nếu ý là không co chiều cao thì cần đổi thêm. Thử ở nền: mở bảng chọn thì nút ghim chuyển sang trạng thái đang ghim và notch ở yên trong lúc chủ dự án đang dùng chuột ở chỗ khác; bấm Xong thì nút ghim tắt.
+- Bản 0.8.0, cùng ngày. Chủ dự án: "ở chế độ này. Hãy cho button "hôm nay" và "ngày mai" và "ngày kia" bên dưới lịch, hoặc bạn có thể cho tôi các phương án khác mà bạn thấy hợp lý hơn". Trình ba phương án bằng bản vẽ (ba nút ngày; năm nút ngày; ba nút ngày và bốn nút giờ). Chủ dự án: "Tôi chọn C, hãy bổ sung thêm thứ 7 tuần này hoặc ngày này tuần sau", giờ: 9:00, 12:00, 15:00, 19:00. Tôi tự quyết: chữ "hoặc" tôi hiểu là thêm cả hai nút, vì bỏ bớt một nút thì dễ hơn thêm; nút "Thứ Bảy" là thứ Bảy sắp tới và ẩn đi khi trùng với một nút khác (thứ Năm tới thứ Bảy); áp dụng cho cả bốn bảng chọn, nên bảng "tới một ngày" bỏ nút "Hôm nay" riêng ở bên phải; ba chip kiểu hạn thu hẹp lại để hàng nút giờ không bị cắt (thấy khi thử); bảng chọn có chiều cao riêng, lớn hơn chiều cao nhỏ nhất của trang, và cỡ trang gọn cũng dùng chiều cao đó vì trang 200 điểm không chứa nổi. Lịch tháng trước đây không theo ngày được đặt từ bên ngoài sau khi đã lật tháng; đã sửa để nó lật về tháng của ngày vừa chọn.
+- Bản 0.9.0, cùng ngày. Chủ dự án: "task có thêm tuỳ chọn estimate thời gian (theo giờ), thời gian cụ thể là bao nhiêu hãy đề xuất cho tôi. Khi estimate 1 task, trên gantt phải hiển thị khoảng thời gian của task đó". Trình ba bộ thời lượng và hai cách đặt thanh bằng bản vẽ. Chủ dự án chọn bộ 30 phút, 1, 2, 3, 4, 8 giờ, và "B · Giờ nhắc là hạn chót" (thanh nằm trước giờ nhắc và kết thúc đúng lúc đó), không phải cách tôi đề nghị (bắt đầu lúc giờ nhắc). Tôi tự quyết: lưu ước tính trong cài đặt của AraNotch theo mã lời nhắc, vì lời nhắc của macOS không có chỗ cho thời lượng và tôi không muốn viết thêm vào ghi chú của chủ dự án; chỉ lời nhắc có giờ mới đặt được; thanh nhạt hơn chấm để vẫn thấy giờ nhắc; ước tính không tự dọn khi lời nhắc biến mất, vì một lần đọc danh sách bị lỗi sẽ xoá sạch tất cả. Sửa khi thử: năm chip không vừa một hàng ở tiếng Việt, ngày giờ bị cắt; chip được làm hẹp lại, chip ngày giờ luôn hiện đủ, và chip mức ưu tiên khi chưa đặt ghi tên mục thay cho "Không ưu tiên".
+- Bản 0.9.1, cùng ngày. Chủ dự án: "mỗi khi estimate, trên gantt phải hiển thị theo phần chọn tương ứng, không phải ấn "done" thì mới hiển thị". Biểu đồ nay được dựng từ lời nhắc như nó đang đứng trong ô chỉnh chứ không chỉ từ những gì đã lưu. Tôi tự quyết: xem trước cả giờ và tên chứ không riêng ước tính, vì một lời nhắc chưa có giờ thì không có chỗ trên biểu đồ để vẽ thanh, nên chỉ xem trước ước tính sẽ không thấy gì cho tới khi bấm Xong; ngày chọn sang hôm khác thì không xem trước, vì hàng sẽ biến khỏi ngày đang xem và kéo ô chỉnh đi theo; sau khi bấm Xong trang giữ luôn thay đổi thay vì quay về chỗ cũ trong lúc chờ đọc lại danh sách.
+- Bản 0.9.2, cùng ngày. Chủ dự án: "khi chọn estimate xong, danh mục tự đóng. Tôi cần danh mục lựa chọn luôn ở trạng thái hiển thị đến khi ấn "done"". Hàng lựa chọn nay ở yên sau khi chọn. Tôi tự quyết: áp dụng cho cả năm chip chứ không riêng ước tính, để các chip xử sự như nhau; hàng vẫn đóng khi bấm lại chính chip đó hoặc mở chip khác. Khi thử ở nền, notch của bản thử cứ đóng vì chủ dự án đang bấm chuột ở màn hình ngoài (bấm ra ngoài thì notch đóng); bấm nút ghim của bản thử ngay sau khi mở thì thử được.
+- Bản 0.10.0, cùng ngày. Chủ dự án: "Hãy bỏ chế độ xem compact. Bổ sung thêm ở chế độ as tall as the screen allows hiển thị các task đã được hoàn thành ... tính năng này chỉ hiển thị khi mở chế độ as tall as the screen allows". Trình ba cách hiển thị bằng bản vẽ (nhóm ở cuối trang; giữ chỗ trên biểu đồ; cột dưới lịch tháng) và ba phạm vi. Chủ dự án chọn nhóm ở cuối trang, và những việc xong trong ngày đang xem. Tôi tự quyết: bấm dấu tích của việc đã xong thì mở lại nó, như ứng dụng Lời nhắc; dấu tích dùng màu sẵn có của giao diện chứ không thêm màu xanh lá như bản vẽ, vì giao diện chỉ có một màu nhấn; danh sách việc đã xong chỉ được đọc khi trang ở cỡ cao hết mức. Bỏ cỡ "Gọn" kéo theo việc xoá bố cục dải tuần và hai cột (khoảng 400 dòng) cùng các chuỗi chỉ nó dùng; nút xin quyền Lịch và Lời nhắc vốn chỉ nằm trong bố cục đó nên được đưa sang bố cục tháng. Lỗi thấy khi thử: từ 0.7.0, hành động "bấm" dành cho trợ năng đặt trên cả hàng đã đè lên nút tích, nên với VoiceOver bấm nút tích lại mở ô chỉnh; nay hành động đó chỉ nằm trên tên lời nhắc. Khi thử, cỡ trang đã lưu của chủ dự án (đang là "Gọn") bị đổi sang cỡ cao hết mức; đã đặt lại "Cao vừa đủ cho ngày", là cỡ mà bản mới coi "Gọn" như vậy.
+- Bản 0.11.0, cùng ngày. Chủ dự án: "về tổng thể, tôi thấy font chữ vẫn nhỏ, hãy tăng kích thước chữ thêm 1 size, kích thước của notch cũng cần tăng theo để phù hợp với tổng thể". Vì các trang của notch được vẽ trên một tờ rồi phóng cả tờ, tăng cỡ chữ nghĩa là tăng tỉ lệ. Trình hai mức bằng bản vẽ với chữ đúng cỡ thật: thêm mức 120%, hoặc dùng mức 125% có sẵn. Chủ dự án chọn 120%. Tôi tự quyết: 120% thành mặc định cho ai chưa tự chọn cỡ (máy của chủ dự án thuộc trường hợp này), còn cỡ đã chọn từ trước thì giữ; mức 110% vẫn còn trong danh sách.
+
+## Vòng U — Ứng dụng tự cập nhật (0.12.0)
+
+- Chủ dự án: "Hãy đề xuất cho tôi các phương án để ứng dụng này có thể cập nhật phần mềm ngay trên ứng dụng". Trình ba phương án (Sparkle; tự viết bộ cập nhật; chỉ báo có bản mới) và nói rõ hai việc thuộc về chủ dự án: nơi đặt bản phát hành cần tài khoản, và chứng thư của Apple (99 USD mỗi năm) chưa cần ngay. Chủ dự án: "Tôi chọn phương án A nhưng thông qua github", nơi đặt: kho GitHub công khai.
+- Quyết định: khoá ký bản cập nhật là một tệp trong thư mục nhà của chủ dự án, do một kịch bản của dự án tạo ra, chứ không dùng công cụ tạo khoá của Sparkle, vì công cụ đó ghi vào Chuỗi khoá và tôi không được tự ý sửa Chuỗi khoá. Đã kiểm rằng công cụ ký của Sparkle đọc được tệp này và chữ ký khớp với khoá công khai.
+- Quyết định: nguồn cập nhật là tệp appcast.xml gắn với bản phát hành mới nhất, nên mỗi lần phát hành chỉ cần đưa lên hai tệp (dmg và appcast.xml) và không phải sửa gì trong kho mã. Tệp chỉ nêu một bản, bản mới nhất.
+- Quyết định: bản tìm thấy lúc app ở nền được báo cạnh notch và trên trang Thông tin, đúng theo lời khuyên của Sparkle cho app không có biểu tượng trên Dock (một cửa sổ tự hiện phía sau có thể không ai thấy); ngay sau khi mở app thì Sparkle tự hiện cửa sổ của nó.
+- Quyết định: bản chạy thử tự động không kiểm tra cập nhật, để các lần thử hằng ngày của tôi không gọi ra mạng và không đụng tới trạng thái cập nhật của app thật.
+- Thấy khi thử: Sparkle bản này không nhận nguồn dạng tệp, chỉ http và https, nên phép thử đầu-cuối dùng một máy chủ trên chính máy này và một bản sao của app được phép nối mạng nội bộ; ngay sau khi mở, bộ cập nhật bận trong chốc lát và bỏ qua lệnh kiểm tra, nên cờ `--check-updates` chờ tới khi nó rảnh.
+- Chưa làm, chờ chủ dự án: tạo kho trên GitHub và đẩy mã lên. Đó là việc đưa mã, lịch sử và ảnh chụp ra công khai, không rút lại được, nên tôi hỏi riêng trước khi làm.
+- Hỏi chủ dự án trước khi đưa lên, nêu rõ những gì sẽ thành công khai (mã, 157 commit có địa chỉ Gmail, thư mục docs với nguyên văn các phản hồi). Chủ dự án: "Chỉ bản phát hành", giữ nguyên Gmail, giấy phép GPL-3.0. Đã tạo kho công khai `truonggialong/ara-notch` chỉ có README (bản gốc ở `docs/releases/PUBLIC-README.md`) và phát hành v0.12.0 gồm dmg và appcast.xml bằng `Scripts/release.sh --publish`. Mã nguồn không được đẩy lên; kho mã trên máy vẫn không có remote.
+- Quyết định: chưa gắn GPL-3.0 vào kho. Hai câu trả lời kéo về hai phía: GPL-3.0 trao cho người nhận quyền đòi mã nguồn, mà kho chỉ có bản cài. Không gắn giấy phép thì sau này gắn được; gắn rồi thì không rút lại được với những bản đã phát. Đã báo lại chủ dự án.
+- Thử sau khi phát hành: một bản sao 0.11.0 trong thư mục tạm đọc nguồn thật trên GitHub, hiện cửa sổ cập nhật, tải dmg từ GitHub, nhật ký ghi chữ ký đúng, cài và mở lại thành 0.12.0. Tệp appcast.xml trên GitHub trùng từng byte với tệp tạo trên máy.
+
+## Vòng V — Thông báo agent thả xuống và ước lượng mức dùng (0.13.0)
+
+- Chủ dự án: "mỗi khi đang làm việc với agent claude hoặc bất cứ agent nào. Hãy hiển thị thông báo tạm thời trên notch là đang thực hiện hành động đó. Khi các agent có bất kỳ thông báo nào liên quan đến request hoặc thông báo đã hoàn thành, hãy hiển thị tạm thời 1 lần nữa. Ngoài ra, trong lúc thông báo đang thực hiện hành động tôi muốn có 1 tính năng ước lượng usage sẽ tốn là bao nhiêu, dự kiến còn bao nhiêu, và hiện tại còn bao nhiêu". Giữa chừng: "hãy cho tôi 5 đề xuất hiển thị cách thông báo tạm thời này".
+- Trước khi vẽ, xem phần agent đã có: báo "cần bạn" và "đã xong" đã có từ trước (biểu tượng và tên dự án ở hai bên notch); mức dùng chỉ là phần trăm của giới hạn 5 giờ và giới hạn tuần do agent tự báo, và con số mới nhất trên máy đã cũ nhiều giờ, vì phiên chạy trong ứng dụng Claude không báo. Nói rõ điều này với chủ dự án cùng năm bản vẽ.
+- Chủ dự án: "hãy hiển thị theo dạng thả rơi xuống, ưu tiên hiển thị theo chiều dọc, hạn chế theo chiều ngang của notch như các thông báo khác"; báo "đang làm" mỗi lượt một lần; mức dùng chỉ lấy số agent tự báo (không đọc nhật ký phiên của Claude).
+- Quyết định: thêm vào vỏ notch một kiểu thông báo thả xuống (notch dài xuống thành một thẻ hẹp), dùng cho cả ba thông báo của agent để chúng giống nhau; các thông báo khác (pin, nhạc, cuộc họp) vẫn ở hai bên notch như cũ.
+- Quyết định: "lượt này tốn bao nhiêu" học từ các lượt trước: ghi phần trăm lúc lượt bắt đầu và lúc xong, lấy số ở giữa của mười lượt gần nhất, cần ít nhất ba lượt. Không đo khi con số lúc bắt đầu đã cũ, khi không có báo mới trong lượt, khi khung 5 giờ sang khung mới giữa chừng, hoặc khi hai agent chạy cùng lúc.
+- Quyết định (thấy khi nghĩ tới máy của chủ dự án): một con số thuộc về khung 5 giờ đã hết thì không hiện, thay vì coi như khung mới còn 100%; số cũ nhưng còn trong khung thì hiện kèm giờ của nó.
+- Chưa phát hành lên GitHub: chủ dự án mới đồng ý phát hành bản 0.12.0 và chưa trả lời có tự phát hành các bản sau hay không.
+
+## Vòng W — Thông báo tạm kiểu biển chỉ dẫn (0.14.0)
+
+- Chủ dự án gửi ảnh một biển chỉ dẫn treo (tấm biển nằm ngang bo góc, bên trái là mũi tên, logo và dòng chữ có dòng phụ nhỏ, một vạch dọc, bên phải là hai hàng có huy hiệu tròn, ô số nền đen chữ vàng và mũi tên): "Hãy tham khảo mẫu bố cục thông báo ngang này để thực hiện cho bố cục thông báo tạm của ứng dụng. Sau đó, hãy đề xuất cho tôi các phương án".
+- Trình ba phương án bằng bản vẽ (biển sáng treo dưới notch; biển tối liền với notch; biển sáng một dòng), và nói rõ cả ba đều rộng ngang, ngược với kiểu thẻ dọc hẹp chủ dự án chọn ở 0.13.0. Chủ dự án chọn biển tối liền notch, áp dụng cho mọi thông báo tạm, viền đổi màu theo loại.
+- Quyết định: một thành phần biển dùng chung trong vỏ notch; mỗi tính năng chỉ khai tên, biểu tượng, loại tin và các hàng, không tự vẽ. Biển rộng theo nội dung (đo chữ trước khi vẽ), nên tin ngắn thì biển nhỏ.
+- Quyết định: "đậm khi đã xong" trên nền đen không phân biệt được, nên tin thường và tin đã xong dùng viền xám mảnh; thêm viền đỏ cho sự cố (pin yếu), vì đã có sẵn màu đó trong các thông báo cũ.
+- Quyết định: thứ nằm thường trực cạnh notch (bài đang phát, đồng hồ đếm ngược) không phải thông báo tạm nên giữ nguyên ở hai bên notch.
+- Sửa khi thử: hai hàng có dòng phụ không vừa chiều cao cố định, nên chiều cao biển được tính theo số dòng của vùng cao hơn; mũi tên chỉ hiện ở hàng có ô số hoặc hàng cuối.
+- Bản 0.15.0, cùng ngày. Chủ dự án gửi ảnh một trang web nền gần đen có các quầng màu xanh, tím, cam, xanh ngọc: "Hãy bỏ đường viền của thông báo tạm thời này và áp dụng đổ toàn bộ màu cho thông báo tạm thời bằng hiệu ứng gradient ... màu gradient cho thông báo tạm thời này phải có cả hiệu ứng chuyển động màu phù hợp với cách pop up ra thông báo". Trình ba phương án bằng bản vẽ có chuyển động (cực quang dâng từ đáy; quầng sáng lan từ notch; dải màu phủ kín trôi ngang). Chủ dự án chọn dải màu phủ kín, màu đổi theo loại tin, trôi chậm suốt lúc hiện; đây không phải phương án tôi đề nghị (tôi đề nghị cực quang từ đáy vì giữa biển tối, dễ đọc). Tôi tự quyết: phủ thêm một lớp tối 40% để chữ đọc được trên dải màu; biểu tượng luôn trắng thay vì theo màu loại tin; phần trên của biển mờ dần về đen để liền với tai thỏ; chuyển động lúc bung ra là một cú lao tắt dần chứ không phải một hiệu ứng riêng, nên dải màu vừa "ra theo" biển vừa không giật khi chuyển sang trôi chậm; tôn trọng cài đặt "Giảm chuyển động" của máy.
+- Bản 0.16.0, cùng ngày. Chủ dự án: "Hãy đề xuất cho tôi các phương án có hiệu ứng mượt hơn", rồi "hãy cho tôi phương án thêm cả màu loang từ 2 góc trên". Trình ba bản vẽ có màu loang từ hai góc (mây màu thêm hai góc; chỉ hai góc; dải màu mềm thêm hai góc): chủ dự án chọn mây màu thêm hai góc, giữ cách bật ra hiện tại, màu đổi theo loại tin, và xin thêm phương án chạy màu. Trình bốn kiểu chạy cho các đám mây màu (trôi lững lờ, chạy vòng, chảy ngang, đổ từ góc): "Chưa được, hãy cho tôi phương án đẹp mắt và thu hút hơn". Trình bốn hiệu ứng rực hơn (cực quang lỏng, ánh sáng chạy quanh mép, tia cực quang từ hai góc, sóng màu lan từ hai góc): chủ dự án chọn tia cực quang từ hai góc. Bài học: với hiệu ứng trên biển, chủ dự án muốn thứ rực và bắt mắt, không phải thứ êm và kín đáo. Tôi tự quyết: vùng đen ở trên thu lại thành hình bầu dục quanh tai thỏ để hai góc có màu; chữ có bóng mờ thay cho lớp tối dày; tia hẹp hơn và mờ ít hơn bản vẽ để còn ra hình tia trên tấm biển thấp; bỏ hẳn dải màu của bản 0.15.0 khỏi mã.
+- Vòng X, bản 0.17.0, cùng ngày. Chủ dự án: "Ứng dụng này chưa bật được trên màn hình xuất ra, hãy thêm chức năng này cho ứng dụng. Tất cả màn hình được cắm xuất ra đều hiển thị aranotch". Trước đó notch chỉ ở một màn hình (mặc định là màn hình có tai thỏ), nên màn hình ngoài không có gì. Tôi tự quyết về kỹ thuật: vì chỉ có một con trỏ, chỉ cần một notch trả lời; giữ nguyên toàn bộ bộ điều khiển cho notch đó và cho nó đi theo con trỏ như chế độ "màn hình có con trỏ" đã có, còn mỗi màn hình khác có một cửa sổ chỉ vẽ notch đóng từ cùng thông báo. Cách này không đụng tới máy trạng thái, bàn phím và các trang, nên ít rủi ro hơn là nhân đôi cả bộ điều khiển cho từng màn hình. Đặt "Mọi màn hình" làm mặc định vì chủ dự án muốn mọi màn hình đều có; ai đã tự chọn chế độ khác thì giữ nguyên lựa chọn. Không có quyết định mới nào về giao diện: notch trên màn hình không có tai thỏ vẽ như từ vòng A.
+- Bản 0.17.1, cùng ngày. Chủ dự án, sau khi thấy notch ở màn hình ngoài: "notch ở màn hình ngoài ở trạng thái chờ cần nhỏ hơn, hãy cho tôi phương án. Do chỉ có trên màn hình có phần khuyết trên màn hình, còn các màn hình khác không có". Trình bốn phương án vẽ đúng tỉ lệ (vạch mỏng 120 × 5, tai nhỏ 84 × 13, notch thu gọn 120 × 20, ẩn hẳn): chủ dự án chọn vạch mỏng nhưng cỡ 150 × 10, và khi có thứ nằm cạnh notch thì hiện cỡ đầy đủ. Tôi tự quyết: vùng chạm lúc chờ thu lại theo vạch để thanh menu bên dưới dùng được, và lớn ra cùng notch khi nó thức; kiểu viên nang nổi không đổi vì đó là lựa chọn riêng của người dùng.
+- Bản 0.17.2, cùng ngày, sửa lỗi. Chủ dự án báo: "Ở màn hình phụ đang có hiện tượng giật lag, hãy kiểm tra". Nguyên nhân: vị trí con trỏ đo từ đáy màn hình chính lên, nên ở hàng điểm ảnh trên cùng của một màn hình nó đúng bằng mép trên của khung màn hình đó (1554 trên màn hình ngoài), mà phép thử "khung chứa điểm" của hệ thống không tính mép trên. Con trỏ ở sát mép trên màn hình ngoài vì thế bị coi là không ở màn hình nào, notch trả lời nhảy về màn hình có tai thỏ, xuống một điểm ảnh lại nhảy sang; và chừng nào con trỏ còn ở mép trên thì mỗi lần chuột nhúc nhích các cửa sổ notch lại bị xếp lại. Mép trên lại đúng là chỗ của vạch chờ. Lỗi phép thử có từ chế độ "màn hình có con trỏ" cũ, chỉ lộ ra khi bản 0.17.0 đưa notch lên mọi màn hình. Sửa: phép thử riêng tính mép trên và không tính mép dưới; không thấy con trỏ ở màn hình nào thì notch ở yên chỗ đang ở; chỉ xếp lại cửa sổ khi màn hình được chọn thật sự đổi. Tái hiện bằng test trước khi sửa và bằng cách đưa con trỏ bằng lệnh dọc mép trên màn hình ngoài: trước khi sửa cửa sổ trả lời ở MacBook, sau khi sửa ở màn hình ngoài và notch mở ra.
+- Phát hành 0.17.2, cùng ngày. Chủ dự án: "hãy phát hành bản 0.17.2 lên GitHub". Đây là bản thứ hai được phát hành sau 0.12.0; các bản 0.13.0 tới 0.17.1 chưa từng phát hành, nên ghi chú của 0.17.2 được viết lại để kể hết thay đổi từ 0.12.0 (notch trên mọi màn hình, biển thông báo, thông báo agent, công tắc trong Cài đặt). Trước khi đưa lên đã mở ảnh đĩa ra xem: chỉ có ứng dụng, không có mã nguồn; chữ ký hợp lệ; nguồn tin có chữ ký cập nhật. Sau khi đưa lên đã tải lại nguồn tin và ảnh đĩa từ GitHub và so từng byte với bản đã xem. Sự cho phép này chỉ cho bản 0.17.2; bản sau vẫn phải hỏi.
+- Bản 0.17.3, 2026-10-14. Chủ dự án nhờ kiểm tra app như một chuyên gia QA theo mười nhóm; tôi đo thật trên máy (bản thử có dữ liệu và clipboard riêng) và đọc mã, báo 17 vấn đề. Chủ dự án: "Hãy sửa ngay các việc từ 1-4". Những gì học được khi sửa: (a) với biển thông báo, làm mờ không phải chỗ tốn: vẽ sẵn tia vẫn tốn 19–28% CPU; đo bằng `sample` cho thấy mỗi khung hình SwiftUI duyệt lại cả cây giao diện của notch, kể cả các trang đang ẩn; giao chuyển động cho Core Animation thì còn 0–1,7%. Cách bỏ các trang ẩn khỏi cây khi notch đóng cũng giảm được một nửa nhưng làm mất trạng thái các trang nên bị loại. (b) Với bộ nhớ ảnh, ảnh thu nhỏ đúng cỡ chưa đủ: `heap` trên một bản sao được ký cho phép soi bộ nhớ cho thấy bộ nhớ thật sự đang dùng chỉ khoảng 70 MB, phần còn lại là các vùng bộ cấp phát đã giải phóng mà vẫn giữ. Hai cách được thử, đo và bỏ vì không có tác dụng: một vùng autorelease riêng cho bộ hẹn giờ đọc clipboard, và gọi `malloc_zone_pressure_relief` sau mỗi ảnh; cách thứ hai còn làm app thử crash vì một closure chạy trên luồng nền bị Swift 6 coi là của luồng chính (bài đo bắt được, có test tái hiện trước khi sửa, rồi bỏ hẳn). Cái có tác dụng là thẻ chỉ giữ bản 512 điểm ảnh. Bài đo bằng ảnh 1600×1000 vẽ qua NSImage (dán dạng TIFF) không phản ánh ảnh chụp màn hình thật (dán dạng PNG); đo lại bằng ảnh PNG 3024×1964 mới thấy rõ khác biệt. (c) Lỗi bộ gõ có ở bốn chỗ, không chỉ notch: cửa sổ clipboard ⌘⇧C, Thư viện (phím xoá khi ô tìm còn trống có thể xoá mục đang chọn), đặt tên board. Một quy tắc chung `NSEvent.isForInputMethod` dùng cho cả ba bộ theo dõi phím.
+- Bản 0.18.0, 2026-10-14. Chủ dự án: "Hãy sửa toàn bộ các lỗi còn lại mà bạn đã liệt kê, nếu cần phê duyệt điều gì hãy đề xuất các phương án". Tôi làm ngay phần kỹ thuật, và trình 9 câu hỏi kèm bản vẽ; chủ dự án chọn đúng 9 phương án đề nghị: biển hoàn tác 5 giây, nút gỡ trong Cài đặt › Chung, ẩn notch khi toàn màn hình mà vẫn hiện thông báo, biển đỏ báo lỗi lời nhắc, chưa mua tài khoản Developer (viết hướng dẫn), chưa tải máy ảo hay Xcode, giữ xem trước liên kết bật sẵn, loại lịch sử khỏi Time Machine, chuyển app vào /Applications. Khi làm: biển hoàn tác theo đúng phương án A sẽ vô dụng vì việc đánh dấu chỉ làm được khi notch mở, mà biển chỉ hiện khi notch đóng; tôi cho chính tấm biển hiện ở cuối trang Lịch khi notch mở (và rơi từ notch nếu notch đóng sớm), báo lại cho chủ dự án. Hai nhận định sai trong báo cáo QA được sửa: "chỉ Apple Silicon nhưng không khai báo" sai vì README và nguồn tin cập nhật đã khai; "thời gian khởi động" không chỉ do cửa sổ Cài đặt mà phần lớn do đọc log Codex 14 MB theo cách chép lại bộ đệm. Thử gỡ cài đặt trên thư mục nhà giả lộ ra một lỗi có từ trước: hai lần ghi settings.json của Claude Code trong cùng một giây trùng tên bản sao lưu nên lần sau thất bại.
+- Bản 0.18.1, 2026-10-14, sửa lỗi. Chủ dự án: "hãy thử và sửa lỗi bấm xuyên qua biển thông báo" (lỗi tôi suy ra từ mã ở cuối bản 0.18.0). Tái hiện trước: một cửa sổ thử ghi lại cú bấm, đặt dưới vùng biển agent; cú bấm giả lập vào phần dưới của biển rơi vào cửa sổ đó. Lỗi có từ bản 0.13.0, khi thông báo bắt đầu rơi xuống thành biển lớn hơn notch. Sửa bằng một cửa sổ trong suốt, không kích hoạt app, đúng bằng vùng đang hiện trên notch đóng, thay vì cho cửa sổ notch nhận chuột (cửa sổ notch rộng bằng notch mở, sẽ chắn cả một vùng thanh menu trong lúc biển hiện). Tôi tự quyết: thứ nằm cạnh notch lâu dài (bài đang phát) cũng nhận cú bấm như biển, vì nó che những gì nằm dưới nó.
+- Phát hành 0.18.1, cùng ngày. Chủ dự án: "hãy phát hành bản 0.18.1 lên GitHub", trả lời câu hỏi có kèm README mới. Ghi chú phát hành kể mọi thay đổi từ 0.12.0. Trước khi đưa lên: mở bộ cài ra xem (chỉ có app, có Privacy Manifest, chữ ký hợp lệ, bộ cài cũng được ký, nguồn tin có chữ ký cập nhật, khai arm64 và macOS 15); kiểm README trên GitHub đúng là bản trước của chúng ta rồi mới ghi đè. Sau khi đưa lên: tải lại nguồn tin, bộ cài và README từ GitHub và so từng byte. Kho công khai vẫn chỉ có README. Sự cho phép này chỉ cho bản 0.18.1.
+- Bản 0.18.2, 2026-10-14. Chủ dự án: "notch ở phía bên màn hình phụ rất mờ, hãy kiểm tra". Đo: màn hình phụ mật độ 1x; phóng to từng điểm ảnh, chữ của Chrome có nét gọn còn chữ trên biển AraNotch loang 2 điểm ảnh và có quầng. Nguyên nhân: notch bố trí ở cỡ gốc rồi phóng to 1,2 lần; cây layer cho thấy SwiftUI vẽ chữ vào CGDrawingLayer ở mật độ 1x rồi gắn phép phóng to lên chính layer đó. Trình bốn phương án (A biển nét + trang cỡ 100% trên màn hình 1x; B dựng lại đúng cỡ mọi trang; C A rồi B; D chỉ biển), kèm ảnh so sánh thật; chủ dự án chọn B và bóng chữ gọn hơn. Trước khi làm B tôi thử ba cách nhẹ hơn để đạt cùng kết quả (mật độ qua môi trường SwiftUI, khung AppKit phóng to bằng hệ toạ độ, cửa sổ báo mật độ cao hơn); không cách nào nét. Vẽ thành một khối (drawingGroup) thì nét nhưng không dùng được với điều khiển AppKit, nên B chia hai đợt: đợt 1 (bản này) cho biển và thứ cạnh notch; đợt 2 dựng đúng cỡ hàng tab và các trang (khoảng 800 con số kích thước trong khoảng 40 view).
+- Bản 0.18.3, 2026-10-14. Đợt 2 của phương án B: hàng tab và mọi trang được bố trí ở cỡ hiển thị thay vì phóng to sau khi vẽ. Thêm giá trị môi trường `araScale`; một script đổi mã nhân các số đo cố định với nó (bỏ qua hình vẽ của biểu tượng, vì nét vẽ đã tự co theo khung), rồi soát tay những chỗ script không với tới: hằng số tĩnh, hàm mở rộng của View (đổi thành ViewModifier để đọc được môi trường), view AppKit (đọc `context.environment`), chỗ gọi bị nhân hai lần. So từng trang với ảnh chụp trước khi đổi tìm ra các chỗ còn sót: chiều cao ô ở trang Tổng quan (thẻ clipboard chỉ còn một dòng), lề của trang, bề ngang cột chọn ngày, thanh tiến độ. Kết quả trên màn hình phụ 1x: chữ nét như của app khác; bấm và rê chuột đúng chỗ.
+- Phát hành 0.18.3, cùng ngày. Chủ dự án: "hãy phát hành bản 0.18.3 lên GitHub". Ghi chú phát hành kể mọi thay đổi từ 0.12.0, gộp cả 0.18.2. Trước khi đưa lên: mở bộ cài ra xem (chỉ có app, phiên bản 0.18.3 bản dựng 36, chữ ký hợp lệ, bộ cài có chữ ký), nguồn cập nhật có chữ ký và trỏ đúng tệp; sau khi đưa lên, tải nguồn cập nhật và bộ cài công khai về so từng byte với tệp trên máy: trùng khớp. README công khai không đổi.
+- Bản 0.18.4, 2026-10-14. Chủ dự án: "Hãy thử nghiệm tất cả các chức năng, các tính năng sâu nhất trong ứng dụng này", rồi "sửa 9 lỗi và phần hiệu năng trước". Đợt thử dùng dữ liệu và clipboard riêng, một tài liệu TextEdit nháp đứng trước để hứng phím gõ trượt (một lần chữ thử có thể đã rơi vào ô soạn tin của app Claude trước khi có tài liệu này, chưa gửi). Tìm ra 9 lỗi chức năng, khoảng 10 điểm giao diện (chờ chủ dự án duyệt mẫu) và vài điểm hiệu năng. Lỗi hẹn giờ do biển hết giờ và đồng hồ đếm ngược dùng chung một mã hoạt động, mà đồng hồ được trình lại mỗi giây. Cú khựng khi chuyển trang: lấy mẫu thấy macOS vẽ lại hình con trỏ mỗi lần notch đặt con trỏ (máy dùng con trỏ đổi màu và cỡ 1,23), đã chặn các lần đặt thừa; khoảng trống khung hình còn lại chỉ có khi hai trang khác chiều cao, tức là do cửa sổ đổi cỡ, chưa sửa.
+- Bản 0.19.0, 2026-10-14. Chủ dự án: "tôi muốn phần setting gọn gàng, sạch sẽ, dễ nhìn hơn đáng kể... cắt giảm những tuỳ chọn không cần thiết, lược bớt từ ngữ". Đếm được 11 mục, khoảng 118 dòng, 43 dòng giải thích bị cắt, "board" và "bảng" lẫn nhau. Trình bản mẫu 7 mục và bốn câu hỏi; chủ dự án chọn 7 mục, một dòng giải thích ngắn luôn hiện, phím tắt gộp với công cụ, và đồng ý cả bốn nhóm cắt bớt. Mỗi tính năng nay đưa từng khối nhỏ (dòng công cụ, dòng thông báo, phần nâng cao) để AppDelegate ghép thành mục; các khoá chuỗi của tuỳ chọn đã bỏ được xoá để ô tìm kiếm không còn trả về chúng.
+- Bản 0.19.1, cùng ngày. Chủ dự án duyệt ảnh 7 mục và cho gộp. Thử tay hai chỗ còn lại: menu thứ tự của Copy Stack đúng; chọn "Theo tên" trong Thư viện lưu được cài đặt nhưng danh sách không đổi, vì Thư viện chưa bao giờ dùng thứ tự sắp xếp (chỉ trang notch và panel dùng). Sửa cho Thư viện theo thứ tự đó.
+- Phát hành 0.19.1, cùng ngày. Chủ dự án: "hãy phát hành bản 0.19.1 lên GitHub". Ghi chú phát hành kể mọi thay đổi từ 0.12.0, gộp cả 0.18.4 và 0.19.0. Trước khi đưa lên: mở bộ cài ra xem (chỉ có app, bản 0.19.1 dựng 39, chữ ký hợp lệ, bộ cài có chữ ký), nguồn cập nhật có chữ ký và trỏ đúng tệp; sau khi đưa lên, tải nguồn cập nhật và bộ cài công khai về so từng byte: trùng khớp. README công khai không đổi.
+- Bản 0.20.0, 2026-10-14. Chủ dự án: "gửi bản mẫu cho các điểm giao diện còn lại". Hai bản mẫu cho 8 điểm; chủ dự án chọn A cho lưới, board khoá, Caps Lock, giữ notch co giãn (B), và đồng ý bốn đề xuất còn lại. Khi thử tay, ô mật mã trong Thư viện không mở được bằng Return, vì phím Return trên notch do bộ điều phối phím của notch xử lý; ô mật mã nay tự nhận Return khi ở trong một cửa sổ. Notch trước đây chỉ có một chỗ cho thứ nằm cạnh nó; nay nhiều thứ cùng xin chỗ theo mã, thứ ưu tiên cao hơn hiện.
+- Bản 0.20.1, 2026-10-14. Chủ dự án: "tôi cảm thấy bị giật lag mỗi khi hiện thông báo ra và đóng thông báo", rồi hỏi cách hiện Caps Lock tối ưu hơn. Đếm khung hình không thấy rớt nhiều (khoảng 100 khung mỗi giây lúc mở); quay video rồi xem từng khung mới thấy cái giật: quầng sáng và chữ mờ lúc mở, hộp đen trống rồi chữ cũ hiện lại dưới notch lúc đóng, và tia màu bung lại từ đầu ở mỗi khung khi mở. Chủ dự án chọn "êm và gọn", giữ biển Caps Lock đầy đủ nhưng dấu thu gọn phải ngắn hơn theo chiều ngang. Bỏ cách để SwiftUI tự làm mờ khi gỡ view (lúc đóng nó tắt phụt rồi vẽ lại sai chỗ); notch nay tự làm mờ nội dung trước rồi mới đổi sang thứ kế tiếp.
+- Phát hành 0.20.1, cùng ngày. Chủ dự án: "hãy phát hành bản 0.20.1 lên GitHub". Ghi chú phát hành kể mọi thay đổi từ 0.12.0, gộp cả 0.20.0. Trước khi đưa lên: mở bộ cài ra xem (chỉ có app, bản 0.20.1 dựng 41, chữ ký hợp lệ, bộ cài có chữ ký), nguồn cập nhật có chữ ký và trỏ đúng tệp; sau khi đưa lên, tải nguồn cập nhật và bộ cài công khai về so từng byte: trùng khớp. README công khai không đổi.
+- Bản 0.20.2, 2026-10-15. Chủ dự án: "Tôi tạo reminder trong ngày hôm nay không được", rồi nói rõ: chọn hạn hôm nay nhưng không thể chọn ước tính. Thử tay với lời nhắc thật thì tạo và lưu đều được; chỗ vướng là thẻ sửa cho hạn Cả ngày khi chọn ngày, nên Ước tính bị khoá. Chủ dự án chọn: chọn ngày là có giờ luôn.
+- Bản 0.21.0, 2026-10-15. Chủ dự án: "Ở menu calender, hãy đề xuất cho tôi phương án bổ sung thêm cả phần event và reminder của những ngày tiếp theo". Ba bản mẫu: cột trái dưới tháng, nhóm dưới biểu đồ, chế độ 7 ngày. Chủ dự án chọn cột trái dưới tháng, 3 ngày tới, chỉ hiện ở cỡ lớn (không chọn đề xuất nhóm dưới biểu đồ).
+- Bản 0.22.0, 2026-10-15. Chủ dự án: "Hãy bỏ cỡ lớn và cỡ vừa, các kích cỡ sẽ được auto fit với nội dung bên trong". Chủ dự án chọn luôn hiện Sắp tới và Đã xong. Chiều cao trang nay tính cả cột trái, vì Sắp tới dưới lịch tháng có thể dài hơn biểu đồ của ngày.
+- Bản 0.22.1, 2026-10-15. Chủ dự án hỏi chữ "#2872CC" dưới ô lời nhắc mới là gì: đó là gợi ý lấy từ clipboard. Chủ dự án chọn bỏ hẳn gợi ý từ clipboard.
+- Bản 0.22.2, 2026-10-15. Chủ dự án: "Không sử dụng gợi ý nữa". Bỏ cả gợi ý tên dùng gần đây và phần ghi nhớ tên; các tên đã lưu được xoá lúc mở app.
+- Phát hành 0.22.2, 2026-10-15. Chủ dự án yêu cầu mô tả phiên bản viết dạng tóm tắt ngắn gọn tính năng, từ ngữ đơn giản cho người phổ thông; ghi chú chỉ nói những gì mới kể từ 0.20.1, không chép lại danh sách dài từ 0.12.0 như trước. Bộ cài và tệp báo cập nhật trên GitHub giống hệt bản trên máy.
+- README trên GitHub, 2026-10-15. Chủ dự án: "Hãy cập nhật README trên GitHub cho bản mới". Thêm phần "Mới trong bản 0.22.2" và phần tóm tắt tính năng, lời đơn giản, tiếng Việt rồi tiếng Anh; các phần tải về, quyền riêng tư và gỡ cài đặt giữ nguyên.
+- Bản 0.23.0, 2026-10-15. Chủ dự án: "Hãy vào vai là 1 người dùng bình thường, sử dụng setting của notch và cho tôi biết có những setting nào đang gây khó hiểu". Liệt kê 37 chỗ; bản mẫu bố cục và câu chữ mới; chủ dự án chọn như mẫu, giữ "board" đổi "clip" thành "mục", 4 cỡ notch, bỏ công tắc riêng của phím tắt. Kéo thả kiểu danh sách của Form không chạy trên Mac nên mỗi dòng trang tự nhận kéo thả. Ô phím vẽ rộng 130 điểm dù được xếp 110 nên từng tràn mép phải. README công khai đã sửa đường dẫn Cài đặt trong bản ở máy, chờ lần phát hành sau mới đưa lên.
+- Phát hành 0.23.0, 2026-10-15. Ghi chú viết ngắn gọn bằng lời đơn giản, chỉ nói những gì mới kể từ 0.22.2. README trên GitHub được cập nhật cùng lúc: phần "Mới trong bản 0.23.0" và đường dẫn Cài đặt khớp bố cục mới. Bộ cài, tệp báo cập nhật và README trên GitHub giống hệt bản trên máy.
+- Bản 0.23.1, 2026-10-15. Chủ dự án: "Hãy thử nghiệm tất cả các chức năng trong bản mới". Thử bằng bản dựng thử với dữ liệu riêng; cài đặt thật được trả lại sau mỗi lần đổi. Hai chỗ sửa: lời nhắn MCP chỉ sai chỗ sau khi Cài đặt bố trí lại; chữ xong của agent khác nhau ở ba nơi. Còn lại để hỏi: màn hình chào mừng vẫn viết "clip".
+- Phát hành 0.23.1, 2026-10-15. Ghi chú ngắn, chỉ hai chỗ sửa kể từ 0.23.0. README trên GitHub giữ nguyên. Bộ cài và tệp báo cập nhật trên GitHub giống hệt bản trên máy.
+- README trên GitHub, 2026-10-15. Chủ dự án: "Hãy cập nhật README trên GitHub cho bản mới". Phần "Mới trong bản 0.23.1" gồm những điểm của 0.23.0 cộng chữ thống nhất của 0.23.1, vì ai cập nhật từ 0.22 nhận cả hai.
+- Bản 0.24.0, 2026-10-15. Chủ dự án hỏi tuỳ chọn ngôn ngữ ở đâu (không có; app theo macOS, máy chủ dự án đặt tiếng Anh trước nên app hiện tiếng Anh), rồi yêu cầu: "Hãy cho lựa chọn ngôn ngữ vào setting của ứng dụng". Dùng đúng chỗ macOS giữ ngôn ngữ riêng của app thay vì một cài đặt riêng, để System Settings và AraNotch không cãi nhau.
+- Phát hành 0.24.0, 2026-10-15. Ghi chú ngắn, một điểm mới kể từ 0.23.1 (chọn ngôn ngữ). README trên GitHub giữ nguyên. Bộ cài và tệp báo cập nhật trên GitHub giống hệt bản trên máy.
+- README trên GitHub, 2026-10-15. Phần "Mới trong bản 0.24.0": chọn ngôn ngữ, kèm tóm tắt Cài đặt mới từ 0.23; dòng ngôn ngữ trong phần tính năng chỉ chỗ chọn.
+- Đồ thị tri thức, 2026-10-16. Chủ dự án chạy `/graphify --update` rồi nhờ lần theo `ClipboardController` và `AppDelegate`. Phát hiện: tham chiếu sang lớp ở tệp khác chỉ thành nút mang tên (1.716 nút như vậy), nên `AppDelegate` không nối tới controller thật nào và không có cạnh nào giữa các tính năng nó ghép với nhau. Chủ dự án: "có, hãy làm cả hai". Sửa: `Scripts/graph-update.py` gộp mỗi nút chỉ có tên vào lớp thật duy nhất cùng tên (329 nút, 412 cạnh; tên trùng ở nhiều tệp và kiểu hệ thống để nguyên); `Scripts/graph-docs.py` giữ tay các đường nối mà `AppDelegate` tạo bằng closure lúc khởi động (Capture, Lịch, Dịch vào Clipboard; Capture, Cập nhật vào Notch; Notch mở trang Tệp; menu thanh trạng thái, trang Công cụ, trang Tổng quan), vì trình đọc mã không thấy lời gọi qua closure. Lần chạy đầu bị chặn vì đồ thị nhỏ đi 327 nút; đó là việc gộp có chủ đích nên chạy lại với `GRAPH_ALLOW_SHRINK=1`. Kết quả: 7.483 nút, 454 cộng đồng (trước 554); `AppDelegate` nay ở chung cụm với Cài đặt. Cùng ngày, ghi chú phát hành 0.12.0 tới 0.24.0, README công khai và 16 ảnh giao diện lần đầu được đọc nội dung vào đồ thị.
+- Đồ thị tri thức, 2026-10-16, tiếp. Chủ dự án: "hãy sửa nốt 101 cạnh tự nối". Cả 101 là lời gọi do trình đọc mã vẽ từ một hàm về chính nó, không cái nào là đệ quy thật: 66 là gọi hàm cùng tên của đối tượng khác (như `spool.start()` trong `start()`), trình đọc không biết kiểu nên nối về chính nó; 34 là gọi một bản khác cùng tên trong cùng kiểu (`self.init(...)`, các hàm nạp chồng), mà graphify gộp thành một nút; 1 là biến mảng trùng tên hàm. Sửa: `Scripts/graph-update.py` bỏ các lời gọi tự nối này mỗi lần cập nhật (cạnh tự nối loại khác vẫn để phép kiểm tra sức khoẻ báo). Kết quả: không còn cạnh tự nối, kiểm tra sức khoẻ đồ thị báo ổn, 424 cộng đồng. Giới hạn còn lại: 66 lời gọi kia đáng lẽ trỏ tới hàm của đối tượng khác, nhưng trình đọc mã không đủ thông tin kiểu để nối đúng, nên chúng bị bỏ chứ không được nối lại.
+- Đồ thị tri thức, 2026-10-16, tiếp. Chủ dự án: "hãy nối lại 66 lời gọi đó cho đúng". Đoán kiểu từ mã thì dễ sai, nên hỏi thẳng máy chủ ngôn ngữ Swift (`sourcekit-lsp`, có sẵn trong Command Line Tools): với mỗi lời gọi tự nối, nó cho biết hàm được gọi được định nghĩa ở tệp nào, dòng nào; nút trong đồ thị là nút cùng tên ở tệp đó, khai báo trên hoặc ngay trên dòng đó (thuộc tính như `@discardableResult` đẩy nút lên một dòng). `Scripts/graph-update.py` làm việc này trước khi bỏ lời gọi tự nối, mỗi lần cập nhật; thêm `prepare --all-code` để đọc lại toàn bộ mã một lần. Kết quả trên 101 lời gọi tự nối: 51 được nối đúng hàm (như `watcher.start()` sang `PasteboardWatcher.start`, `source.createReminder` sang `AgendaSource.createReminder`; kiểm tay 8 cái đều đúng); 36 thật sự là chính nó (đệ quy, hoặc hàm cùng tên khác tham số mà graphify gộp chung một nút, hoặc cạnh đã có sẵn); 12 gọi vào khung của Apple (`Foundation`, `CryptoKit`, `EventKit`), không có nút trong đồ thị; 2 không có trả lời (một vào Sparkle, một trong test). Đọc lại toàn bộ mã cùng lúc cũng nối được nhiều lời gọi giữa các tệp mà các lần cập nhật từng phần bỏ sót: đồ thị còn 7.520 nút, 19.040 cạnh, 386 cộng đồng, không còn cạnh tự nối. Máy chủ ngôn ngữ để lại chỉ mục trong `.build/index-build` (khoảng 770 MB, xoá được, sẽ tự dựng lại khi cần).
+- Bản 0.25.0, 2026-10-16, Tổng quan kiểu widget. Chủ dự án: "hãy đề xuất cho tôi cách khai thác tối ưu nhất cho menu overview". Bốn câu hỏi một lượt: mục tiêu (chọn tự sắp xếp như widget), chỗ sửa (ngay trên notch), lưới (4 × 2 với ba cỡ, bản vẽ ba phương án), khi không vừa hai hàng (notch dài thêm hàng); cách làm (danh sách có thứ tự tự dồn kín, giống màn hình chính iPhone); mặc định giữ đúng chiều cao cũ, Công cụ tắt. Spec `2026-10-16-overview-widgets-design.md` và kế hoạch 11 việc được duyệt; chủ dự án chọn để tôi tự làm hết trong một phiên, rà toàn bộ một lần ở cuối.
+- Quyết định (tự suy ra khi làm): một hàng là 78 điểm tờ, nên dạng rộng của Nhạc (ảnh 48) và Hôm nay (3 dòng) được nén cho vừa, và trang cắt mỗi ô theo khung của nó để không ô nào tràn sang ô bên; trong lúc sửa notch dùng một cờ mới giống lúc đang gõ (con trỏ rời đi không đóng, bấm ra ngoài thì đóng) thay cho cờ giữ mở như ghim của trang Lịch, vì spec nói bấm ra ngoài là thôi sửa; nút cỡ hiện mũi tên phóng to hay thu nhỏ theo cỡ kế tiếp; nút bỏ nằm nửa ngoài góc ô vì ảnh chụp đầu tiên che mất tên ô; ô Máy cỡ lớn không có dòng đầu ra âm thanh riêng vì dòng âm lượng đã ghi tên đầu ra; danh sách Bluetooth lấy từ chính bộ theo dõi thông báo Bluetooth nên không cần quyền mới, đổi lại chỉ có khi thông báo đó bật.
+- Cách thử: bản dựng thử với dữ liệu riêng và hai tham số mới, `--overview-arrangement` (bố cục chỉ cho lần chạy đó, mọi thay đổi không được lưu) và `--edit-overview`; chụp cửa sổ notch bằng `screencapture -l`. Cỡ notch và ngôn ngữ của cài đặt thật được đổi tạm để chụp rồi trả lại ngay. Biển thông báo thật (một cuộc họp giả lập, một phiên Claude khác đang hỏi quyền) che notch ở hai lần chụp; lần sau dùng tệp sự kiện agent rỗng và chờ biển tắt.
+- Chưa thử tay: chủ dự án từ chối cấp quyền điều khiển AraNotch, nên các cú bấm bỏ ô, đổi cỡ, thêm ô và kéo ô chỉ được kiểm bằng test của phần logic và bằng ảnh chụp. Một lần chạy thử chế độ sửa, notch đóng sau vài giây vì đúng lúc đó có một cú bấm chuột thật (chủ dự án đang dùng máy), đúng như thiết kế.
+- Rà soát cả nhánh trước khi gộp, cùng ngày. Người rà độc lập tìm ra một lỗi nặng: trong chế độ sửa nội dung ô bị tắt nhận chuột nên cử chỉ kéo không bao giờ bắt đầu, tức kéo đổi chỗ không chạy; xác nhận bằng một chương trình thử gửi sự kiện chuột vào một cửa sổ riêng (0 sự kiện kéo trước khi sửa, 20 sau khi sửa). Thêm hai chỗ: ô rộng hay lớn bị nhấc ở ô lưới khác ô góc trái trên thì xê dịch một chút đã đổi chỗ và thả tại chỗ vẫn lưu thứ tự mới (nay ô rơi theo góc trái trên của nó, tính bằng số ô lưới đã đi); hàng chip "Thêm ô" rộng hơn trang khi cả bảy tính năng đều chưa có, nên chip ở mép bị cắt (nay xuống dòng). Chín điểm nhỏ để lại, ghi trong sổ theo dõi của lần làm này.
+- Tám điểm nhỏ còn lại của lần rà soát, cùng ngày. Chủ dự án: "Hãy sửa nốt 8 điểm nhỏ còn để lại từ lần rà soát". Hàng thêm vào nay cao đúng bằng hai hàng đầu ở mọi cỡ notch (hàng tab giữ chiều cao của tai thỏ nên bước thêm một hàng là 77 điểm tờ ở 100%, 80 ở 125%, 82 ở 150%, không phải 84 cố định); kéo ô ra ngoài lưới thì các ô khác trở về thứ tự cũ ngay lúc đang kéo; ô bị báo "Hết chỗ" chỉ lắc một lần; ô Hẹn giờ cỡ lớn ghi tên bộ đếm cạnh đồng hồ để bốn bộ đếm vừa; tên các ô đổi khoá sang `overview.tile.*` nên ô tìm của Cài đặt không còn dẫn tới hàng chip đã bỏ; Info.plist trở lại đúng định dạng cũ, chỉ đổi số bản. Khi đo ảnh chụp thấy thêm một lỗi lần rà chưa thấy: trang cắt ô trước khi đặt ô vào khung nên ô có nội dung cao hơn khung vẫn tràn (hàng đầu cao hơn hàng sau khoảng 10 điểm); nay đặt khung rồi mới cắt, hai hàng cao bằng nhau. Ô Hẹn giờ bốn bộ đếm chưa chụp được vì tham số thử chỉ chạy một bộ đếm.
+- Phát hành 0.25.0, 2026-10-16. Chủ dự án: "Hãy phát hành bản vá cho ứng dụng này". Mọi thay đổi kể từ 0.24.0 là Tổng quan kiểu widget, đã mang số 0.25.0, nên phát hành dưới số đó. Ghi chú ngắn, lời đơn giản, tiếng Việt rồi tiếng Anh. Trước khi đưa lên: mở bộ cài ra xem (chỉ có app và lối tắt Applications, bản 0.25.0 dựng 50, macOS 15, arm64, có Privacy Manifest, chữ ký app và bộ cài hợp lệ), nguồn cập nhật có chữ ký và trỏ đúng tệp; sau khi đưa lên, tải nguồn cập nhật và bộ cài từ GitHub về so từng byte: giống hệt. README trên GitHub giữ nguyên.
+- README trên GitHub, 2026-10-16. Chủ dự án: "Hãy cập nhật README trên GitHub cho bản 0.25.0". Phần "Mới trong bản 0.25.0": Tổng quan kiểu widget, ba cỡ ô, kèm dòng chọn ngôn ngữ từ 0.24 cho ai cập nhật từ bản cũ hơn; phần tính năng thêm dòng Tổng quan. Kiểm tra README trên GitHub đúng là bản trước của mình rồi mới thay; đọc lại sau khi đưa lên: giống hệt bản trên máy.
+- Bản 0.26.0, 2026-10-17, widget hình ảnh đợt 1. Chủ dự án: "Hãy đề xuất cho tôi các bố cục widget của từng tính năng để nhằm đa dạng hoá widget". Chọn hướng nhiều kiểu cho mỗi tính năng; bản vẽ đầu nhiều chữ, chủ dự án: "các widget ưu tiên design, không ưu tiên hiển thị thông tin theo dạng chữ"; bản vẽ lại có 23 kiểu (lúc hỏi tôi đếm nhầm là 22), chủ dự án chọn đợt 1 gồm 8 kiểu, giữ nguyên 7 ô cũ, mỗi kiểu là một ô riêng. Spec `2026-10-17-overview-visual-widgets-design.md`, kế hoạch 10 việc, tôi tự làm trong một phiên.
+- Quyết định khi làm: Nút lớn là một kiểu cho mỗi công cụ nên không ô nào cần tuỳ chọn riêng; biểu tượng và màu của công cụ dồn về một bảng mà trang Công cụ, ô Công cụ nhanh, Nút lớn và chip cùng đọc; khung chung của ô hình ảnh có tuỳ chọn không chừa lề để Ảnh bìa phủ kín ô (lề âm bị phép cắt góc cắt mất); biểu tượng theo loại thiết bị Bluetooth dùng chung giữa thông báo và ô Vòng thiết bị; pin Bluetooth đọc bằng `system_profiler` ở nền, quá 5 giây thì bỏ. Hai lỗi thấy khi chụp và đã sửa: hai thẻ phía sau của Chồng thẻ không vẽ vì không có nội dung; tệp giới hạn thử của tôi sai định dạng (app đọc dạng ghi riêng của nó, không đọc JSON của dòng trạng thái).
+- Chú thích cho widget hình ảnh, 2026-10-18, trước khi phát hành 0.26.0. Chủ dự án: "Bạn cần phải thêm chú thích liên quan đến widget, không được để widget không có chữ nào. Vì người dùng sẽ không biết đó là widget gì và đang thể hiện cái gì". Trình ba cách (tên ở trên; chú thích ở dưới; cả hai); chủ dự án chọn C rồi đổi sang B: hình ở giữa, một dòng dưới nói vừa là gì vừa giá trị. Chữ dài thì co nhẹ trước khi bị cắt; dòng của Vòng giới hạn ở cỡ nhỏ rút còn "Giới hạn · Claude 62%" cho vừa. Đếm việc còn lại hôm nay và giờ việc kế tiếp là hàm thuần có test. Lần tự thử tay cùng ngày (qua trợ năng, bản thử riêng): đổi cỡ, thêm, bỏ ô, Xong, tạm dừng Đĩa thời gian, chép màu, mở trang Hẹn giờ đều đúng; Bảng màu bị gộp thành một nút với VoiceOver, đã sửa; kéo đổi chỗ chưa thử được vì một phiên khác đang giữ màn hình.
+- Bộ widget mới cho Tổng quan, 2026-10-18, trước khi phát hành 0.26.0. Chủ dự án gửi hai ảnh mẫu "macOS | Custom Widget" và yêu cầu: "hiển thị tối ưu và dễ quan sát, dễ sử dụng bằng các màu tương phản với nhau"; mỗi cỡ một cách hiển thị, "size nhỏ đã đầy đủ thông tin, nhưng size to hiển thị chi tiết hơn, size to hơn nữa hiển thị chi tiết hơn và nhiều hơn". Chủ dự án chọn: thay cả 15 kiểu cũ (8 kiểu hình ảnh của 0.26.0 chưa phát hành bị bỏ); toàn thẻ tối; màu trang làm sáng hơn, cam đỏ khi cần chú ý; một kiểu mỗi tính năng, ba cỡ. Khi làm: thẻ cao khoảng 61 đơn vị sau phóng to nên chip, con số lớn và giãn dòng của Agent được thu lại cho vừa; vạch "bây giờ" của dải giờ vẽ tràn ra ngoài thanh thay vì làm thanh cao thêm; thanh âm lượng là một thanh kéo kiểu thẻ tối; tên công cụ ở cỡ nhỏ là tên ngắn. Thử qua trợ năng trên bản thử (bấm chuột thật chưa thử vì bản của chủ dự án chạy cùng chỗ); ở cỡ nhỏ, hành động của thẻ Hẹn giờ và Clipboard được đặt tên theo việc nó làm (dừng, dán) thay vì "Mở trang".
+- Ba lỗi nhỏ của bộ widget, 2026-10-18, chủ dự án: "Hãy sửa những lỗi nhỏ mà bạn đã nêu". Clipboard chỉ đọc vài mục đầu của lịch sử khi vẽ, và đếm mục hôm nay (chép hoặc dán hôm nay) dừng ở mục cũ đầu tiên thay vì đọc cả lịch sử; đoạn ngắn ở cuối dải giờ được nới vào trong thay vì lố mép phải; trong chế độ sửa, nút đổi cỡ ra góc, nửa ngoài ô như nút bỏ ô, không che con số. Hai phần đầu có test.
+- Thử bộ widget bằng chuột thật, 2026-10-18, chủ dự án: "hãy thử dùng chuột thật". Tạm tắt bản cài để bản thử nằm trên cùng; mọi lần bấm đều đúng. Bản thử dán từ bảng dán riêng nên lệnh dán của macOS lấy nội dung bảng dán chung: đường bấm đúng, nội dung dán chỉ đúng ở bản cài.
+- Hạn mức Claude sai, 2026-10-19. Chủ dự án: "limit và thông tin của claude đang sai, ở phiên hiện tại tôi đã dùng hết 29% và còn hơn 2h nữa là reset". Nguyên nhân: số chỉ đến từ status line, mà tab Code của app Claude không bao giờ gọi status line; tệp số dừng ở 12/10 (14%), và khi mốc đặt lại đã qua app coi là 0%. Sửa: mốc đã qua thì là "chưa có số mới"; thêm tuỳ chọn (mặc định tắt, chủ dự án chọn "Đọc qua Keychain") đọc đăng nhập Claude Code trong Keychain và hỏi địa chỉ /api/oauth/usage mỗi 5 phút; token chỉ giữ trong bộ nhớ, không ghi, không gia hạn; số mới hơn giữa hai nguồn được dùng. Có test cho việc đọc câu trả lời (phần giây dài), đọc đăng nhập (còn hạn, hết hạn, không có), chọn số mới hơn, mốc đã qua. Chưa kiểm với tài khoản thật: cần chủ dự án bật tuỳ chọn và cho phép macOS đọc Keychain.
+- Đối chiếu mọi tính năng với dữ liệu thật, 2026-10-19. Chủ dự án: "Hãy chạy thử toàn bộ các tính năng xem có lỗi nào đang hiển thị sai so với dữ liệu đúng", rồi "Sửa cả 7 lỗi". So bản cài với pmset, âm lượng, loa, Bluetooth, kho clipboard, bảng dán, tiến trình Claude, nhật ký Codex, app Lịch và Lời nhắc. Đã sửa: phiên bị dừng giữa chừng (Claude Code không báo) nay đọc dòng cuối bản ghi phiên để hiện "Đã dừng", im lặng quá 30 phút cũng coi là dừng; phiên còn mở trong tiến trình Claude (--resume) không bị quên sau 12 giờ; Lịch tách việc hôm nay khỏi việc quá hạn, chip cam "N quá hạn", mục "Quá hạn · N" ở cỡ lớn; số Codex cũ hơn một tuần được ẩn; trang Agent nói cách có số Claude mới. Lỗi "trạng thái trống của trang Tệp không đọc được" hoá ra không có: lần đọc trước quá sớm.
+- Giới hạn Claude từ tài khoản, kiểm với tài khoản thật, 2026-10-21: chủ dự án chạy claude trong Terminal (đăng nhập trong Keychain được làm mới), bật "Lấy giới hạn từ tài khoản Claude" và cho phép macOS đọc Keychain. Cài đặt ghi "Đã cập nhật lúc 14:07"; notch hiện Claude 5 giờ 3%, tuần 11%, khớp với /usage theo xác nhận của chủ dự án.
+- Phát hành 0.26.0 (build 52), 2026-10-21, chủ dự án: "hãy phát hành phiên bản mới nhất của ứng dụng này lên github". Gồm bộ widget thẻ tối, Lịch tách việc quá hạn, giới hạn Claude từ tài khoản, phiên agent "Đã dừng". Ghi chú docs/releases/0.26.0.md; 1.235 test qua; ảnh đĩa chỉ có app, chữ ký hợp lệ, feed có chữ ký; sau khi đăng, feed (qua địa chỉ latest) và ảnh đĩa công khai giống hệt từng byte bản trên máy (sha256 2e1254f1…). README công khai cập nhật cùng ngày theo yêu cầu ("Hãy cập nhật README trên GitHub cho bản 0.26.0"): mục "Mới trong bản 0.26.0", dòng Agent thêm giới hạn sử dụng; README trên GitHub giống hệt docs/releases/PUBLIC-README.md.
+- Làm việc theo module thay cho graphify, 2026-10-26. Chủ dự án: "Tôi không muốn sử dụng graphify nữa, tôi muốn thực hiện theo dạng chia module cho các tính năng để dễ bảo trì … Khi phát hiện bug, chúng ta sẽ fix bug theo từng module. Không làm cục bộ vì sẽ dễ làm hỏng các module khác." Đọc toàn bộ bản đồ graphify lần cuối: mã đã chia `<X>Core`/`<X>Feature` và không Feature nào import Feature khác, nhưng còn phần của tính năng nằm trong nền tảng và app. Chủ dự án chọn "gọn ranh giới + sổ module" (không làm giao thức tự đăng ký). Spec `2026-10-26-feature-modules-design.md`, kế hoạch 9 việc, tự làm trong một phiên. Đã làm: Tổng quan thành `OverviewCore`/`OverviewFeature` (cùng khoá lưu `shell.overviewArrangement`), trang Công cụ thành `ToolsFeature`, trang Giới thiệu có tệp riêng; nền tảng không còn tên Overview (`PageRegistry.order(_:leading:)`) và chỉ biết "hàng phím số" chung `NumberRow`, hai hàng dán theo số thuộc Clipboard (cùng khoá `shortcut.quickPasteModifiers`, `shortcut.recentPasteModifiers`); `OverviewTileSize`, `OverviewAlert` đổi tên `WidgetSize`, `WidgetAlert`. Thêm `Scripts/check-modules.sh` (chặn import vượt ranh giới, chạy trong `Scripts/test.sh`, có bài tự kiểm tra), `Scripts/test-module.sh <Module>`, `docs/modules/` (bản đồ, quy trình sửa lỗi 5 bước, một sổ cho mỗi module với tệp, API, khoá lưu, quyền, test, giới hạn, nhật ký sửa lỗi), `CLAUDE.md` ở gốc repo. 121 giới hạn đã biết chuyển từ `FEATURES.md` sang sổ của đúng module. Xoá `graphify-out/`, `.graphifyignore` và ba script đồ thị; cài đặt graphify chung trong `~/.claude` để nguyên vì dự án khác còn dùng (hook của nó im lặng khi không có đồ thị). Test 1.235 → 1.241, tất cả qua. Thử trên bản dựng thật (bản thử riêng, chụp cửa sổ, không chiếm chuột): Tổng quan giữ đúng bố cục đang dùng, chế độ sửa, trang Công cụ, trang Giới thiệu, Cài đặt › Trang notch và Clipboard; cài đặt thật không đổi, không có báo cáo crash mới. Người rà độc lập: không lỗi nặng; script ranh giới lỏng hơn luật ghi trong README (lọt Cocoa trong Core, công cụ dòng lệnh import NotchCore) và hai dòng sổ sai, đã sửa có test. Chưa thử tay: đổi modifier của hàng phím số (sẽ ghi vào cài đặt thật), kéo ô bằng chuột.

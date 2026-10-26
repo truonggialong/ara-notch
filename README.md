@@ -96,6 +96,6 @@ Settings › Advanced › **Remove AraNotch** takes its hooks and status line ou
 
 ## Mã nguồn · Source
 
-Kho này chỉ chứa các bản phát hành. Mã nguồn chưa được công bố.
+Mã nguồn nằm trong kho này, chia theo tính năng: mỗi tính năng là một module Swift Package (`Sources/<Tên>Core` cho phần logic có test, `Sources/<Tên>Feature` cho giao diện), có sổ riêng trong `docs/modules/`. Bắt đầu từ `docs/modules/README.md`. Dựng bằng `Scripts/build-app.sh`, chạy test bằng `Scripts/test.sh` (macOS 15, Apple Silicon).
 
-This repository holds the releases only. The source code is not published.
+The source code is in this repository, split by feature: each feature is a Swift Package module (`Sources/<Name>Core` for the tested logic, `Sources/<Name>Feature` for the interface), with its own guide in `docs/modules/`. Start at `docs/modules/README.md`. Build with `Scripts/build-app.sh`, test with `Scripts/test.sh` (macOS 15, Apple Silicon).
