@@ -20,3 +20,10 @@
 ## Sau mỗi việc
 
 Cập nhật sổ module (nhật ký sửa lỗi, giới hạn, tệp, API), `docs/project/FEATURES.md` khi có tính năng mới, và thêm một vòng vào `docs/project/HISTORY.md`.
+
+## GitHub
+
+- `origin` là repo công khai `truonggialong/ara-notch`, và `main` ở máy nối tiếp `origin/main`. Lịch sử cũ trước ngày 2026-10-26 chỉ nằm trong nhánh `archive/full-history` ở máy. Không đẩy nhánh đó lên.
+- Commit mang tên module ở đầu: `Clipboard: …`, `Platform: …`; việc trên nhiều module hoặc tài liệu chung thì dùng `App: …`, `Docs: …`. Tác giả là "The Arawo company".
+- `README.md` ở gốc là trang giới thiệu trên GitHub: cập nhật nó trong commit, không sửa qua API.
+- Đẩy lên `origin` là việc công khai: hỏi chủ dự án trước, trừ khi họ đã cho phép. Không bao giờ force-push. Mẫu khoá giả trong test phải ghép từ nhiều phần, vì GitHub chặn chuỗi trông như khoá thật.
