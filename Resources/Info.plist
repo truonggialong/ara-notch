@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleIdentifier</key>
+    <string>com.aranotch.app</string>
+    <key>CFBundleName</key>
+    <string>AraNotch</string>
+    <key>CFBundleDisplayName</key>
+    <string>AraNotch</string>
+    <key>CFBundleExecutable</key>
+    <string>AraNotch</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleShortVersionString</key>
+    <string>0.26.0</string>
+    <key>CFBundleVersion</key>
+    <string>52</string>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+    <key>CFBundleDevelopmentRegion</key>
+    <string>en</string>
+    <key>CFBundleLocalizations</key>
+    <array>
+        <string>en</string>
+        <string>vi</string>
+    </array>
+    <key>LSMinimumSystemVersion</key>
+    <string>15.0</string>
+    <key>LSUIElement</key>
+    <true/>
+    <key>NSBluetoothAlwaysUsageDescription</key>
+    <string>AraNotch shows a notice on the notch when a Bluetooth device connects or disconnects.</string>
+    <key>NSCalendarsFullAccessUsageDescription</key>
+    <string>AraNotch shows today's events on the notch and announces a meeting shortly before it starts.</string>
+    <key>NSRemindersFullAccessUsageDescription</key>
+    <string>AraNotch shows your open reminders on the notch and lets you mark them as completed.</string>
+    <key>UTExportedTypeDeclarations</key>
+    <array>
+        <dict>
+            <key>UTTypeIdentifier</key>
+            <string>com.aranotch.clip-id</string>
+            <key>UTTypeDescription</key>
+            <string>AraNotch clip reference</string>
+            <key>UTTypeConformsTo</key>
+            <array>
+                <string>public.data</string>
+            </array>
+        </dict>
+    </array>
+    <key>NSHighResolutionCapable</key>
+    <true/>
+    <key>SUFeedURL</key>
+    <string>https://github.com/truonggialong/ara-notch/releases/latest/download/appcast.xml</string>
+    <key>SUPublicEDKey</key>
+    <string>9U3D+Ak97098LMb1YTmxd+lGEAaz1ARySc5UMed0bvc=</string>
+    <key>SUEnableAutomaticChecks</key>
+    <true/>
+    <key>SUScheduledCheckInterval</key>
+    <integer>86400</integer>
+</dict>
+</plist>
