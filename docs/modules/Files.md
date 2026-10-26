@@ -42,7 +42,7 @@ Không cần quyền.
 ## Test
 
 - Chạy: `Scripts/test-module.sh Files`, rồi `Scripts/test.sh`.
-- Bộ test: `Tests/FilesCoreTests/` (3 suite)
+- Bộ test: `Tests/FilesCoreTests/`
 
 ## Tệp
 

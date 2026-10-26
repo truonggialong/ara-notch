@@ -44,7 +44,7 @@ Trợ năng (đọc và thay đoạn đang chọn). Đoạn chữ chỉ gửi t�
 ## Test
 
 - Chạy: `Scripts/test-module.sh Translate`, rồi `Scripts/test.sh`.
-- Bộ test: `Tests/TranslateCoreTests/` (9 suite)
+- Bộ test: `Tests/TranslateCoreTests/`
 
 ## Tệp
 

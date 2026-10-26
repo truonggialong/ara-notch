@@ -38,7 +38,7 @@ Không cần quyền (công cụ được gọi có quyền của nó).
 ## Test
 
 - Chạy: `Scripts/test-module.sh Tools`, rồi `Scripts/test.sh`.
-- Bộ test: `Tests/ToolsFeatureTests/` (1 suite)
+- Bộ test: `Tests/ToolsFeatureTests/`
 
 ## Tệp
 

@@ -41,7 +41,7 @@ Trợ năng (di chuyển cửa sổ của app khác).
 ## Test
 
 - Chạy: `Scripts/test-module.sh Windows`, rồi `Scripts/test.sh`.
-- Bộ test: `Tests/WindowsCoreTests/` (2 suite)
+- Bộ test: `Tests/WindowsCoreTests/`
 
 ## Tệp
 

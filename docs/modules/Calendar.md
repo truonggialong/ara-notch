@@ -48,7 +48,7 @@ Lịch và Lời nhắc (chỉ hỏi từ trang Lịch).
 ## Test
 
 - Chạy: `Scripts/test-module.sh Calendar`, rồi `Scripts/test.sh`.
-- Bộ test: `Tests/CalendarCoreTests/` (21 suite)
+- Bộ test: `Tests/CalendarCoreTests/`
 
 ## Tệp
 

@@ -47,7 +47,7 @@ Không cần quyền. Đọc "đang phát" qua giao diện riêng MediaRemote c�
 ## Test
 
 - Chạy: `Scripts/test-module.sh Media`, rồi `Scripts/test.sh`.
-- Bộ test: `Tests/MediaCoreTests/` (11 suite)
+- Bộ test: `Tests/MediaCoreTests/`
 
 ## Tệp
 

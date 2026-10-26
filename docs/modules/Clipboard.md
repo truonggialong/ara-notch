@@ -87,7 +87,7 @@ Trợ năng để tự dán (gửi ⌘V) và để nghe ⌘V; Lời nhắc cho "
 ## Test
 
 - Chạy: `Scripts/test-module.sh Clipboard`, rồi `Scripts/test.sh`.
-- Bộ test: `Tests/ClipboardCoreTests/` (75 suite), `Tests/ClipboardFeatureTests/` (10 suite), `Tests/ClipboardMCPTests/` (2 suite)
+- Bộ test: `Tests/ClipboardCoreTests/`, `Tests/ClipboardFeatureTests/`, `Tests/ClipboardMCPTests/`
 
 ## Tệp
 

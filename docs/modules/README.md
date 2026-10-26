@@ -69,6 +69,7 @@ Ngoại lệ có chủ ý: `ShortcutAction` trong `NotchCore` liệt kê phím t
 - Tính năng mới: tạo `Sources/<X>Core`, `Sources/<X>Feature`, `Tests/<X>CoreTests`, khai báo trong `Package.swift` (cả `products` lẫn `targets`), nối ở `AppDelegate`, thêm một dòng vào bảng trên, thêm `<X>` vào `Scripts/test-module.sh`, viết `docs/modules/<X>.md` theo mẫu của các sổ khác.
 - Mỗi sổ có các mục: Vai trò; Target và thư mục; Phụ thuộc và ai dùng; Giao diện công khai; Ghi chú cho người sửa; Dữ liệu lưu; Quyền hệ thống; Test; Tệp; Lỗi và giới hạn đã biết; Nhật ký sửa lỗi.
 - Đổi tệp, thêm hàm `public`, thêm khoá lưu: cập nhật sổ của module trong cùng commit.
+- Không ghi số test hay số suite vào sổ: `Scripts/test-module.sh <Module>` luôn cho con số đúng.
 
 ## Tài liệu khác
 

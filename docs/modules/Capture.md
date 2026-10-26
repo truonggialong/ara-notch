@@ -52,7 +52,7 @@ Ghi màn hình (chụp); Trợ năng (chụp cuộn gửi lệnh cuộn).
 ## Test
 
 - Chạy: `Scripts/test-module.sh Capture`, rồi `Scripts/test.sh`.
-- Bộ test: `Tests/CaptureCoreTests/` (14 suite), `Tests/CaptureFeatureTests/` (2 suite)
+- Bộ test: `Tests/CaptureCoreTests/`, `Tests/CaptureFeatureTests/`
 
 ## Tệp
 

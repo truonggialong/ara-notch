@@ -42,7 +42,7 @@ Bluetooth (thông báo thiết bị); Trợ năng (bắt phím âm lượng và 
 ## Test
 
 - Chạy: `Scripts/test-module.sh SystemEvents`, rồi `Scripts/test.sh`.
-- Bộ test: `Tests/SystemEventsCoreTests/` (12 suite)
+- Bộ test: `Tests/SystemEventsCoreTests/`
 
 ## Tệp
 

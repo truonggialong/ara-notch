@@ -53,7 +53,7 @@ Không cần quyền hệ thống. Sửa `~/.claude/settings.json` chỉ khi ng�
 ## Test
 
 - Chạy: `Scripts/test-module.sh Agent`, rồi `Scripts/test.sh`.
-- Bộ test: `Tests/AgentCoreTests/` (22 suite), `Tests/AgentFeatureTests/` (0 suite)
+- Bộ test: `Tests/AgentCoreTests/`, `Tests/AgentFeatureTests/`
 
 ## Tệp
 

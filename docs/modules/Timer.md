@@ -41,7 +41,7 @@ Không cần quyền.
 ## Test
 
 - Chạy: `Scripts/test-module.sh Timer`, rồi `Scripts/test.sh`.
-- Bộ test: `Tests/TimerCoreTests/` (7 suite)
+- Bộ test: `Tests/TimerCoreTests/`
 
 ## Tệp
 
