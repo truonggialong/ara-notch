@@ -35,9 +35,12 @@ final class SettingsWindowController {
     }
 
     /// - Parameter tabID: the tab to switch to; nil or an unknown id keeps the current tab.
-    func show(tabID: String? = nil) {
+    func show(tabID: String? = nil, query: String? = nil) {
         if let tabID, tabIDs.contains(tabID) {
             navigation.selectedTabID = tabID
+        }
+        if let query {
+            navigation.query = query
         }
         // An accessory app is not frontmost by default, so activate before showing.
         NSApp.activate(ignoringOtherApps: true)

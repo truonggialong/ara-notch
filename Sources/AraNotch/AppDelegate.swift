@@ -188,7 +188,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 })),
             SettingsTab(
                 id: "clipboard", titleKey: "settings.section.clipboard", symbolName: "doc.on.clipboard",
-                searchPrefixes: ["settings.clipboard.recording", "settings.clipboard.pause", "settings.clipboard.resume", "settings.clipboard.retention", "settings.clipboard.maxItems", "settings.clipboard.copyFeedback", "settings.clipboard.copySign", "settings.clipboard.pasteOnClick", "settings.clipboard.skipsSensitive", "settings.clipboard.vaultTouchID", "settings.clipboard.quickPasteBoard", "settings.clipboard.ignoredApps", "settings.shortcuts.numberRows", "settings.shortcuts.quickPaste", "settings.shortcuts.recentPaste", "settings.clipboard.data", "settings.clipboard.linkPreviews", "settings.clipboard.readsTextInImages", "settings.clipboard.timeMachine", "settings.clipboard.backup", "settings.clipboard.clear"],
+                searchPrefixes: ["settings.clipboard.recording", "settings.clipboard.pause", "settings.clipboard.resume", "settings.clipboard.retention", "settings.clipboard.maxItems", "settings.clipboard.copyFeedback", "settings.clipboard.copySign", "settings.clipboard.pasteOnClick", "settings.clipboard.skipsSensitive", "settings.clipboard.vaultTouchID", "settings.clipboard.quickPasteBoard", "settings.clipboard.ignoredApps", "settings.shortcuts.numberRow", "settings.shortcuts.quickPaste", "settings.shortcuts.recentPaste", "settings.clipboard.data", "settings.clipboard.linkPreviews", "settings.clipboard.readsTextInImages", "settings.clipboard.timeMachine", "settings.clipboard.backup", "settings.clipboard.clear"],
                 content: AnyView(Group {
                     clipboard.makeSettingsSection()
                     Section(L10n.string("settings.clipboard.data")) {
@@ -234,7 +234,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 })),
             SettingsTab(
                 id: "agents", titleKey: "settings.section.agents", symbolName: "terminal",
-                searchPrefixes: ["settings.agents.claude", "settings.agents.hooks", "settings.agents.statusLine", "settings.agents.codex", "settings.clipboard.mcp"],
+                searchPrefixes: ["settings.agents.claude", "settings.agents.account", "settings.agents.hooks", "settings.agents.statusLine", "settings.agents.codex", "settings.clipboard.mcp"],
                 content: AnyView(Group {
                     agents.makeSettingsSection()
                     Section(L10n.string("settings.clipboard.mcp")) {
@@ -482,7 +482,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             clipboard.showLibrary(filter: arguments.libraryFilter, layout: arguments.libraryLayout)
         }
         if arguments.showSettings {
-            settingsWindow.show(tabID: arguments.settingsTab)
+            settingsWindow.show(tabID: arguments.settingsTab, query: arguments.settingsSearch)
         }
         // The guide comes up once, the first time the app is opened by hand.
         if arguments.showWelcome {

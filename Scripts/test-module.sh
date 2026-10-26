@@ -13,7 +13,8 @@ case "$module" in
     Clipboard) suites="ClipboardCoreTests|ClipboardFeatureTests|ClipboardMCPTests" ;;
     Agent) suites="AgentCoreTests|AgentFeatureTests" ;;
     Capture) suites="CaptureCoreTests|CaptureFeatureTests" ;;
-    Calendar | Media | Timer | Files | Translate | Windows | SystemEvents | Overview) suites="${module}CoreTests" ;;
+    Calendar | Media | Timer | Files | Translate | Windows | SystemEvents) suites="${module}CoreTests" ;;
+    Overview) suites="OverviewCoreTests|OverviewFeatureTests" ;;
     Tools) suites="ToolsFeatureTests" ;;
     App) suites="" ;;
     *)

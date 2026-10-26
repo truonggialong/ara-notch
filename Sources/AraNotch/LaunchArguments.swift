@@ -16,6 +16,8 @@ struct LaunchArguments {
     let isPlainLaunch: Bool
     /// `--settings-tab <id>`: with `--show-settings`, the tab to open (`general`, `clipboard`, `alerts`).
     let settingsTab: String?
+    /// `--settings-search <text>`: with `--show-settings`, type this in the search field.
+    let settingsSearch: String?
     /// `--seed-clipboard`: add a fixed set of sample clips.
     let seedClipboard: Bool
     /// `--seed-boards`: with `--seed-clipboard`, create two boards and pin some sample clips.
@@ -197,6 +199,7 @@ struct LaunchArguments {
         overviewArrangement = value(after: "--overview-arrangement")?.split(separator: ",").map(String.init)
         editOverview = arguments.contains("--edit-overview")
         settingsTab = value(after: "--settings-tab")
+        settingsSearch = value(after: "--settings-search")
         search = value(after: "--search")
         transform = value(after: "--transform")
         translateText = value(after: "--translate")

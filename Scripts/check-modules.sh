@@ -28,7 +28,10 @@ report() {
 
 for dir in "$SOURCES"/*/; do
     target="$(basename "$dir")"
-    imports="$(grep -rhoE '^(@[A-Za-z_]+ )*import [A-Za-z_.]+' "$dir" --include='*.swift' | awk '{print $NF}' | sort -u)"
+    # Every way an import is written: indented (under #if), with attributes, of one declaration
+    # (`import struct M.Type`) or of a submodule (`import M.Sub`); the module is the first name.
+    imports="$(grep -rhoE '^[[:space:]]*(@[A-Za-z_]+[[:space:]]+)*import[[:space:]]+((typealias|struct|class|enum|protocol|let|var|func)[[:space:]]+)?[A-Za-z_][A-Za-z0-9_.]*' "$dir" --include='*.swift' \
+        | awk '{print $NF}' | cut -d. -f1 | sort -u)"
     for module in $imports; do
         case "$target" in
             AraNotch)
