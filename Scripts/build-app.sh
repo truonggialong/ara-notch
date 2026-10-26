@@ -28,6 +28,16 @@ cp Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 # What the app does with privacy-sensitive interfaces: no tracking, nothing collected.
 cp Resources/PrivacyInfo.xcprivacy "$APP/Contents/Resources/PrivacyInfo.xcprivacy"
 
+# The app's own licence (GPL-3.0) and the notices of the software it includes. The notices name
+# the Sparkle version in Package.resolved: a new Sparkle needs its licence copied in again.
+SPARKLE_VERSION="$(/usr/bin/python3 -c 'import json,sys; print(next(p["state"]["version"] for p in json.load(sys.stdin)["pins"] if p["identity"] == "sparkle"))' < Package.resolved)"
+if ! grep -q "^Sparkle $SPARKLE_VERSION " Resources/ThirdPartyNotices.txt; then
+    echo "Resources/ThirdPartyNotices.txt does not name Sparkle $SPARKLE_VERSION: copy its LICENSE in again" >&2
+    exit 1
+fi
+cp LICENSE "$APP/Contents/Resources/LICENSE"
+cp Resources/ThirdPartyNotices.txt "$APP/Contents/Resources/ThirdPartyNotices.txt"
+
 # The updater (Sparkle) is a framework inside the app; the program finds it there.
 mkdir -p "$APP/Contents/Frameworks"
 cp -R "$BIN_DIR/Sparkle.framework" "$APP/Contents/Frameworks/Sparkle.framework"

@@ -57,6 +57,12 @@ Hỏi và hiển thị trạng thái các quyền (Trợ năng, Lịch, Lời nh
 - `Sources/AraNotch/WindowSnapshot.swift` — Diagnostics: renders this app's own visible windows to PNG files.
 - `Sources/AraNotch/main.swift`
 
+## Giấy phép và ghi công
+
+- `build-app.sh` chép `LICENSE` (GPL-3.0 của AraNotch) và `Resources/ThirdPartyNotices.txt` vào `Contents/Resources/` của app. Đó là cách giữ điều kiện của giấy phép MIT mà Sparkle dùng.
+- `ThirdPartyNotices.txt` ghi rõ phiên bản Sparkle. Nếu phiên bản trong `Package.resolved` khác, script dừng lại; khi đó chép lại `LICENSE` của Sparkle từ `.build/checkouts/Sparkle/` rồi đổi số phiên bản trong tệp.
+- Thêm thư viện bên ngoài nào khác thì cũng chép giấy phép của nó vào tệp này.
+
 ## Lỗi và giới hạn đã biết
 
 - Mở khi đăng nhập đăng ký đúng bản app đang chạy; với bản dựng thử nằm trong thư mục dự án thì mục đăng nhập trỏ về đó. Nên bật sau khi app đã nằm ở /Applications.
@@ -64,7 +70,7 @@ Hỏi và hiển thị trạng thái các quyền (Trợ năng, Lịch, Lời nh
 - Cửa sổ Cài đặt vẫn dựng trên biểu mẫu chuẩn của macOS (có ô tìm và chú thích một dòng); cửa sổ sửa clip cũng vậy. Nền mờ theo ảnh bìa chỉ có khi app đang phát có gửi ảnh bìa.
 - Bản 0.2.0, những gì thấy ở OneNotch mà chưa làm: chọn vùng chia cửa sổ bằng cách kéo cửa sổ lên notch (AraNotch có kéo vào mép màn hình và phím tắt); quay màn hình và GIF; các công cụ chú thích thước đo, kính lúp, cắt ảnh; báo chế độ Tập trung, tắt tiếng micro, khoá màn hình; pin của AirPods; duyệt yêu cầu của agent ngay trên notch; chi phí và token của agent; gương (camera). Một số cần quyền mới hoặc giao diện hệ thống không công khai.
 - Nghiên cứu OneNotch: công cụ điều khiển máy không cấp quyền được cho OneNotch (app chạy nền, không hiện trong danh sách), nên chỉ xem được video giới thiệu và tên các tính năng, cài đặt trong gói app; chưa bấm thử trực tiếp cách nó phản hồi thao tác.
-- Tự cập nhật: kho `truonggialong/ara-notch` trên GitHub là công khai và chỉ chứa README cùng các bản phát hành; mã nguồn và thư mục docs không được đưa lên. Kho chưa có tệp giấy phép: chủ dự án chọn GPL-3.0, nhưng giấy phép đó đi kèm nghĩa vụ đưa mã nguồn, nên tôi chưa gắn vào một kho chỉ có bản cài và chờ chủ dự án nói lại. Khoá ký là tệp `~/.aranotch/update-signing.key` trên máy chủ dự án, không nằm trong kho mã: mất tệp này thì các bản đã cài không nhận được bản cập nhật nào nữa. App vẫn ký bằng chứng thư tự tạo và chưa được Apple chứng nhận: trên máy khác, lần cài đầu vẫn bị macOS chặn cho tới khi chủ máy cho phép; cập nhật sau đó thì không. Cửa sổ của Sparkle theo ngôn ngữ của máy và không theo giao diện của notch. Chỉ có bản cho máy Apple Silicon.
+- Tự cập nhật: kho `truonggialong/ara-notch` trên GitHub là công khai, chứa mã nguồn (từ 2026-10-26), giấy phép GPL-3.0 và các bản phát hành. Khoá ký là tệp `~/.aranotch/update-signing.key` trên máy chủ dự án, không nằm trong kho mã: mất tệp này thì các bản đã cài không nhận được bản cập nhật nào nữa. App vẫn ký bằng chứng thư tự tạo và chưa được Apple chứng nhận: trên máy khác, lần cài đầu vẫn bị macOS chặn cho tới khi chủ máy cho phép; cập nhật sau đó thì không. Cửa sổ của Sparkle theo ngôn ngữ của máy và không theo giao diện của notch. Chỉ có bản cho máy Apple Silicon.
 - Cài đặt, tên menu chính và một số chuỗi kỹ thuật chưa được trau chuốt.
 
 ## Nhật ký sửa lỗi
@@ -72,3 +78,4 @@ Hỏi và hiển thị trạng thái các quyền (Trợ năng, Lịch, Lời nh
 Mỗi dòng: ngày — lỗi hoặc thay đổi — test đã thêm — commit.
 
 - 2026-10-26 — tái cấu trúc theo module (nhánh `refactor/feature-modules`): Overview và Tools chuyển ra module riêng; `AboutPage` có tệp riêng, `Pages.swift` bị bỏ; dòng "Đặt lại bố cục" của Cài đặt › Trang lấy từ `OverviewController.makeSettingsRow()`.
+- 2026-10-26 — app chưa kèm giấy phép nào, trong khi giấy phép MIT của Sparkle đòi kèm lời ghi công. `build-app.sh` nay chép `LICENSE` và `Resources/ThirdPartyNotices.txt` vào app, và dừng lại nếu tệp ghi công không đúng phiên bản Sparkle. Không có test tự động: đã dựng app, so tệp, kiểm chữ ký, và thử trường hợp lệch phiên bản.
