@@ -31,6 +31,8 @@ final class OverviewEditor: ObservableObject {
     private let settings: OverviewSettings
     private let saves: Bool
     private var cancellables = Set<AnyCancellable>()
+    /// What ends the edit mode: the notch closing, another page showing.
+    private var notchLinks: [AnyCancellable] = []
     private var refusal: DispatchWorkItem?
     /// Tells the notch the page is being edited: it then stays while the pointer is away.
     private var setEditing: (Bool) -> Void = { _ in }
@@ -50,15 +52,21 @@ final class OverviewEditor: ObservableObject {
 
     /// Ties the edit mode to the notch: it ends when the notch closes or another page shows.
     func connect(to notch: NotchController) {
-        setEditing = { [weak notch] in notch?.setBeingEdited($0, forPage: OverviewLayout.pageID) }
-        notch.isOpenPublisher
-            .filter { !$0 }
-            .sink { [weak self] _ in self?.end() }
-            .store(in: &cancellables)
-        notch.selectedPagePublisher
-            .filter { $0 != OverviewLayout.pageID }
-            .sink { [weak self] _ in self?.end() }
-            .store(in: &cancellables)
+        connect(isOpen: notch.isOpenPublisher, selectedPage: notch.selectedPagePublisher) { [weak notch] in
+            notch?.setBeingEdited($0, forPage: OverviewLayout.pageID)
+        }
+    }
+
+    /// The same, from what the notch publishes. Connecting again replaces the earlier links.
+    func connect(
+        isOpen: AnyPublisher<Bool, Never>, selectedPage: AnyPublisher<String?, Never>,
+        setEditing: @escaping (Bool) -> Void
+    ) {
+        self.setEditing = setEditing
+        notchLinks = [
+            isOpen.filter { !$0 }.sink { [weak self] _ in self?.end() },
+            selectedPage.filter { $0 != OverviewLayout.pageID }.sink { [weak self] _ in self?.end() },
+        ]
     }
 
     /// Shows the arrangement and keeps it.

@@ -84,6 +84,7 @@ let package = Package(
         .target(name: "OverviewCore", dependencies: ["NotchCore"]),
         .target(name: "OverviewFeature", dependencies: ["OverviewCore", "NotchShell"]),
         .testTarget(name: "OverviewCoreTests", dependencies: ["OverviewCore"]),
+        .testTarget(name: "OverviewFeatureTests", dependencies: ["OverviewFeature"]),
         .target(name: "ToolsFeature", dependencies: ["NotchShell"]),
         .testTarget(name: "ToolsFeatureTests", dependencies: ["ToolsFeature"]),
         .testTarget(name: "NotchCoreTests", dependencies: ["NotchCore"]),
