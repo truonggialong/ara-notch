@@ -73,7 +73,7 @@ Không cần quyền nào. `PointerMonitor` theo dõi chuột toàn cục không
 ## Test
 
 - Chạy: `Scripts/test-module.sh Platform`, rồi `Scripts/test.sh`.
-- Bộ test: `Tests/NotchCoreTests/` (47 suite), `Tests/NotchShellTests/` (4 suite)
+- Bộ test: `Tests/NotchCoreTests/`, `Tests/NotchShellTests/`
 
 ## Tệp
 
@@ -156,3 +156,4 @@ Không cần quyền nào. `PointerMonitor` theo dõi chuột toàn cục không
 Mỗi dòng: ngày — lỗi hoặc thay đổi — test đã thêm — commit.
 
 - 2026-10-26 — tái cấu trúc theo module (nhánh `refactor/feature-modules`): bỏ tên Overview khỏi nền tảng (`PageRegistry.order(_:leading:)`, `NotchController(leadingPageID:)`); `OverviewTileSize` → `WidgetSize`, `OverviewAlert` → `WidgetAlert`; hàng phím số thành khái niệm chung `NumberRow`, `ShortcutCenter.setNumberRow`; chuỗi `settings.shortcuts.quickPaste.refused` → `settings.shortcuts.numberRow.refused`.
+- 2026-10-26 — thêm test cho việc `ShortcutCenter` truyền mọi hàng phím số đã khai báo làm `others`: hai hàng không dùng chung phím bổ trợ, `numberRow(using:)` tìm đúng hàng (`ShortcutCenterNumberRowTests`, có `isRecording` để không đăng ký phím thật). Khi tạm truyền `others: []`, test thất bại.
