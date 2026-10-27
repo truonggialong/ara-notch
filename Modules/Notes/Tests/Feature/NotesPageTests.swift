@@ -561,6 +561,36 @@ private final class PresenterLog {
         #expect(zip(log.keeps, log.keeps.dropFirst()).allSatisfy { $0 != $1 })
     }
 
+    @Test func theNotchIsLetGoWhenTheFocusedNoteGoesAway() async throws {
+        let h = try await PageHarness()
+        let (controller, log) = controller(h)
+        let id = h.note(["Typed in, then deleted"])
+        await controller.store.refresh()
+        await controller.store.openNote(id)
+        // The caret is in the note; its editor is then taken away without being told it lost the keyboard.
+        controller.model.isEditorFocused = true
+        #expect(log.keeps.last == true)
+        controller.model.askToDelete(id)
+        await controller.model.confirmDelete(in: controller.store)
+        #expect(controller.store.open == nil)
+        #expect(!controller.model.isEditorFocused)
+        #expect(log.keeps.last == false)
+    }
+
+    @Test func aDeleteQuestionGoesWithItsNote() async throws {
+        let h = try await PageHarness()
+        let (controller, log) = controller(h)
+        let id = h.note(["Deleted on the iPhone"])
+        await controller.store.refresh()
+        controller.model.askToDelete(id)
+        #expect(log.keeps.last == true)
+        // Gone elsewhere while the question was up: the next listing drops it, and the question with it.
+        try await h.fake.delete(id)
+        await controller.store.refresh()
+        #expect(controller.model.deletingID == nil)
+        #expect(log.keeps.last == false)
+    }
+
     @Test func leavingThePageClosesWhatWasOpenOnIt() async throws {
         let h = try await PageHarness()
         let (controller, log) = controller(h)

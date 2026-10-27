@@ -73,6 +73,17 @@ public final class NotesController {
             .removeDuplicates()
             .sink { [weak self] keeps in self?.presenter.setKeepsOpen(keeps) }
             .store(in: &cancellables)
+        // An editor taken away (its note closed or deleted) is never told it lost the keyboard: let the notch go.
+        store.$open
+            .filter { $0 == nil }
+            .sink { [model] _ in model.isEditorFocused = false }
+            .store(in: &cancellables)
+        // A note gone from the list (deleted or moved elsewhere) takes its delete question along.
+        store.$notes
+            .sink { [model] notes in
+                if let id = model.deletingID, !notes.contains(where: { $0.id == id }) { model.deletingID = nil }
+            }
+            .store(in: &cancellables)
     }
 
     // MARK: Pages and settings
