@@ -1,4 +1,5 @@
 import AppKit
+import NotchCore
 import NotchShell
 import NotesCore
 import SwiftUI
@@ -60,6 +61,23 @@ final class NotesPageModel: ObservableObject {
         isAddingFolder = false
         isChoosingFolder = false
         newFolderName = ""
+        return true
+    }
+
+    /// Escape closes what is open on the page, the innermost first: the folder name, the folder list, the delete
+    /// question. False when nothing was (the notch then closes) and for every other key.
+    func handleKey(_ key: NotchKey) -> Bool {
+        guard key == .escape else { return false }
+        if isAddingFolder {
+            isAddingFolder = false
+            newFolderName = ""
+        } else if isChoosingFolder {
+            isChoosingFolder = false
+        } else if deletingID != nil {
+            deletingID = nil
+        } else {
+            return false
+        }
         return true
     }
 
@@ -154,16 +172,21 @@ struct NotesPageView: View {
 
     // MARK: Editor
 
-    @ViewBuilder
     private var editorColumn: some View {
-        VStack(spacing: 6 * ui) {
+        VStack(alignment: .leading, spacing: 6 * ui) {
+            FormatToolbar(handle: model.editor,
+                          isEnabled: NoteEditorCoordinator.isEditable(store.open, store.saveState, isReloading: store.isReloading),
+                          onChoosingImages: { model.isChoosingImages = $0 })
             NoteStatusBanner(store: store)
             if store.open != nil {
-                NoteEditorView(store: store, imageSize: .thumbnail)
-                    .handle(model.editor)
-                    .focusChanged { model.onEditorFocus?($0) }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .araCard(radius: 12, level: .plate)
+                GeometryReader { geometry in
+                    // The text's insets and the line padding take about 20 pt of the width.
+                    NoteEditorView(store: store, imageSize: .fitWidth(max(80, (geometry.size.width - 20 * ui).rounded(.down))))
+                        .handle(model.editor)
+                        .focusChanged { model.onEditorFocus?($0) }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .araCard(radius: 12, level: .plate)
             } else {
                 AraEmptyState(icon: .document, title: L10n.string("notes.none.title"),
                               detail: L10n.string("notes.none.detail"))

@@ -3,13 +3,19 @@ import NotchShell
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// What the Notes window's toolbar acts on: the window's editor, through the same calls as the floating menu
-/// and the format keys. The editor attaches itself when SwiftUI builds it.
+/// What the page's toolbar acts on: the page's editor, through the same calls as the floating menu and the format
+/// keys. The editor attaches itself when SwiftUI builds it.
 @MainActor
 final class NoteEditorHandle: ObservableObject {
     /// The styles the selection has, lit in the toolbar.
     @Published private(set) var active: Set<NoteFormat> = []
     private(set) weak var editor: NoteEditorCoordinator?
+    /// Shows the picture chooser and hands back the files chosen (nil: cancelled). A window of its own rather than a
+    /// sheet, since the notch's panel is no window for sheets. Tests replace it.
+    var runOpenPanel: (NSOpenPanel, NSWindow?, @escaping ([URL]?) -> Void) -> Void = { panel, _, done in
+        NSApp.activate(ignoringOtherApps: true)
+        panel.begin { response in done(response == .OK ? panel.urls : nil) }
+    }
 
     /// The picture types a note keeps as they are.
     static let imageTypes: [UTType] = [.png, .jpeg, .heic, .gif, .tiff]
@@ -69,30 +75,37 @@ final class NoteEditorHandle: ObservableObject {
         return editor.textView.insert(from: board)
     }
 
-    /// Asks for pictures in a sheet on the editor's window and puts them at the selection.
-    func chooseImages() {
-        guard let editor, editor.textView.isEditable, let window = editor.textView.window else { return }
+    /// Asks for pictures and puts them at the selection. `onChoosing` is told true while the chooser is up, and
+    /// false once it is gone and the caret is back in the editor.
+    func chooseImages(onChoosing: @escaping (Bool) -> Void = { _ in }) {
+        guard let editor, editor.textView.isEditable else { return }
         let panel = NSOpenPanel()
         panel.allowedContentTypes = Self.imageTypes
         panel.allowsMultipleSelection = true
         panel.canChooseDirectories = false
-        panel.beginSheetModal(for: window) { [weak self] response in
-            guard response == .OK else { return }
-            let urls = panel.urls
+        onChoosing(true)
+        runOpenPanel(panel, editor.textView.window) { [weak self] urls in
             MainActor.assumeIsolated {
-                guard let self else { return }
-                for url in urls where !self.insertImage(from: url) { NSSound.beep() }
-                if let text = self.editor?.textView { text.window?.makeFirstResponder(text) }
+                if let self {
+                    for url in urls ?? [] where !self.insertImage(from: url) { NSSound.beep() }
+                    if let text = self.editor?.textView, let window = text.window {
+                        window.makeKey()
+                        window.makeFirstResponder(text)
+                    }
+                }
+                onChoosing(false)
             }
         }
     }
 }
 
-/// The fixed toolbar over the window's editor: the floating menu's styles, the paragraph kinds, a bulleted list,
+/// The fixed toolbar over the page's editor: the floating menu's styles, the paragraph kinds, a bulleted list,
 /// a code block and a picture. Greyed out while the note cannot be edited.
 struct FormatToolbar: View {
+    @Environment(\.araScale) private var ui
     @ObservedObject var handle: NoteEditorHandle
     let isEnabled: Bool
+    var onChoosingImages: (Bool) -> Void = { _ in }
 
     private static let styles: [(NoteFormat, String, String)] = [
         (.bold, "bold", "notes.format.bold"), (.italic, "italic", "notes.format.italic"),
@@ -107,7 +120,7 @@ struct FormatToolbar: View {
     ]
 
     var body: some View {
-        HStack(spacing: 2) {
+        HStack(spacing: 1 * ui) {
             ForEach(Self.styles, id: \.1) { format, symbol, key in
                 button(symbol, key, isLit: handle.active.contains(format)) { handle.apply(format) }
             }
@@ -117,17 +130,15 @@ struct FormatToolbar: View {
                     Button(L10n.string(key)) { handle.apply(block) }
                 }
             } label: {
-                HStack(spacing: 4) {
+                HStack(spacing: 3 * ui) {
                     Image(systemName: "textformat.size")
-                        .font(.system(size: 12, weight: .semibold))
-                    Text(L10n.string("notes.toolbar.paragraph"))
-                        .font(.system(size: 11, weight: .semibold))
+                        .font(.system(size: 11 * ui, weight: .semibold))
                     Image(systemName: "chevron.down")
-                        .font(.system(size: 8, weight: .bold))
+                        .font(.system(size: 7 * ui, weight: .bold))
                 }
                 .foregroundStyle(AraPalette.ground)
-                .padding(.horizontal, 8)
-                .frame(height: 26)
+                .padding(.horizontal, 6 * ui)
+                .frame(height: 24 * ui)
                 .contentShape(Rectangle())
             }
             .menuStyle(.borderlessButton)
@@ -138,10 +149,10 @@ struct FormatToolbar: View {
             button("list.bullet", "notes.toolbar.bulletList", isLit: false) { handle.apply(.bulletList) }
             button("curlybraces", "notes.toolbar.codeBlock", isLit: false) { handle.apply(.codeBlock) }
             divider
-            button("photo", "notes.toolbar.image", isLit: false) { handle.chooseImages() }
+            button("photo", "notes.toolbar.image", isLit: false) { handle.chooseImages(onChoosing: onChoosingImages) }
         }
-        .padding(.horizontal, 6)
-        .frame(height: 32)
+        .padding(.horizontal, 5 * ui)
+        .frame(height: 28 * ui)
         .background(Capsule().fill(AraPalette.onGround))
         .fixedSize()
         .disabled(!isEnabled)
@@ -151,16 +162,16 @@ struct FormatToolbar: View {
     private var divider: some View {
         Rectangle()
             .fill(AraPalette.ground.opacity(0.25))
-            .frame(width: 1, height: 16)
-            .padding(.horizontal, 4)
+            .frame(width: 1, height: 14 * ui)
+            .padding(.horizontal, 3 * ui)
     }
 
     private func button(_ symbol: String, _ key: String, isLit: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: symbol)
-                .font(.system(size: 12, weight: .semibold))
+                .font(.system(size: 11 * ui, weight: .semibold))
                 .foregroundStyle(isLit ? AraPalette.accent : AraPalette.ground)
-                .frame(width: 28, height: 26)
+                .frame(width: 24 * ui, height: 24 * ui)
                 .contentShape(Rectangle())
         }
         .buttonStyle(AraPressStyle())

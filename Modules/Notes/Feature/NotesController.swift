@@ -75,9 +75,11 @@ public final class NotesController {
     // MARK: Pages and settings
 
     public func makePage() -> NotchPage {
-        NotchPage(id: Self.pageID, titleKey: "notes.page.title", symbolName: "note.text") { [store, model] in
+        var page = NotchPage(id: Self.pageID, titleKey: "notes.page.title", symbolName: "note.text") { [store, model] in
             NotesPageView(store: store, model: model)
         }
+        page.keyHandler = { [model] key, _ in model.handleKey(key) }
+        return page
     }
 
     /// The shortcut for a new note, for Settings › Tools.

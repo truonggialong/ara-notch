@@ -330,9 +330,11 @@ private struct Harness {
         let b = h.plainNote("B")
         await h.store.openNote(a)
         let gen = h.store.open?.generation
-        h.fake.setBodyDelay = .milliseconds(100)
+        // Long enough for the second edit to land while both are under way, even when other tests keep the main
+        // actor busy for a moment.
+        h.fake.setBodyDelay = .milliseconds(500)
         h.fake.setBodyDateOffset = 60  // each write moves the date far on
-        h.fake.setContentDelay(.milliseconds(60), for: b)
+        h.fake.setContentDelay(.milliseconds(300), for: b)
         let opening = Task { await h.store.openNote(b) }
         try await waitUntil("B is being read") { h.fake.calls("content:\(b)") == 1 }
         h.store.edit(generation: gen, NoteDocument(blocks: [p("A"), p("one")]))

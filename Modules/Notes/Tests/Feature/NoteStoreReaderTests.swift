@@ -286,12 +286,14 @@ private let minimalProtobuf = Data([0x12, 0x06, 0x1a, 0x04, 0x12, 0x02, 0x48, 0x
         let watcher = NoteStoreWatcher(url: file, coalescing: 0.5) { counter.count += 1 }
         defer { watcher.stop() }
         try await Task.sleep(for: .milliseconds(100))
+        // Both writes 30 ms apart, held here rather than awaited: an await on the main actor can resume late when
+        // other tests keep it busy, and the second write would then fall outside the window.
         for _ in 0..<2 {
             let handle = try FileHandle(forWritingTo: file)
             try handle.seekToEnd()
             try handle.write(contentsOf: Data("b".utf8))
             try handle.close()
-            try await Task.sleep(for: .milliseconds(30))
+            usleep(30_000)
         }
         try await Task.sleep(for: .milliseconds(1300))
         #expect(counter.count == 1)

@@ -189,6 +189,62 @@ private struct PageHarness {
         #expect(accounts.map { $0.folders.map(\.id) } == [["a", "c"], ["b"]])
     }
 
+    @Test func escapeClosesWhatIsOpenOnThePageFirst() {
+        let model = NotesPageModel()
+        model.isChoosingFolder = true
+        model.isAddingFolder = true
+        model.newFolderName = "Wo"
+        #expect(model.handleKey(.escape))
+        #expect(!model.isAddingFolder)
+        #expect(model.newFolderName.isEmpty)
+        #expect(model.isChoosingFolder)
+        #expect(model.handleKey(.escape))
+        #expect(!model.isChoosingFolder)
+        model.deletingID = "x"
+        #expect(model.handleKey(.escape))
+        #expect(model.deletingID == nil)
+        // Nothing open: the notch has the key, and other keys are never taken.
+        #expect(!model.handleKey(.escape))
+        model.isChoosingFolder = true
+        #expect(!model.handleKey(.delete))
+        #expect(model.isChoosingFolder)
+    }
+
+    @Test func choosingImagesIsReportedWhileThePanelIsUp() async throws {
+        let h = try await PageHarness()
+        await h.store.openNote(h.note(["Title"]))
+        let (handle, host) = h.windowEditor()
+        var finish: (([URL]?) -> Void)?
+        handle.runOpenPanel = { _, _, done in finish = done }
+        var reports: [Bool] = []
+        // What is chosen goes in through `insertImage(from:)`, tested above; here, only what is reported.
+        handle.chooseImages { reports.append($0) }
+        #expect(reports == [true])
+        finish?(nil)
+        #expect(reports == [true, false])
+        #expect(handle.editor?.textView.string == "Title")
+        _ = host
+    }
+
+    @Test func everyNotesKeyIsTranslated() throws {
+        let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let sources = try FileManager.default.contentsOfDirectory(at: root.appendingPathComponent("Modules/Notes/Feature"),
+                                                                    includingPropertiesForKeys: nil)
+            .filter { $0.pathExtension == "swift" }
+            .map { try String(contentsOf: $0, encoding: .utf8) }
+            .joined()
+        let used = Set(sources.matches(of: /"(notes\.[A-Za-z0-9.]+)"/).map { String($0.1) })
+        #expect(!used.isEmpty)
+        for language in ["vi", "en"] {
+            let strings = try String(contentsOf: root.appendingPathComponent("App/Resources/\(language).lproj/Localizable.strings"),
+                                     encoding: .utf8)
+            let defined = Set(strings.matches(of: /^"(notes\.[^"]+)" =/.anchorsMatchLineEndings()).map { String($0.1) })
+            #expect(used.subtracting(defined).isEmpty, "\(language) lacks \(used.subtracting(defined).sorted())")
+            #expect(!defined.contains { $0.hasPrefix("notes.window.") || $0 == "notes.openWindow" })
+        }
+    }
+
     @Test func windowToolbarBoldAppliesToWindowEditor() async throws {
         let h = try await PageHarness()
         await h.store.openNote(h.note(["Title", "body"]))
