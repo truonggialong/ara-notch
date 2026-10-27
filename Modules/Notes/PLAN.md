@@ -345,7 +345,7 @@ Tự viết một bộ quét thẻ nhỏ (không dùng `NSAttributedString(html:
       func openNote(_ id: String) async
       func edit(_ document: NoteDocument)                        // đặt pending, hẹn lưu sau debounce
       func flush() async                                         // lưu ngay nếu đang pending
-      func newNote() async                                       // tạo trong defaultFolderID (hoặc thư mục đầu), mở nó
+      func newNote(_ document: NoteDocument? = nil) async        // tạo trong defaultFolderID (hoặc thư mục đầu), mở nó; document dùng cho "Tạo lại"
       func reloadOpenNote() async                                // sau xung đột
       func delete(_ id: String) async
   }
