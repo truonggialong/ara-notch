@@ -98,13 +98,28 @@ final class NotesStore: ObservableObject {
 
     // MARK: Listing
 
+    /// The only place AraNotch asks for control of Notes (the Allow button). Starts Notes first if it is closed,
+    /// since macOS cannot ask about an app that is not running.
     func requestAccess() async {
-        access = await service.access(askIfNeeded: true)
+        let checked = await checkAccess(askIfNeeded: true, launchingNotes: true)
+        guard checked != .notRunning else {
+            if access != .granted { access = .unknown }
+            return
+        }
+        access = checked
         if access == .granted { await refresh() }
     }
 
-    func refresh() async {
-        access = await service.access(askIfNeeded: false)
+    /// Lists folders and notes again. Never asks for access. `launchingNotes`: start Notes in the background when it
+    /// is closed (the page or the window appears); otherwise a closed Notes leaves everything as it was, a known
+    /// `.granted` included.
+    func refresh(launchingNotes: Bool = false) async {
+        let checked = await checkAccess(askIfNeeded: false, launchingNotes: launchingNotes)
+        guard checked != .notRunning else {
+            if access != .granted { access = .unknown }
+            return
+        }
+        access = checked
         guard access == .granted else {
             if access == .denied { clearLists() }
             return
@@ -119,6 +134,13 @@ final class NotesStore: ObservableObject {
         } catch {
             handle(error, "refresh")
         }
+    }
+
+    private func checkAccess(askIfNeeded: Bool, launchingNotes: Bool) async -> NotesAccess {
+        let first = await service.access(askIfNeeded: askIfNeeded)
+        guard first == .notRunning, launchingNotes else { return first }
+        await service.launch()
+        return await service.access(askIfNeeded: askIfNeeded)
     }
 
     private func clearLists() {

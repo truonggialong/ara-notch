@@ -130,7 +130,7 @@ public final class NotesController {
 
     private func pageAppeared() {
         Task {
-            await refreshAfterChange()
+            await refreshAfterChange(launchingNotes: true)
             model.hasChecked = true
             // Something to show: the latest note opened here, or else the newest one, when it can be opened.
             if store.open == nil, store.access == .granted,
@@ -151,14 +151,17 @@ public final class NotesController {
         }
         watcher = NoteStoreWatcher(url: watchURL) { [weak self] in
             guard let self, self.isPageShowing else { return }
-            Task { await self.refreshAfterChange() }
+            Task { await self.refreshAfterChange(launchingNotes: false) }
         }
     }
 
     /// Lists the notes again, and reads the open note again when it changed in Notes and nothing typed here
     /// waits to be saved (AraNotch's own writes move `openedAt` along, so they do not count).
-    private func refreshAfterChange() async {
-        await store.refresh()
+    /// `launchingNotes`: start a closed Notes (the page appears), not for a database change.
+    private func refreshAfterChange(launchingNotes: Bool) async {
+        await store.refresh(launchingNotes: launchingNotes)
+        // Keystrokes not sent yet make the note pending, so they are never read over.
+        NoteEditorCoordinator.commitAll()
         guard let open = store.open, store.saveState == .saved,
               let summary = store.notes.first(where: { $0.id == open.id }),
               summary.modified.timeIntervalSince(open.openedAt) > 1 else { return }

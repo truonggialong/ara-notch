@@ -47,11 +47,6 @@ private func key(_ characters: String, _ flags: NSEvent.ModifierFlags) -> NSEven
                      characters: characters, charactersIgnoringModifiers: characters, isARepeat: false, keyCode: 0)!
 }
 
-/// Suites that run on the main actor one after another: the store tests time saves in tens of milliseconds,
-/// and building text views beside them would hold the main actor long enough to upset those timings.
-@Suite(.serialized) enum NotesMainActorSuites {}
-
-extension NotesMainActorSuites {
 @MainActor @Suite struct NoteEditorTests {
     @Test func commandBTogglesBoldInEditor() async throws {
         let h = try await EditorHarness()
@@ -211,5 +206,88 @@ extension NotesMainActorSuites {
         #expect(h.store.open?.document.blocks == [.listItem(.bullet, indent: 0, [TextRun("a")]),
                                                   .listItem(.bullet, indent: 0, [TextRun("b")]), .paragraph([])])
     }
-}
+
+    @Test func imagePastedOverTheStartOfABulletLineStaysAnImage() async throws {
+        let h = try await EditorHarness()
+        await h.store.openNote(h.note(["Title"]))
+        let editor = h.editor()
+        let text = editor.textView
+        text.textStorage?.setAttributedString(NoteAttributedText.make(
+            NoteDocument(blocks: [.paragraph([TextRun("Title")]), .listItem(.bullet, indent: 0, [TextRun("item")])]),
+            images: [:], imageSize: .thumbnail))
+        // "Title\n• item": the selection ends where the bullet line starts, so the paste takes its mark.
+        text.setSelectedRange(NSRange(location: 2, length: 4))
+        let board = NSPasteboard(name: NSPasteboard.Name("notes.test.\(UUID().uuidString)"))
+        board.clearContents()
+        board.setData(pngBytes, forType: .png)
+        #expect(text.insert(from: board))
+        board.releaseGlobally()
+        try await Task.sleep(for: .milliseconds(20))   // a deferred replace, if any, has run
+        editor.commitNow()
+        let blocks = h.store.open?.document.blocks ?? []
+        #expect(blocks.filter { if case .image = $0 { true } else { false } }.count == 1)
+        #expect(!(h.store.open?.document.plainText.contains("\u{FFFC}") == true && blocks.allSatisfy {
+            if case .image = $0 { false } else { true } }))
+        for block in blocks {
+            switch block {
+            case .paragraph(let runs), .heading(_, let runs), .listItem(_, _, let runs), .quote(let runs):
+                #expect(!runs.contains { $0.text.contains("\u{FFFC}") })
+            default: break
+            }
+        }
+        #expect(!text.string.contains("•"))
+    }
+
+    @Test func pastedTextLosesLoneObjectCharacters() async throws {
+        let h = try await EditorHarness()
+        await h.store.openNote(h.note(["Text"]))
+        let editor = h.editor()
+        editor.textView.setSelectedRange(NSRange(location: 4, length: 0))
+        let board = NSPasteboard(name: NSPasteboard.Name("notes.test.\(UUID().uuidString)"))
+        board.clearContents()
+        board.setString(" a\u{FFFC}b", forType: .string)
+        #expect(editor.textView.insert(from: board))
+        board.releaseGlobally()
+        editor.commitNow()
+        #expect(h.store.open?.document.plainText == "Text ab")
+    }
+
+    @Test func loneObjectCharacterTypedIsStripped() async throws {
+        let h = try await EditorHarness()
+        await h.store.openNote(h.note(["Text"]))
+        let editor = h.editor()
+        let text = editor.textView
+        text.setSelectedRange(NSRange(location: 4, length: 0))
+        text.insertText("\u{FFFC}", replacementRange: text.selectedRange())
+        editor.commitNow()
+        #expect(text.string == "Text")
+        #expect(h.store.open?.document.plainText == "Text")
+    }
+
+    @Test func formatPopoverIsFreedAfterTearDown() async throws {
+        let h = try await EditorHarness()
+        await h.store.openNote(h.note(["Text"]))
+        let editor = h.editor()
+        weak var weakPopover: FormatPopover?
+        autoreleasepool {
+            let popover = FormatPopover(editor: editor)
+            _ = popover.makePanel()
+            popover.tearDown()
+            weakPopover = popover
+        }
+        #expect(weakPopover == nil)
+    }
+
+    @Test func formatMenuDoesNotKeepItsPopoverAlive() async throws {
+        let h = try await EditorHarness()
+        await h.store.openNote(h.note(["Text"]))
+        let editor = h.editor()
+        weak var weakPopover: FormatPopover?
+        autoreleasepool {
+            let popover = FormatPopover(editor: editor)
+            _ = popover.makePanel()   // the panel's view refers back to the popover
+            weakPopover = popover
+        }
+        #expect(weakPopover == nil)
+    }
 }

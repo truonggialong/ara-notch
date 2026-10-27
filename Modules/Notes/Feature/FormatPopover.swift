@@ -66,8 +66,20 @@ final class FormatPopover {
         panel.orderFront(nil)
     }
 
-    private func makePanel() -> FormatPanel {
+    /// Closes the panel and stops watching windows: the editor is going away.
+    func tearDown() {
+        hide()
+        windowObservers.forEach(NotificationCenter.default.removeObserver)
+        windowObservers = []
+        watchedWindow = nil
+        panel?.contentView = nil
+        panel?.close()
+        panel = nil
+    }
+
+    func makePanel() -> FormatPanel {
         let panel = FormatPanel()
+        panel.isReleasedWhenClosed = false
         let host = NSHostingView(rootView: FormatMenuView(model: model, popover: self))
         host.setFrameSize(host.fittingSize)
         panel.contentView = host
@@ -213,7 +225,8 @@ final class FormatPanel: NSPanel {
 /// The menu's face: a black pill of buttons; the styles the selection has are lit in the accent colour.
 struct FormatMenuView: View {
     @ObservedObject var model: FormatPopoverModel
-    let popover: FormatPopover
+    /// Weak: the popover owns the panel this view is in.
+    weak var popover: FormatPopover?
 
     private static let buttons: [(NoteFormat, String, String)] = [
         (.bold, "bold", "notes.format.bold"), (.italic, "italic", "notes.format.italic"),
@@ -236,7 +249,7 @@ struct FormatMenuView: View {
         HStack(spacing: 2) {
             ForEach(Self.buttons, id: \.1) { format, symbol, key in
                 Button {
-                    popover.apply(format)
+                    popover?.apply(format)
                 } label: {
                     Image(systemName: symbol)
                         .font(.system(size: 12, weight: .semibold))
@@ -261,14 +274,14 @@ struct FormatMenuView: View {
                 .font(.system(size: 12))
                 .foregroundStyle(AraPalette.ground)
                 .frame(width: 200)
-                .onSubmit { popover.confirmLink() }
-                .onExitCommand { popover.cancelLink() }
-            Button { popover.confirmLink() } label: {
+                .onSubmit { popover?.confirmLink() }
+                .onExitCommand { popover?.cancelLink() }
+            Button { popover?.confirmLink() } label: {
                 AraIcon.confirm.image.font(.system(size: 11, weight: .bold)).foregroundStyle(AraPalette.accent)
             }
             .buttonStyle(AraPressStyle())
             .help(L10n.string("notes.format.link.save"))
-            Button { popover.cancelLink() } label: {
+            Button { popover?.cancelLink() } label: {
                 AraIcon.close.image.font(.system(size: 11, weight: .bold)).foregroundStyle(AraPalette.ground)
             }
             .buttonStyle(AraPressStyle())

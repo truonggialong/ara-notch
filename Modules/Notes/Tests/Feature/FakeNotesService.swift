@@ -10,6 +10,10 @@ final class FakeNotesService: NotesService, @unchecked Sendable {
     private var order: [String] = []
     private var counter = 0
     private var accessState: NotesAccess = .granted
+    private var accessAsks: [Bool] = []
+    private var callCounts: [String: Int] = [:]
+    private var launches = 0
+    private var afterLaunch: NotesAccess?
     private var setBodyCount = 0
     private var lastBody: String?
     private var attachments: [String: [String]] = [:]
@@ -70,6 +74,12 @@ final class FakeNotesService: NotesService, @unchecked Sendable {
     }
 
     var setBodyCalls: Int { lock.withLock { setBodyCount } }
+
+    /// How many calls began (counted on entry, before any delay): "content", "content:<id>", "setBody",
+    /// "modification". Tests wait on these instead of sleeping for a call to be under way.
+    func calls(_ key: String) -> Int { lock.withLock { callCounts[key, default: 0] } }
+
+    private func count(_ keys: String...) { lock.withLock { for key in keys { callCounts[key, default: 0] += 1 } } }
     var lastHTML: String? { lock.withLock { lastBody } }
     var accessValue: NotesAccess {
         get { lock.withLock { accessState } }
@@ -87,7 +97,28 @@ final class FakeNotesService: NotesService, @unchecked Sendable {
         }
     }
 
-    func access(askIfNeeded: Bool) async -> NotesAccess { accessValue }
+    func access(askIfNeeded: Bool) async -> NotesAccess {
+        lock.withLock {
+            accessAsks.append(askIfNeeded)
+            return accessState
+        }
+    }
+
+    /// Whether each access check asked the user.
+    var accessChecks: [Bool] { lock.withLock { accessAsks } }
+    var launchCalls: Int { lock.withLock { launches } }
+    /// What `access` reports once `launch` has run (nil: unchanged).
+    var accessAfterLaunch: NotesAccess? {
+        get { lock.withLock { afterLaunch } }
+        set { lock.withLock { afterLaunch = newValue } }
+    }
+
+    func launch() async {
+        lock.withLock {
+            launches += 1
+            if let afterLaunch { accessState = afterLaunch }
+        }
+    }
 
     func folders() async throws -> [NoteFolder] {
         lock.withLock {
@@ -108,6 +139,7 @@ final class FakeNotesService: NotesService, @unchecked Sendable {
     }
 
     func content(of noteID: String) async throws -> NoteContent {
+        count("content", "content:\(noteID)")
         let delay = lock.withLock { readDelays[noteID] ?? readDelay }
         if delay > .zero { try await Task.sleep(for: delay) }
         return try lock.withLock {
@@ -138,6 +170,7 @@ final class FakeNotesService: NotesService, @unchecked Sendable {
     }
 
     func setBody(_ html: String, of noteID: String) async throws -> Date {
+        count("setBody")
         if setBodyDelay > .zero { try await Task.sleep(for: setBodyDelay) }
         return try lock.withLock {
             guard contentByID[noteID] != nil else { throw NotesServiceError.notFound }
@@ -165,6 +198,7 @@ final class FakeNotesService: NotesService, @unchecked Sendable {
     }
 
     func modification(of noteID: String) async throws -> Date {
+        count("modification")
         if modificationDelay > .zero { try await Task.sleep(for: modificationDelay) }
         return try lock.withLock {
             guard let n = notesByID[noteID] else { throw NotesServiceError.notFound }

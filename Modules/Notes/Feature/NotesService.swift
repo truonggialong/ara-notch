@@ -65,7 +65,9 @@ public struct NoteContent: Sendable {
     }
 }
 
-public enum NotesAccess: Equatable, Sendable { case unknown, granted, denied }
+/// `notRunning`: the Notes app is not open, so macOS cannot say yet. Only a service reports it; the store
+/// starts Notes when it may (`NotesService.launch`) and asks again, and never keeps this value itself.
+public enum NotesAccess: Equatable, Sendable { case unknown, granted, denied, notRunning }
 
 public enum NotesServiceError: Error, Equatable {
     /// The user refused AraNotch control of Notes (Automation).
@@ -78,6 +80,8 @@ public enum NotesServiceError: Error, Equatable {
 /// Everything AraNotch does with Notes. `NotesBridge` is the real one; tests use a fake.
 public protocol NotesService: Sendable {
     func access(askIfNeeded: Bool) async -> NotesAccess
+    /// Starts Notes in the background, hidden, and returns once it is running (or after a few seconds).
+    func launch() async
     func folders() async throws -> [NoteFolder]
     /// nil: every folder.
     func notes(in folderID: String?) async throws -> [NoteSummary]

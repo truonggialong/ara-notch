@@ -1,3 +1,4 @@
+import AppKit
 import Carbon
 import Foundation
 
@@ -24,10 +25,27 @@ public final class NotesBridge: NotesService {
                 switch status {
                 case OSStatus(noErr): continuation.resume(returning: .granted)
                 case OSStatus(errAEEventNotPermitted): continuation.resume(returning: .denied)
-                // Notes is not running, or the user was not asked yet.
+                case OSStatus(procNotFound): continuation.resume(returning: .notRunning)
+                // The user was not asked yet.
                 default: continuation.resume(returning: .unknown)
                 }
             }
+        }
+    }
+
+    public func launch() async {
+        guard let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: Self.notesBundleID) else { return }
+        let configuration = NSWorkspace.OpenConfiguration()
+        configuration.activates = false
+        configuration.hides = true
+        configuration.addsToRecentItems = false
+        _ = try? await NSWorkspace.shared.openApplication(at: url, configuration: configuration)
+        // Apple events reach Notes only once it has finished launching.
+        let deadline = Date().addingTimeInterval(5)
+        while Date() < deadline {
+            let running = NSRunningApplication.runningApplications(withBundleIdentifier: Self.notesBundleID)
+            if running.contains(where: \.isFinishedLaunching) { return }
+            try? await Task.sleep(for: .milliseconds(100))
         }
     }
 

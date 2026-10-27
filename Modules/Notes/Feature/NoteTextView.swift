@@ -8,6 +8,8 @@ protocol NoteTextViewHost: AnyObject {
     func perform(_ format: NoteFormat) -> Bool
     /// Keeps an image the user put in the note and returns its text (an image line), or nil to refuse it.
     func imageLine(for data: Data, fileExtension: String) -> NSAttributedString?
+    /// The range a paste or drop over `range` really replaces: widened so no list mark is cut in two.
+    func rangeForReplacing(_ range: NSRange) -> NSRange
     func focusChanged(_ isFocused: Bool)
 }
 
@@ -109,14 +111,17 @@ final class NoteTextView: NSTextView {
         guard isEditable, let storage = textStorage else { return false }
         let pieces = (pasteboard.pasteboardItems ?? []).compactMap(piece(of:))
         guard !pieces.isEmpty else { return false }
-        let range = selectedRange()
+        // Widened here, not by the delegate: the delegate's widened replace is plain text and would drop pictures.
+        let range = host?.rangeForReplacing(selectedRange()) ?? selectedRange()
         let insertion = NSMutableAttributedString()
         let typing = NoteAttributedText.cleanTypingAttributes(typingAttributes)
         var refused = false
         for piece in pieces {
             switch piece {
             case .text(let string):
-                insertion.append(NSAttributedString(string: string, attributes: typing))
+                // A lone U+FFFC would be written as text, not as a picture.
+                let plain = string.replacingOccurrences(of: "\u{FFFC}", with: "")
+                if !plain.isEmpty { insertion.append(NSAttributedString(string: plain, attributes: typing)) }
             case .image(let data, let ext):
                 guard let line = host?.imageLine(for: data, fileExtension: ext) else {
                     refused = true

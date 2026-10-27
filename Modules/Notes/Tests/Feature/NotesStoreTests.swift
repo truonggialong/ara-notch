@@ -11,11 +11,17 @@ private final class FakeDatabase: NoteDatabase, @unchecked Sendable {
     /// Seconds an attachment lookup takes (it runs off the main actor).
     var fileDelay: TimeInterval = 0
 
+    private let lock = NSLock()
+    private var lookupCount = 0
+    /// Attachment lookups begun, counted before `fileDelay`.
+    var lookups: Int { lock.withLock { lookupCount } }
+
     var isReadable: Bool { readable }
     func document(forNoteKey key: Int) -> (document: NoteDocument, attachments: [NoteStoreAttachment])? {
         documents[key].map { ($0, []) }
     }
     func attachmentFile(forAttachmentKey key: Int) -> URL? {
+        lock.withLock { lookupCount += 1 }
         if fileDelay > 0 { Thread.sleep(forTimeInterval: fileDelay) }
         return files[key]
     }
@@ -30,6 +36,21 @@ private func temporaryDirectory() -> URL {
 extension NotesStore {
     /// An edit as the editor of the given load would send it.
     func edit(generation: Int?, _ document: NoteDocument) { edit(document, generation: generation ?? -1) }
+}
+
+/// Waits until `condition` holds, looking every 2 ms; records an issue after `timeout`. Used instead of sleeping for
+/// a call to be under way, so a busy main actor cannot make a test miss its moment.
+@MainActor
+func waitUntil(_ what: String, timeout: Duration = .seconds(3), _ condition: () -> Bool) async throws {
+    let clock = ContinuousClock()
+    let deadline = clock.now + timeout
+    while !condition() {
+        if clock.now >= deadline {
+            Issue.record("Timed out waiting until \(what)")
+            return
+        }
+        try await Task.sleep(for: .milliseconds(2))
+    }
 }
 
 private func p(_ text: String) -> NoteBlock { .paragraph([TextRun(text)]) }
@@ -66,8 +87,6 @@ private struct Harness {
     }
 }
 
-// Inside NotesMainActorSuites: its timings must not share the main actor with the editor tests.
-extension NotesMainActorSuites {
 @MainActor @Suite struct NotesStoreTests {
     // MARK: Saving
 
@@ -79,7 +98,7 @@ extension NotesMainActorSuites {
         h.store.edit(generation: h.store.open?.generation, NoteDocument(blocks: [p("Title"), p("b")]))
         h.store.edit(generation: h.store.open?.generation, NoteDocument(blocks: [p("Title"), p("bo")]))
         #expect(h.store.saveState == .pending)
-        try await Task.sleep(for: .milliseconds(150))
+        try await waitUntil("saved") { h.store.saveState == .saved }
         #expect(h.fake.setBodyCalls == 1)
         #expect(h.fake.lastHTML?.contains("bo") == true)
         #expect(h.store.saveState == .saved)
@@ -146,7 +165,7 @@ extension NotesMainActorSuites {
         await h.store.openNote(id)
         h.fake.setBodyDelay = .milliseconds(150)
         h.store.edit(generation: h.store.open?.generation, NoteDocument(blocks: [p("Title"), p("first")]))
-        try await Task.sleep(for: .milliseconds(60))
+        try await waitUntil("the save is writing") { h.fake.calls("setBody") == 1 }
         #expect(h.store.saveState == .saving)
         h.store.edit(generation: h.store.open?.generation, NoteDocument(blocks: [p("Title"), p("second")]))
         #expect(h.store.saveState == .pending)
@@ -163,7 +182,7 @@ extension NotesMainActorSuites {
         await h.store.openNote(a)
         h.fake.contentDelay = .milliseconds(80)
         let opening = Task { await h.store.openNote(b) }
-        try await Task.sleep(for: .milliseconds(30))
+        try await waitUntil("B is being read") { h.fake.calls("content:\(b)") == 1 }
         #expect(h.store.open?.id == a)  // B is still loading
         h.store.edit(generation: h.store.open?.generation, NoteDocument(blocks: [p("A"), p("late keystroke")]))
         await opening.value
@@ -181,8 +200,9 @@ extension NotesMainActorSuites {
         await h.store.openNote(a)
         h.fake.touch(a, to: Date().addingTimeInterval(60))  // changed in Notes meanwhile
         h.fake.contentDelay = .milliseconds(80)
+        let reads = h.fake.calls("content:\(a)")
         let reloading = Task { await h.store.reloadOpenNote() }
-        try await Task.sleep(for: .milliseconds(30))
+        try await waitUntil("A is being read again") { h.fake.calls("content:\(a)") > reads }
         h.store.edit(generation: h.store.open?.generation, NoteDocument(blocks: [p("A"), p("stale")]))
         await reloading.value
         #expect(h.store.open?.safety == .editable)
@@ -198,8 +218,9 @@ extension NotesMainActorSuites {
         let old = h.store.open?.generation
         h.fake.contentDelay = .milliseconds(100)
         h.fake.setBodyDelay = .milliseconds(100)
+        let reads = h.fake.calls("content:\(a)")
         let reopening = Task { await h.store.openNote(a) }
-        try await Task.sleep(for: .milliseconds(20))
+        try await waitUntil("A is being read again") { h.fake.calls("content:\(a)") > reads }
         h.store.edit(generation: old, NoteDocument(blocks: [p("A"), p("x")]))
         await reopening.value
         await h.store.flush()
@@ -218,7 +239,7 @@ extension NotesMainActorSuites {
         h.fake.setBodyDelay = .milliseconds(80)
         h.store.edit(generation: h.store.open?.generation,
                      NoteDocument(blocks: [p("a"), .image(attachmentIndex: 1), .image(attachmentIndex: 0)]))
-        try await Task.sleep(for: .milliseconds(40))  // the save is writing
+        try await waitUntil("the save is writing") { h.fake.calls("setBody") == 1 }
         await h.store.reloadOpenNote()
         await h.store.flush()
         let open = try #require(h.store.open)
@@ -258,9 +279,9 @@ extension NotesMainActorSuites {
         h.fake.setBodyDateOffset = 60  // each write moves the date far past SaveGuard's second
         h.fake.setContentDelay(.milliseconds(60), for: b)
         let opening = Task { await h.store.openNote(b) }
-        try await Task.sleep(for: .milliseconds(20))
+        try await waitUntil("B is being read") { h.fake.calls("content:\(b)") == 1 }
         h.store.edit(generation: gen, NoteDocument(blocks: [p("A"), p("one")]))
-        try await Task.sleep(for: .milliseconds(20))
+        try await waitUntil("A's save is writing") { h.fake.calls("setBody") == 1 }
         h.store.edit(generation: gen, NoteDocument(blocks: [p("A"), p("one two")]))
         await opening.value
         await h.store.flush()
@@ -276,7 +297,7 @@ extension NotesMainActorSuites {
         let b = h.plainNote("B")
         h.fake.setContentDelay(.milliseconds(120), for: a)
         let first = Task { await h.store.openNote(a) }
-        try await Task.sleep(for: .milliseconds(20))
+        try await waitUntil("A is being read") { h.fake.calls("content:\(a)") == 1 }
         await h.store.openNote(b)
         await first.value
         #expect(h.store.open?.id == b)
@@ -296,8 +317,9 @@ extension NotesMainActorSuites {
         let old = try #require(h.store.open?.generation)
         h.cache.remove(key: attachmentID(1))  // the reload has to wait for the database
         db.fileDelay = 0.15
+        let lookups = db.lookups
         let reloading = Task { await h.store.reloadOpenNote() }
-        try await Task.sleep(for: .milliseconds(50))  // the reload is loading images; A's old editor still types
+        try await waitUntil("the reload is loading images") { db.lookups > lookups }  // A's old editor still types
         h.store.edit(generation: old, NoteDocument(blocks: [p("A typed")]))  // its image file was removed above
         await reloading.value
         await h.store.flush()
@@ -329,8 +351,9 @@ extension NotesMainActorSuites {
         let old = try #require(h.store.open?.generation)
         h.cache.remove(key: attachmentID(1))
         db.fileDelay = 0.15
+        let lookups = db.lookups
         let reloading = Task { await h.store.reloadOpenNote() }
-        try await Task.sleep(for: .milliseconds(50))  // the reload is loading images
+        try await waitUntil("the reload is loading images") { db.lookups > lookups }
         h.store.edit(generation: old, NoteDocument(blocks: [p("A & <typed>")]))
         await reloading.value
         #expect(h.store.saveState == .conflict)
@@ -382,14 +405,14 @@ extension NotesMainActorSuites {
                                attachments: [attachmentID(9)])
         await h.store.openNote(a)
         let genA = h.store.open?.generation
-        h.fake.setContentDelay(.milliseconds(30), for: b)
+        h.fake.setContentDelay(.milliseconds(100), for: b)
         let opening = Task { await h.store.openNote(b) }
-        try await Task.sleep(for: .milliseconds(10))
+        try await waitUntil("B is being read") { h.fake.calls("content:\(b)") == 1 }
         h.fake.modificationDelay = .milliseconds(200)
         h.store.edit(generation: genA, NoteDocument(blocks: [p("a typed"), .image(attachmentIndex: 0), .image(attachmentIndex: 1)]))
         await opening.value
         #expect(h.store.open?.id == b)
-        try await Task.sleep(for: .milliseconds(30))  // A's save is waiting on modification
+        try await waitUntil("A's save is waiting on modification") { h.fake.calls("modification") == 1 }
         await h.store.reloadOpenNote()  // B's load trims the cache
         await h.store.flush()
         #expect(h.fake.setBodyCalls == 1)
@@ -639,6 +662,58 @@ extension NotesMainActorSuites {
         h.fake.addNote("a", in: h.folderID, html: "<div>a</div><div><br></div>", plainText: "a\n\u{FFFC}",
                        attachments: [attachmentID(1)])
     }
+
+    // MARK: Access when Notes is closed
+
+    @Test func closedNotesIsStartedWhenThePageAppears() async throws {
+        let h = try await Harness()
+        _ = h.plainNote()
+        h.fake.accessValue = .notRunning
+        h.fake.accessAfterLaunch = .granted
+        await h.store.refresh(launchingNotes: true)
+        #expect(h.fake.launchCalls == 1)
+        #expect(h.store.access == .granted)
+        #expect(h.store.notes.count == 1)
+        #expect(!h.fake.accessChecks.contains(true))  // a passive check never asks
+    }
+
+    @Test func closedNotesKeepsAKnownGrant() async throws {
+        let h = try await Harness()
+        _ = h.plainNote()
+        await h.store.refresh()
+        #expect(h.store.access == .granted)
+        h.fake.accessValue = .notRunning
+        await h.store.refresh()
+        #expect(h.store.access == .granted)
+        #expect(h.store.notes.count == 1)
+        #expect(h.fake.launchCalls == 0)
+    }
+
+    @Test func closedNotesWithoutLaunchingIsUnknown() async throws {
+        let h = try await Harness()
+        h.fake.accessValue = .notRunning
+        await h.store.refresh()
+        #expect(h.store.access == .unknown)
+        #expect(h.fake.launchCalls == 0)
+    }
+
+    @Test func allowStartsNotesThenAsks() async throws {
+        let h = try await Harness()
+        h.fake.accessValue = .notRunning
+        h.fake.accessAfterLaunch = .granted
+        await h.store.requestAccess()
+        #expect(h.fake.launchCalls == 1)
+        #expect(Array(h.fake.accessChecks.prefix(2)) == [true, true])
+        #expect(h.store.access == .granted)
+    }
+
+    @Test func notesThatStaysClosedAfterAllowIsNotGranted() async throws {
+        let h = try await Harness()
+        h.fake.accessValue = .notRunning
+        await h.store.requestAccess()
+        #expect(h.fake.launchCalls == 1)
+        #expect(h.store.access == .unknown)
+    }
 }
 
 @Suite struct NoteImageCacheTests {
@@ -678,5 +753,4 @@ extension NotesMainActorSuites {
         #expect(cache.url(forAttachmentID: attachmentID(2)) != nil)
         #expect(cache.url(forAttachmentID: attachmentID(3)) != nil)
     }
-}
 }

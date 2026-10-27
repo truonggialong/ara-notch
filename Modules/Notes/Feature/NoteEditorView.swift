@@ -41,7 +41,7 @@ struct NoteEditorView: NSViewRepresentable {
         text.autoresizingMask = [.width]
         text.textContainer?.widthTracksTextView = true
         scroll.documentView = text
-        coordinator.watchScrolling(of: scroll.contentView)
+        coordinator.watchScrolling(of: scroll)
         return scroll
     }
 
@@ -51,7 +51,7 @@ struct NoteEditorView: NSViewRepresentable {
 
     static func dismantleNSView(_ view: NSScrollView, coordinator: NoteEditorCoordinator) {
         coordinator.commitNow()
-        coordinator.popover.hide()
+        coordinator.popover.tearDown()
     }
 }
 
@@ -79,6 +79,7 @@ final class NoteEditorCoordinator: NSObject, NSTextViewDelegate, NoteTextViewHos
     private var loadedDocument = NoteDocument(blocks: [])
     private var commitScheduled = false
     private var isRebuilding = false
+    private var isStripping = false
     private var cancellables: Set<AnyCancellable> = []
 
     init(store: NotesStore, imageSize: NoteImageSize) {
@@ -141,7 +142,7 @@ final class NoteEditorCoordinator: NSObject, NSTextViewDelegate, NoteTextViewHos
     // MARK: Sending edits
 
     func textDidChange(_ notification: Notification) {
-        guard !isRebuilding else { return }
+        guard !isRebuilding, !isStripping else { return }
         stripBareAttachments()
         textView.typingAttributes = NoteAttributedText.cleanTypingAttributes(textView.typingAttributes)
         scheduleCommit()
@@ -165,24 +166,33 @@ final class NoteEditorCoordinator: NSObject, NSTextViewDelegate, NoteTextViewHos
         store.edit(NoteAttributedText.document(from: storage, original: loadedDocument), generation: generation)
     }
 
-    /// An attachment without an index could not be written back: it is taken out.
+    /// A U+FFFC that is not an indexed attachment (a bare attachment, or the character alone) could not be
+    /// written back, or would be written as text: it is taken out, as an undoable edit.
     private func stripBareAttachments() {
         guard let storage = textView.textStorage, storage.length > 0 else { return }
+        let string = storage.string as NSString
         var bare: [NSRange] = []
-        storage.enumerateAttribute(.attachment, in: NSRange(location: 0, length: storage.length)) { value, range, _ in
-            guard value != nil else { return }
-            for i in range.location..<(range.location + range.length)
-            where storage.attribute(NoteAttribute.attachmentIndex, at: i, effectiveRange: nil) == nil {
-                bare.append(NSRange(location: i, length: 1))
-            }
+        var search = NSRange(location: 0, length: string.length)
+        while true {
+            let found = string.range(of: "\u{FFFC}", options: .literal, range: search)
+            guard found.location != NSNotFound else { break }
+            let attributes = storage.attributes(at: found.location, effectiveRange: nil)
+            if attributes[.attachment] == nil || attributes[NoteAttribute.attachmentIndex] == nil { bare.append(found) }
+            let next = NSMaxRange(found)
+            search = NSRange(location: next, length: string.length - next)
         }
         guard !bare.isEmpty else { return }
         let selection = textView.selectedRange()
+        isStripping = true
+        defer { isStripping = false }
+        guard textView.shouldChangeText(inRanges: bare.map { NSValue(range: $0) },
+                                        replacementStrings: Array(repeating: "", count: bare.count)) else { return }
         storage.beginEditing()
         for range in bare.reversed() { storage.deleteCharacters(in: range) }
         storage.endEditing()
         let removedBefore = bare.filter { $0.location < selection.location }.count
         textView.setSelectedRange(NSRange(location: max(0, min(selection.location - removedBefore, storage.length)), length: 0))
+        textView.didChangeText()
     }
 
     // MARK: Selection
@@ -281,8 +291,31 @@ final class NoteEditorCoordinator: NSObject, NSTextViewDelegate, NoteTextViewHos
 
     /// An edit that would cut into a line's mark takes the whole mark.
     func textView(_ textView: NSTextView, shouldChangeTextIn range: NSRange, replacementString: String?) -> Bool {
-        // nil: only attributes change (formatting), which never touches a mark.
-        guard let storage = textView.textStorage, let replacementString else { return true }
+        // nil: only attributes change (formatting), which never touches a mark. While bare attachments are taken
+        // out, nothing is widened.
+        guard !isStripping, let storage = textView.textStorage, let replacementString else { return true }
+        let widened = Self.widenedOverMarks(range, in: storage)
+        guard widened != range else { return true }
+        // Typed text only (paste and drop widen before they ask): plain characters, without U+FFFC.
+        let text = replacementString.replacingOccurrences(of: "\u{FFFC}", with: "")
+        let scheduledFor = generation
+        DispatchQueue.main.async { [weak self, weak textView] in
+            guard let self, let textView, self.generation == scheduledFor, let storage = textView.textStorage,
+                  NSMaxRange(widened) <= storage.length else { return }
+            let attributes = NoteAttributedText.cleanTypingAttributes(textView.typingAttributes)
+            self.replace(widened, with: NSAttributedString(string: text, attributes: attributes))
+        }
+        return false
+    }
+
+    func rangeForReplacing(_ range: NSRange) -> NSRange {
+        guard let storage = textView.textStorage else { return range }
+        return Self.widenedOverMarks(range, in: storage)
+    }
+
+    /// A change that would cut into a line's mark takes the whole mark: one that starts inside a mark starts at its
+    /// line, and one that ends inside a mark, or at the start of a marked line, ends after the mark.
+    static func widenedOverMarks(_ range: NSRange, in storage: NSAttributedString) -> NSRange {
         let string = storage.string as NSString
         var widened = range
         let startLine = string.lineRange(for: NSRange(location: min(range.location, string.length), length: 0)).location
@@ -297,13 +330,7 @@ final class NoteEditorCoordinator: NSObject, NSTextViewDelegate, NoteTextViewHos
             let endMark = Self.markLength(at: endLine, in: storage)
             if end >= endLine, end < endLine + endMark { widened.length = endLine + endMark - widened.location }
         }
-        guard widened != range else { return true }
-        DispatchQueue.main.async { [weak self] in
-            guard let self else { return }
-            let attributes = NoteAttributedText.cleanTypingAttributes(textView.typingAttributes)
-            self.replace(widened, with: NSAttributedString(string: replacementString, attributes: attributes))
-        }
-        return false
+        return widened
     }
 
     // MARK: Formatting
@@ -395,9 +422,9 @@ final class NoteEditorCoordinator: NSObject, NSTextViewDelegate, NoteTextViewHos
         onFocusChange?(isEditing || textView.window?.firstResponder === textView)
     }
 
-    func watchScrolling(of clip: NSClipView) {
-        clip.postsBoundsChangedNotifications = true
-        NotificationCenter.default.publisher(for: NSView.boundsDidChangeNotification, object: clip)
+    /// The menu goes away when the user scrolls (not when the text grows or the view is laid out again).
+    func watchScrolling(of scroll: NSScrollView) {
+        NotificationCenter.default.publisher(for: NSScrollView.willStartLiveScrollNotification, object: scroll)
             .sink { [weak self] _ in self?.popover.hide() }
             .store(in: &cancellables)
     }

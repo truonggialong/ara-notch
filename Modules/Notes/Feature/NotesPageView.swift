@@ -92,6 +92,7 @@ struct NotesPageView: View {
             if note.isLocked {
                 Task { await store.showInNotes(note.id) }
             } else {
+                NoteEditorCoordinator.commitAll()   // the open note's last keystrokes go with it
                 Task { await store.openNote(note.id) }
             }
         } label: {
