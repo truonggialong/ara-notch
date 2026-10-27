@@ -15,7 +15,7 @@ public final class NotesController {
     let store: NotesStore
     private let settings: NotesSettings
     private let notch: NotchController
-    private let model = NotesPageModel()
+    let model = NotesPageModel()
     private let watchURL: URL?
     private var watcher: NoteStoreWatcher?
     private var cancellables: Set<AnyCancellable> = []
@@ -101,14 +101,7 @@ public final class NotesController {
         Publishers.CombineLatest(notch.isOpenPublisher, notch.selectedPagePublisher)
             .map { isOpen, page in isOpen && page == Self.pageID }
             .removeDuplicates()
-            .sink { [weak self] isShowing in
-                guard let self else { return }
-                self.isPageShowing = isShowing
-                if !isShowing {
-                    self.notch.setKeepsOpen(false, forPage: Self.pageID)
-                    Task { await self.flush() }
-                }
-            }
+            .sink { [weak self] isShowing in self?.pageShowingChanged(isShowing) }
             .store(in: &cancellables)
         NotificationCenter.default.publisher(for: NSApplication.didResignActiveNotification)
             .sink { [weak self] _ in Task { await self?.flush() } }
@@ -128,9 +121,28 @@ public final class NotesController {
 
     // MARK: Refreshing
 
-    private func pageAppeared() {
+    /// The page is on screen (notch open, Notes selected) or stopped being so. Only this starts a closed Notes:
+    /// the notch builds the selected page's view even while it is closed, so `onAppear` is no sign of being seen.
+    func pageShowingChanged(_ isShowing: Bool) {
+        guard isShowing != isPageShowing else { return }
+        isPageShowing = isShowing
+        if isShowing {
+            loadPage()
+        } else {
+            notch.setKeepsOpen(false, forPage: Self.pageID)
+            Task { await flush() }
+        }
+    }
+
+    /// The page's view appeared: lists again, starting Notes only when the page is really showing.
+    func pageAppeared() {
+        loadPage()
+    }
+
+    private func loadPage() {
+        let launching = isPageShowing
         Task {
-            await refreshAfterChange(launchingNotes: true)
+            await refreshAfterChange(launchingNotes: launching)
             model.hasChecked = true
             // Something to show: the latest note opened here, or else the newest one, when it can be opened.
             if store.open == nil, store.access == .granted,

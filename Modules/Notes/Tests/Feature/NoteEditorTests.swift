@@ -291,3 +291,28 @@ private func key(_ characters: String, _ flags: NSEvent.ModifierFlags) -> NSEven
         #expect(weakPopover == nil)
     }
 }
+
+@MainActor @Suite struct NotesControllerTests {
+    @Test func notesIsStartedOnlyWhenThePageIsReallyShowing() async throws {
+        let h = try await EditorHarness()
+        h.fake.accessValue = .notRunning
+        h.fake.accessAfterLaunch = .granted
+        let notch = NotchController(settings: ShellSettings(store: ShellSettingsStore(
+            defaults: UserDefaults(suiteName: "notes.shell.\(UUID().uuidString)")!)))
+        let controller = NotesController(settings: h.settings, notch: notch, service: h.fake, database: nil,
+                                          cache: NoteImageCache(root: temporaryDirectory()))
+        // The notch is closed but builds the selected Notes page: its view appears.
+        controller.pageAppeared()
+        try await waitUntil("the page checked access") { controller.model.hasChecked }
+        #expect(h.fake.launchCalls == 0)
+        #expect(controller.store.access == .unknown)
+        // The notch opens on the Notes page.
+        controller.pageShowingChanged(true)
+        try await waitUntil("Notes was started") { h.fake.launchCalls == 1 }
+        try await waitUntil("access is known") { controller.store.access == .granted }
+        // The view appearing again while showing does not start Notes twice: it is running now.
+        controller.pageAppeared()
+        try await Task.sleep(for: .milliseconds(30))
+        #expect(h.fake.launchCalls == 1)
+    }
+}
