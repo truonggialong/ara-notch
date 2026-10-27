@@ -76,7 +76,7 @@ Không cần quyền. Đọc "đang phát" qua giao diện riêng MediaRemote c�
 - Trang Đang phát cập nhật mỗi giây một lần, nên đổi bài hay tạm dừng từ app khác hiện chậm tối đa một giây; chưa kéo được thanh tiến độ để tua.
 - Tên bài báo bên notch bị cắt ngắn vì mỗi bên chỉ rộng 92 điểm.
 - Thanh sóng nhạc chỉ là hoạt hình, không đo âm thanh thật (đo thật cần quyền ghi âm thanh hệ thống).
-- Notch đóng khi đang phát: màu lấy từ ảnh bìa thu nhỏ 24×24, không có ảnh thì từ icon app, ảnh xám thì xanh trời. Notch nhô xuống 8 pt dưới camera chỉ khi biết độ dài bài. Bài thấy đang dừng ngay lúc mở app thì không hiện (chỉ hiện 5 phút sau một lần dừng được thấy). Rê chuột, nút tạm dừng và tua trên vạch ở notch đóng chưa được thử bằng tay với con trỏ thật (chỉ chụp trạng thái đang phát và tạm dừng với bài giả lập).
+- Notch đóng khi đang phát: màu lấy từ ảnh bìa thu nhỏ 24×24, không có ảnh thì từ icon app, ảnh xám thì xanh trời. Notch nhô xuống 8 pt dưới camera chỉ khi biết độ dài bài. Bài thấy đang dừng ngay lúc mở app thì không hiện (chỉ hiện 5 phút sau một lần dừng được thấy). Rê chuột, nút tạm dừng và tua ở notch đóng do chủ dự án thử tay với bài giả lập; chưa thử với bài thật đang phát.
 - Danh sách thiết bị âm thanh chỉ đọc lại mỗi lần mở notch.
 - Sau khi chọn thiết bị trong menu, notch đóng lại vì con trỏ đang nằm ngoài vùng notch.
 - Tua bài dùng lệnh hệ thống mà không phải trình phát nào cũng nghe; trình phát không hỗ trợ thì bỏ qua (đã thử với QuickTime Player và Spotify; chưa thử với Music hay trình duyệt). Thanh âm lượng không hiện với thiết bị không cho máy đặt âm lượng. Bài không có tên thì lấy tên tệp; không có cả hai thì trang vẫn báo chưa có gì đang phát.
