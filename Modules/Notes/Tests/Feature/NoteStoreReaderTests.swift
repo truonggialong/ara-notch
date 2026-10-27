@@ -196,7 +196,7 @@ private let minimalProtobuf = Data([0x12, 0x06, 0x1a, 0x04, 0x12, 0x02, 0x48, 0x
         let other = try TempStore()
         try addImage(other, accountID: "../..", filename: "../../leak.jpg")
         try other.makeFile("Media/MEDIA-UUID/../../leak.jpg")
-        #expect(NoteStoreReader(url: other.dbURL).attachmentFile(forAttachmentKey: 20)?.lastPathComponent != "nope")
+        #expect(NoteStoreReader(url: other.dbURL).attachmentFile(forAttachmentKey: 20) == nil)
         let sibling = try TempStore()
         try addImage(sibling, filename: "../../../leak.jpg")
         #expect(NoteStoreReader(url: sibling.dbURL).attachmentFile(forAttachmentKey: 20) == nil)
