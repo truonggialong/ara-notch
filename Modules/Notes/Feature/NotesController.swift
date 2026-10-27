@@ -23,7 +23,7 @@ public final class NotesController {
     private var watcher: NoteStoreWatcher?
     private var cancellables: Set<AnyCancellable> = []
     private var isPageShowing = false
-    private var window: NotesWindowController?
+    private(set) var window: NotesWindowController?
     private(set) var isWindowShowing = false
     private var isWindowMiniaturized = false
     private var refreshTimer: Timer?

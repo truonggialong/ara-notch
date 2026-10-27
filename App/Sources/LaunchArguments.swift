@@ -112,6 +112,8 @@ struct LaunchArguments {
     let dumpNoteData: (id: String, file: URL)?
     /// `--append-note <note id> <text> <report file>`: add a paragraph to the note and save it, as typing would.
     let appendNote: (id: String, text: String, report: URL)?
+    /// `--self-test-notes <report file>`: drive the Notes window with key and mouse events, then quit (see `runSelfTest`).
+    let selfTestNotes: URL?
     /// `--check-reminders <file>`: write whether a reminder can be made (one is made and removed at once).
     let checkRemindersFile: URL?
     /// `--cut-out <image>`: cut the picture's subject out and write the PNG to `--capture-out`.
@@ -179,6 +181,7 @@ struct LaunchArguments {
             arguments.indices.contains(index + 3)
                 ? (arguments[index + 1], arguments[index + 2], URL(fileURLWithPath: arguments[index + 3])) : nil
         }
+        selfTestNotes = value(after: "--self-test-notes").map { URL(fileURLWithPath: $0) }
         checkRemindersFile = value(after: "--check-reminders").map { URL(fileURLWithPath: $0) }
         cutOutFile = value(after: "--cut-out").map { URL(fileURLWithPath: $0) }
         pickColor = arguments.contains("--pick-color")

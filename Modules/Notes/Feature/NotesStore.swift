@@ -78,6 +78,8 @@ final class NotesStore: ObservableObject {
     private var generationCounter = 0
     /// Only the latest requested load may become `open`.
     private var latestRequest = 0
+    /// The note the latest load request is for.
+    private var latestRequestID: String?
     /// Saves of each load that ended in a conflict (its edit not written). A load that replaces the open one looks
     /// whether this grew while it ran: then the open one stays, with its edit and the conflict banner.
     private var conflicts: [Int: Int] = [:]
@@ -177,11 +179,14 @@ final class NotesStore: ObservableObject {
     func openNote(_ id: String) async {
         let replaced = open
         let seen = replaced.map { conflicts[$0.generation, default: 0] }
-        let generation = requestLoad()
+        let generation = requestLoad(for: id)
         isReloading = id == replaced?.id
         await flush()
         if let replaced, conflictArose(on: replaced, since: seen) {
-            if generation == latestRequest { isReloading = false }
+            if generation == latestRequest {
+                isReloading = false
+                latestRequestID = nil
+            }
             return
         }
         await load(id, generation: generation, replacing: replaced, conflictsSeen: seen)
@@ -193,7 +198,12 @@ final class NotesStore: ObservableObject {
     func reloadOpenNote() async {
         guard let current = open else { return }
         let id = current.id
-        let generation = requestLoad()
+        // Another note is being opened (a pick, a new note): reading this one again would cancel that.
+        if let requested = latestRequestID, requested != id, latestRequest > current.generation {
+            Self.log.info("Not reloading the open note: another one is being opened")
+            return
+        }
+        let generation = requestLoad(for: id)
         isReloading = true
         if pending?.note.generation == current.generation {
             debounceTask?.cancel()
@@ -211,9 +221,10 @@ final class NotesStore: ObservableObject {
         return true
     }
 
-    private func requestLoad() -> Int {
+    private func requestLoad(for id: String) -> Int {
         generationCounter += 1
         latestRequest = generationCounter
+        latestRequestID = id
         return generationCounter
     }
 
@@ -230,7 +241,12 @@ final class NotesStore: ObservableObject {
 
     /// `replacing`: the open load this one is to replace, with its conflict count when the request was made.
     private func load(_ id: String, generation: Int, replacing replaced: OpenNote? = nil, conflictsSeen: Int? = nil) async {
-        defer { if generation == latestRequest { isReloading = false } }
+        defer {
+            if generation == latestRequest {
+                isReloading = false
+                latestRequestID = nil  // the load is over, whatever came of it
+            }
+        }
         do {
             guard try await isInNotes(id) else { throw NotesServiceError.notFound }
             // A save of this note (an edit made on an earlier load) is written first, so the note read includes it;
@@ -688,7 +704,7 @@ final class NotesStore: ObservableObject {
             let (html, staged) = try await Self.html(for: document, files: imageFiles, staging: staging)
             defer { staging.remove(staged) }
             let id = try await service.create(in: folder.id, html: html)
-            let generation = requestLoad()
+            let generation = requestLoad(for: id)
             await refresh()
             await load(id, generation: generation)
         } catch {

@@ -378,6 +378,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if let dump = arguments.dumpNoteData {
             print(notes.dumpNoteData(noteID: dump.id, to: dump.file) ? "note data written to \(dump.file.path)" : "note data not written")
         }
+        if let report = arguments.selfTestNotes {
+            Task { await notes.runSelfTest(report: report) }
+        }
         if let append = arguments.appendNote {
             Task { await notes.appendParagraph(append.text, toNote: append.id, report: append.report) }
         }

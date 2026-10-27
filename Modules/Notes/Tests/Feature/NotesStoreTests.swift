@@ -534,6 +534,39 @@ private struct Harness {
         #expect(html.contains(h.staging.standardizedFileURL.absoluteString) || html.contains(h.staging.absoluteString))
     }
 
+    /// The open note changing elsewhere (its own save seen by the database watcher) while a new note is being
+    /// opened must not take the window back to the old note.
+    @Test func reloadOfTheOldNoteDoesNotCancelOpeningANewOne() async throws {
+        let h = try await Harness()
+        let a = h.plainNote("A")
+        await h.store.openNote(a)
+        h.fake.contentDelay = .milliseconds(150)
+        let reads = h.fake.calls("content")
+        let making = Task { await h.store.newNote() }
+        try await waitUntil("the new note is being read") { h.fake.calls("content") > reads }
+        await h.store.reloadOpenNote()
+        await making.value
+        #expect(h.store.open != nil)
+        #expect(h.store.open?.id != a)
+    }
+
+    /// A pick of another note that stays on the open one (its save conflicted) must not stop the open note from
+    /// being read again later.
+    @Test func openThatStaysStillLetsTheOpenNoteReload() async throws {
+        let h = try await Harness()
+        let a = h.plainNote("A")
+        let b = h.plainNote("B")
+        await h.store.openNote(a)
+        h.store.edit(generation: h.store.open?.generation, NoteDocument(blocks: [p("A"), p("mine")]))
+        _ = try await h.fake.setBody("<div>A</div><div>theirs</div>", of: a)
+        await h.store.openNote(b)
+        #expect(h.store.open?.id == a)
+        #expect(h.store.saveState == .conflict)
+        let reads = h.fake.calls("content:\(a)")
+        await h.store.reloadOpenNote()
+        #expect(h.fake.calls("content:\(a)") == reads + 1)
+    }
+
     /// Files left by a write the app never finished are removed by a later one; recent ones are not.
     @Test func stagingRemovesOldLeftovers() throws {
         let folder = temporaryDirectory()
