@@ -101,6 +101,42 @@ private func key(_ characters: String, _ flags: NSEvent.ModifierFlags) -> NSEven
         #expect(controller.makePage().id == "notes")
     }
 
+    private func controller(_ h: EditorHarness) -> NotesController {
+        let notch = NotchController(settings: ShellSettings(store: ShellSettingsStore(
+            defaults: UserDefaults(suiteName: "notes.shell.\(UUID().uuidString)")!)))
+        return NotesController(settings: h.settings, notch: notch, service: h.fake, database: nil,
+                               cache: NoteImageCache(root: temporaryDirectory()))
+    }
+
+    /// Quitting within the pause before a save (or during one) writes what was typed first.
+    @Test func quittingSavesWhatWasTyped() async throws {
+        let h = try await EditorHarness()
+        let controller = controller(h)
+        let id = h.note(["Title", "body"])
+        await controller.store.openNote(id)
+        controller.store.edit(NoteDocument(blocks: [.paragraph([TextRun("Title")]), .paragraph([TextRun("typed")])]),
+                              generation: try #require(controller.store.open?.generation))
+        #expect(controller.store.saveState == .pending)
+        #expect(await controller.saveBeforeQuitting())
+        #expect(h.fake.setBodyCalls == 1)
+        #expect(h.fake.lastHTML?.contains("typed") == true)
+    }
+
+    /// A Notes that does not answer cannot hold quitting up for long.
+    @Test func quittingWaitsForASaveOnlyUpToTheLimit() async throws {
+        let h = try await EditorHarness()
+        let controller = controller(h)
+        let id = h.note(["Title", "body"])
+        await controller.store.openNote(id)
+        h.fake.setBodyDelay = .seconds(5)
+        controller.store.edit(NoteDocument(blocks: [.paragraph([TextRun("typed")])]),
+                              generation: try #require(controller.store.open?.generation))
+        let clock = ContinuousClock()
+        let start = clock.now
+        #expect(await controller.saveBeforeQuitting(limit: .milliseconds(100)) == false)
+        #expect(clock.now - start < .seconds(2))
+    }
+
     @Test func editsCarryTheOpenGeneration() async throws {
         let h = try await EditorHarness()
         let first = h.note(["One"])

@@ -141,6 +141,27 @@ public final class NotesController {
             .store(in: &cancellables)
     }
 
+    /// For quitting: writes what was typed and not saved yet, waiting at most `limit` so a Notes that does not
+    /// answer cannot hold quitting up. False when the limit was reached first.
+    @discardableResult
+    public func saveBeforeQuitting(limit: Duration = .seconds(5)) async -> Bool {
+        // Whichever comes first: the save done, or the limit.
+        let (outcomes, continuation) = AsyncStream<Bool>.makeStream()
+        Task {
+            await flush()
+            continuation.yield(true)
+        }
+        let timer = Task {
+            try? await Task.sleep(for: limit)
+            continuation.yield(false)
+        }
+        var first = outcomes.makeAsyncIterator()
+        let finished = await first.next() ?? false
+        timer.cancel()
+        continuation.finish()
+        return finished
+    }
+
     /// Hands the editor's last keystrokes to the store and waits until they are written.
     func flush() async {
         NoteEditorCoordinator.commitAll()
