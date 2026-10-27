@@ -44,6 +44,25 @@ final class NotesPageModel: ObservableObject {
         await store.refresh()
     }
 
+    /// Shows the folder's notes (nil: all notes) and closes the folder list.
+    func choose(folder id: String?, in store: NotesStore) async {
+        isChoosingFolder = false
+        guard store.selectedFolderID != id else { return }
+        deletingID = nil
+        store.selectedFolderID = id
+        await store.refresh()
+    }
+
+    /// Makes a folder of the name typed and shows it. False, with the name field left open, when the name is empty
+    /// or Notes did not make it.
+    func createFolder(in store: NotesStore) async -> Bool {
+        guard await store.createFolder(named: newFolderName) != nil else { return false }
+        isAddingFolder = false
+        isChoosingFolder = false
+        newFolderName = ""
+        return true
+    }
+
     /// The page was left: what was open on it closes, and nothing keeps the notch any more.
     func closeWhatIsOpen() {
         isChoosingFolder = false
@@ -82,13 +101,25 @@ struct NotesPageView: View {
     private var listColumn: some View {
         VStack(spacing: 6 * ui) {
             HStack(spacing: 6 * ui) {
+                NoteFolderPicker(store: store, model: model)
+                    .frame(maxWidth: 110 * ui, alignment: .leading)
+                    .fixedSize(horizontal: true, vertical: false)
                 searchField
                 AraIconButton(.add, size: .small, help: L10n.string("notes.new")) { model.onNewNote?() }
             }
-            if model.hasChecked, !store.fullView {
-                NotesFullViewCard()
+            ZStack(alignment: .top) {
+                VStack(spacing: 6 * ui) {
+                    if model.hasChecked, !store.fullView {
+                        NotesFullViewCard()
+                    }
+                    NoteListColumn(store: store, model: model)
+                }
+                if model.isChoosingFolder {
+                    NoteFolderList(store: store, model: model)
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                }
             }
-            NoteListColumn(store: store, model: model)
+            .animation(AraTheme.settle, value: model.isChoosingFolder)
         }
     }
 

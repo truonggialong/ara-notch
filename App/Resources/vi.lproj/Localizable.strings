@@ -869,6 +869,7 @@
 "notes.page.title" = "Ghi chú";
 "notes.new" = "Ghi chú mới";
 "notes.search" = "Tìm ghi chú";
+"notes.chooseFolder" = "Chọn thư mục";
 "notes.empty" = "Chưa có ghi chú";
 "notes.noResults" = "Không tìm thấy ghi chú";
 "notes.untitled" = "Ghi chú mới";

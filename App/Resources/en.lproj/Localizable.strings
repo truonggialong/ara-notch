@@ -869,6 +869,7 @@
 "notes.page.title" = "Notes";
 "notes.new" = "New note";
 "notes.search" = "Search notes";
+"notes.chooseFolder" = "Choose folder";
 "notes.empty" = "No notes yet";
 "notes.noResults" = "No notes found";
 "notes.untitled" = "New note";

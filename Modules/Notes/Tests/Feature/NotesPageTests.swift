@@ -123,6 +123,72 @@ private struct PageHarness {
         #expect(NotesController.firstToOpen([summary("x", 1, locked: true)], recent: []) == nil)
     }
 
+    @Test func choosingAFolderListsItsNotesAndClosesThePicker() async throws {
+        let h = try await PageHarness()
+        let work = try await h.fake.createFolder(named: "Work")
+        let home = h.note(["At home"])
+        let office = h.fake.addNote("At work", in: work.id, html: "<div>At work</div>", plainText: "At work")
+        await h.store.refresh()
+        #expect(Set(h.store.notes.map(\.id)) == [home, office])
+        let model = NotesPageModel()
+        model.isChoosingFolder = true
+        model.deletingID = home
+        await model.choose(folder: work.id, in: h.store)
+        #expect(h.store.selectedFolderID == work.id)
+        #expect(h.store.notes.map(\.id) == [office])
+        #expect(!model.isChoosingFolder)
+        #expect(model.deletingID == nil)
+    }
+
+    @Test func choosingAllNotesListsEveryNote() async throws {
+        let h = try await PageHarness()
+        let work = try await h.fake.createFolder(named: "Work")
+        h.note(["At home"])
+        h.fake.addNote("At work", in: work.id, html: "<div>At work</div>", plainText: "At work")
+        h.store.selectedFolderID = work.id
+        await h.store.refresh()
+        #expect(h.store.notes.count == 1)
+        let model = NotesPageModel()
+        await model.choose(folder: nil, in: h.store)
+        #expect(h.store.selectedFolderID == nil)
+        #expect(h.store.notes.count == 2)
+    }
+
+    @Test func anEmptyFolderNameMakesNothing() async throws {
+        let h = try await PageHarness()
+        await h.store.refresh()
+        let model = NotesPageModel()
+        model.isAddingFolder = true
+        model.newFolderName = "   "
+        #expect(await model.createFolder(in: h.store) == false)
+        #expect(model.isAddingFolder)
+        #expect(h.store.folders.count == 1)
+    }
+
+    @Test func aNewFolderIsChosen() async throws {
+        let h = try await PageHarness()
+        await h.store.refresh()
+        let model = NotesPageModel()
+        model.isChoosingFolder = true
+        model.isAddingFolder = true
+        model.newFolderName = "Work"
+        #expect(await model.createFolder(in: h.store))
+        let made = try #require(h.store.folders.first { $0.name == "Work" })
+        #expect(h.store.selectedFolderID == made.id)
+        #expect(!model.isAddingFolder)
+        #expect(!model.isChoosingFolder)
+        #expect(model.newFolderName.isEmpty)
+    }
+
+    @Test func accountsKeepNotesOrder() {
+        let a = NoteFolder(id: "a", name: "A", account: "iCloud", noteCount: 1)
+        let b = NoteFolder(id: "b", name: "B", account: "On My Mac", noteCount: 2)
+        let c = NoteFolder(id: "c", name: "C", account: "iCloud", noteCount: 3)
+        let accounts = NoteFolderPicker.accounts(of: [a, b, c])
+        #expect(accounts.map(\.name) == ["iCloud", "On My Mac"])
+        #expect(accounts.map { $0.folders.map(\.id) } == [["a", "c"], ["b"]])
+    }
+
     @Test func windowToolbarBoldAppliesToWindowEditor() async throws {
         let h = try await PageHarness()
         await h.store.openNote(h.note(["Title", "body"]))
