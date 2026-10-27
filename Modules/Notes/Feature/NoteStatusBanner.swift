@@ -84,6 +84,7 @@ struct NoteStatusBanner: View {
         case .quote: "quote"
         case .file: "file"
         case .drawing: "drawing"
+        case .formatting: "formatting"
         case .locked: "locked"
         case .listsUnknown: "listsUnknown"
         case .imagesUnavailable: "imagesUnavailable"

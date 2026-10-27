@@ -73,7 +73,7 @@ import Testing
         return output
     }
 
-    static func decode(text: String, runs: [Run]) throws -> (document: NoteDocument, attachments: [NoteStoreAttachment]) {
+    static func decode(text: String, runs: [Run]) throws -> DecodedNote {
         try NoteStoreDecoder.decode(gzip(protobuf(text: text, runs: runs)))
     }
 
@@ -309,6 +309,49 @@ import Testing
         #expect(html.hasPrefix("<ul><li>"))
     }
 
+    /// A one-line note "ab" whose single run also carries `build`'s fields.
+    static func formatted(_ build: (inout ProtobufWriter) -> Void) throws -> DecodedNote {
+        var root = ProtobufWriter()
+        root.message(2) { document in
+            document.message(3) { note in
+                note.string(2, "ab")
+                note.message(5) { r in
+                    r.varint(1, 2)
+                    build(&r)
+                }
+            }
+        }
+        return try NoteStoreDecoder.decode(Self.gzip(root.data))
+    }
+
+    /// Font, superscript, colour, highlight and alignment cannot be written back through HTML: a save would drop them.
+    @Test func flagsFormattingTheWriterCannotKeep() throws {
+        let font = try Self.formatted { r in r.message(3) { f in f.string(1, "Georgia") } }
+        let superscript = try Self.formatted { r in r.varint(8, 1) }
+        let colour = try Self.formatted { r in r.message(10) { c in c.fixed32(1, 0x3F80_0000) } }
+        let highlight = try Self.formatted { r in r.varint(14, 1) }
+        let centred = try Self.formatted { r in r.message(2) { p in p.varint(2, 1) } }
+        for decoded in [font, superscript, colour, highlight, centred] {
+            #expect(decoded.hasUnsupportedFormatting)
+            #expect(decoded.document.plainText == "ab")
+        }
+    }
+
+    @Test func plainFormattingIsNotFlagged() throws {
+        let plain = try Self.formatted { r in
+            r.message(2) { p in
+                p.varint(1, 0)
+                p.varint(2, 0)    // left alignment, as Notes writes for a title
+                p.varint(3, 1)    // present on most real paragraphs
+            }
+            r.varint(5, 3)
+            r.varint(6, 1)
+            r.varint(7, 1)
+            r.varint(8, 0)
+        }
+        #expect(!plain.hasUnsupportedFormatting)
+    }
+
     @Test func readerWalksAllWireTypes() throws {
         var writer = ProtobufWriter()
         writer.varint(1, 300)
@@ -354,5 +397,6 @@ import Testing
             .image(attachmentIndex: 0),
         ])
         #expect(result.attachments == [NoteStoreAttachment(identifier: "9A3CCEDB-3080-404F-875A-A3C58E3006F5", uti: "public.png")])
+        #expect(!result.hasUnsupportedFormatting)
     }
 }

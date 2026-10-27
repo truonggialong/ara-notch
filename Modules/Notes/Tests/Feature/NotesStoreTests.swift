@@ -7,6 +7,8 @@ import NotesCore
 private final class FakeDatabase: NoteDatabase, @unchecked Sendable {
     var readable = true
     var documents: [Int: NoteDocument] = [:]
+    /// Notes whose data has formatting the document cannot hold.
+    var formatted: Set<Int> = []
     var files: [Int: URL] = [:]
     /// Seconds an attachment lookup takes (it runs off the main actor).
     var fileDelay: TimeInterval = 0
@@ -17,8 +19,8 @@ private final class FakeDatabase: NoteDatabase, @unchecked Sendable {
     var lookups: Int { lock.withLock { lookupCount } }
 
     var isReadable: Bool { readable }
-    func document(forNoteKey key: Int) -> (document: NoteDocument, attachments: [NoteStoreAttachment])? {
-        documents[key].map { ($0, []) }
+    func document(forNoteKey key: Int) -> DecodedNote? {
+        documents[key].map { DecodedNote(document: $0, attachments: [], hasUnsupportedFormatting: formatted.contains(key)) }
     }
     func attachmentFile(forAttachmentKey key: Int) -> URL? {
         lock.withLock { lookupCount += 1 }
@@ -531,6 +533,17 @@ private struct Harness {
         #expect(h.store.open?.safety == .editable)
         guard case .table(let html, _)? = h.store.open?.document.blocks.last else { Issue.record("no table"); return }
         #expect(html == table)
+    }
+
+    @Test func formattingTheWriterCannotKeepMakesReadOnly() async throws {
+        let db = FakeDatabase()
+        let h = try await Harness(database: db)
+        let id = h.plainNote()
+        let key = NotesIDs.databaseKey(of: id, entity: "ICNote")!
+        db.documents[key] = NoteDocument(blocks: [p("Title"), p("body")])
+        db.formatted = [key]
+        await h.store.openNote(id)
+        #expect(h.store.open?.safety == .readOnly([.formatting]))
     }
 
     @Test func fullDocumentIsShownWhenReadable() async throws {

@@ -105,6 +105,13 @@ import Testing
         #expect(safety == .editable)
     }
 
+    @Test func unsupportedFormattingMakesReadOnly() {
+        let doc = NoteDocument(blocks: [Self.p("a")])
+        #expect(EditSafety.check(full: doc, html: doc, isLocked: false, plainText: "a", unsupportedFormatting: true)
+            == .readOnly([.formatting]))
+        #expect(EditSafety.check(full: doc, html: doc, isLocked: false, plainText: "a") == .editable)
+    }
+
     @Test func addingAReasonKeepsDeclarationOrder() {
         #expect(EditSafety.editable.adding(.unreadable) == .readOnly([.unreadable]))
         #expect(EditSafety.readOnly([.unreadable]).adding(.imagesUnavailable) == .readOnly([.imagesUnavailable, .unreadable]))

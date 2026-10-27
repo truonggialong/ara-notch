@@ -7,6 +7,9 @@ public enum ReadOnlyReason: Hashable, Sendable {
     case imagesUnavailable
     /// What the editor would show differs from the note's own text, so a write could lose content.
     case unreadable
+    /// The note has formatting AraNotch cannot write back (font, colour, highlight, superscript, alignment):
+    /// a write would drop it.
+    case formatting
 }
 
 public enum EditSafety: Hashable, Sendable {
@@ -15,7 +18,9 @@ public enum EditSafety: Hashable, Sendable {
 
     /// full: the document from the database (nil when unavailable). html: the document read through AppleScript.
     /// plainText: the note's own `plaintext` from AppleScript. The document that would be edited is `full ?? html`.
-    public static func check(full: NoteDocument?, html: NoteDocument, isLocked: Bool, plainText: String) -> EditSafety {
+    /// unsupportedFormatting: the database showed formatting the document cannot hold (`DecodedNote`).
+    public static func check(full: NoteDocument?, html: NoteDocument, isLocked: Bool, plainText: String,
+                             unsupportedFormatting: Bool = false) -> EditSafety {
         if isLocked { return .readOnly([.locked]) }
         let edited = full ?? html
         var found = Set<ReadOnlyReason>()
@@ -34,6 +39,7 @@ public enum EditSafety: Hashable, Sendable {
             found.insert(.listsUnknown)
         }
         if normalise(edited.plainText) != normalise(plainText) { found.insert(.unreadable) }
+        if full != nil, unsupportedFormatting { found.insert(.formatting) }
 
         return make(found)
     }
@@ -45,7 +51,7 @@ public enum EditSafety: Hashable, Sendable {
     }
 
     private static let order: [ReadOnlyReason] = [
-        .checklist, .numberedList, .quote, .file, .drawing, .locked, .listsUnknown, .imagesUnavailable, .unreadable,
+        .checklist, .numberedList, .quote, .file, .drawing, .formatting, .locked, .listsUnknown, .imagesUnavailable, .unreadable,
     ]
 
     private static func make(_ found: Set<ReadOnlyReason>) -> EditSafety {

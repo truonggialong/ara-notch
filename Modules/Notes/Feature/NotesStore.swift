@@ -191,7 +191,7 @@ final class NotesStore: ObservableObject {
         var content: NoteContent
         var ids: [String]
         var readable: Bool
-        var full: NoteDocument?
+        var full: DecodedNote?
     }
 
     private func load(_ id: String, generation: Int) async {
@@ -207,8 +207,9 @@ final class NotesStore: ObservableObject {
             }
             fullView = read.readable
             let html = NotesHTMLReader.read(html: read.content.html, plainText: read.content.plainText)
-            let (document, composed) = Self.compose(full: read.full, html: html, isLocked: isLocked,
-                                                    plainText: read.content.plainText)
+            let (document, composed) = Self.compose(full: read.full?.document, html: html, isLocked: isLocked,
+                                                    plainText: read.content.plainText,
+                                                    unsupportedFormatting: read.full?.hasUnsupportedFormatting ?? false)
             var safety = composed
             let (images, complete) = await loadImages(of: document, ids: read.ids, readable: read.readable)
             if !complete { safety = safety.adding(.imagesUnavailable) }
@@ -272,19 +273,21 @@ final class NotesStore: ObservableObject {
     }
 
     /// Whether the database is readable, and the note's document from it.
-    private func readFull(_ id: String) async -> (Bool, NoteDocument?) {
+    private func readFull(_ id: String) async -> (Bool, DecodedNote?) {
         guard let database else { return (false, nil) }
         let key = NotesIDs.databaseKey(of: id, entity: "ICNote")
         return await Task.detached {
             guard database.isReadable else { return (false, nil) }
-            return (true, key.flatMap { database.document(forNoteKey: $0)?.document })
+            return (true, key.flatMap { database.document(forNoteKey: $0) })
         }.value
     }
 
     /// The document to show (`full ?? html`) and its safety. A table of the full document takes its HTML from the
     /// AppleScript document's table at the same attachment position; without one the note is unreadable.
-    static func compose(full: NoteDocument?, html: NoteDocument, isLocked: Bool, plainText: String) -> (NoteDocument, EditSafety) {
-        var safety = EditSafety.check(full: full, html: html, isLocked: isLocked, plainText: plainText)
+    static func compose(full: NoteDocument?, html: NoteDocument, isLocked: Bool, plainText: String,
+                        unsupportedFormatting: Bool = false) -> (NoteDocument, EditSafety) {
+        var safety = EditSafety.check(full: full, html: html, isLocked: isLocked, plainText: plainText,
+                                      unsupportedFormatting: unsupportedFormatting)
         guard var document = full else { return (html, safety) }
         var htmlTables: [Int: NoteBlock] = [:]
         for (slot, block) in attachmentBlocks(html) { if case .table = block { htmlTables[slot] = block } }

@@ -891,6 +891,7 @@
 "notes.readOnly.quote" = "the note has a quote";
 "notes.readOnly.file" = "the note has an attached file";
 "notes.readOnly.drawing" = "the note has a drawing";
+"notes.readOnly.formatting" = "the note has formatting AraNotch cannot keep (font, colour, highlight, alignment)";
 "notes.readOnly.locked" = "the note is locked";
 "notes.readOnly.listsUnknown" = "lists need Full Disk Access";
 "notes.readOnly.imagesUnavailable" = "a picture could not be read";

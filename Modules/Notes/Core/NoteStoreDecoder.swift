@@ -11,6 +11,20 @@ public struct NoteStoreAttachment: Hashable, Sendable {
     }
 }
 
+/// A decoded note: its document, its attachments in order, and whether it has formatting the document cannot hold
+/// (so a write, which rebuilds the note from the document, would drop it).
+public struct DecodedNote: Hashable, Sendable {
+    public var document: NoteDocument
+    public var attachments: [NoteStoreAttachment]
+    public var hasUnsupportedFormatting: Bool
+
+    public init(document: NoteDocument, attachments: [NoteStoreAttachment], hasUnsupportedFormatting: Bool = false) {
+        self.document = document
+        self.attachments = attachments
+        self.hasUnsupportedFormatting = hasUnsupportedFormatting
+    }
+}
+
 public enum NoteStoreDecoderError: Error, Equatable {
     case notGzip
     case malformed(String)
@@ -19,8 +33,13 @@ public enum NoteStoreDecoderError: Error, Equatable {
 /// Decodes `ZICNOTEDATA.ZDATA` of NoteStore.sqlite (gzip, then Notes' protobuf) into a `NoteDocument`.
 /// Schema after the public apple_cloud_notes_parser work: document(2) > note(3) > note_text(2),
 /// attribute_run(5).
+///
+/// An attribute run: length 1, paragraph_style 2, font 3, font_weight 5, underlined 6, strikethrough 7,
+/// superscript 8, link 9, color 10, attachment_info 12, emphasis_style (highlight) 14. A paragraph style:
+/// style_type 1, alignment 2, indent_amount 4, checklist 5, block_quote 8. Font, superscript, colour, highlight
+/// and an alignment other than 0 (left) are what the reader cannot show nor the writer keep: they are flagged.
 public enum NoteStoreDecoder {
-    public static func decode(_ data: Data) throws -> (document: NoteDocument, attachments: [NoteStoreAttachment]) {
+    public static func decode(_ data: Data) throws -> DecodedNote {
         let message = try Gzip.decompress(data)
         var text = ""
         var runs: [Run] = []
@@ -49,7 +68,9 @@ public enum NoteStoreDecoder {
             // Only an absent style or -1 is body text; anything else may be a kind this reader cannot show.
             if let style = run.styleType, style != -1, !known.contains(style) { throw NoteStoreDecoderError.malformed("style \(style)") }
         }
-        return Builder(text: text, runs: runs).build()
+        let (document, attachments) = Builder(text: text, runs: runs).build()
+        return DecodedNote(document: document, attachments: attachments,
+                           hasUnsupportedFormatting: runs.contains(where: \.hasUnsupportedFormatting))
     }
 
     /// One attribute run: its length in UTF-16 units and the formatting that applies to it.
@@ -64,6 +85,8 @@ public enum NoteStoreDecoder {
         var strikethrough = false
         var link: URL?
         var attachment: NoteStoreAttachment?
+        /// Font, superscript, colour, highlight or a non-left alignment: formatting a write would drop.
+        var hasUnsupportedFormatting = false
 
         init(parsing data: Data) throws {
             var reader = ProtobufReader(data)
@@ -76,6 +99,9 @@ public enum NoteStoreDecoder {
                 case (7, .varint(let v)): strikethrough = v != 0
                 case (9, .bytes(let b)): link = URL(string: String(decoding: b, as: UTF8.self))
                 case (12, .bytes(let b)): attachment = try Self.parseAttachment(b)
+                case (3, _), (10, _): hasUnsupportedFormatting = true
+                case (8, .varint(let v)), (14, .varint(let v)): if v != 0 { hasUnsupportedFormatting = true }
+                case (14, _): hasUnsupportedFormatting = true
                 default: break
                 }
             }
@@ -86,6 +112,7 @@ public enum NoteStoreDecoder {
             while let (field, value) = try reader.next() {
                 switch (field, value) {
                 case (1, .varint(let v)): styleType = Int(truncatingIfNeeded: v)
+                case (2, .varint(let v)): if v != 0 { hasUnsupportedFormatting = true }
                 case (4, .varint(let v)): indent = Int(min(v, UInt64(NoteDocument.maxListIndent)))
                 case (5, .bytes(let b)):
                     var checklist = ProtobufReader(b)

@@ -891,6 +891,7 @@
 "notes.readOnly.quote" = "ghi chú có trích dẫn";
 "notes.readOnly.file" = "ghi chú có tệp đính kèm";
 "notes.readOnly.drawing" = "ghi chú có hình vẽ";
+"notes.readOnly.formatting" = "ghi chú có định dạng AraNotch không giữ được (phông, màu, tô sáng, căn lề)";
 "notes.readOnly.locked" = "ghi chú đã khoá";
 "notes.readOnly.listsUnknown" = "cần Full Disk Access để sửa danh sách";
 "notes.readOnly.imagesUnavailable" = "không đọc được một ảnh";

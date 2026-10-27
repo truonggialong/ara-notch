@@ -6,7 +6,7 @@ import SQLite3
 /// What `NotesStore` reads from Notes' database; `NoteStoreReader` is the real one, tests use a fake.
 public protocol NoteDatabase: Sendable {
     var isReadable: Bool { get }
-    func document(forNoteKey key: Int) -> (document: NoteDocument, attachments: [NoteStoreAttachment])?
+    func document(forNoteKey key: Int) -> DecodedNote?
     func attachmentFile(forAttachmentKey key: Int) -> URL?
 }
 
@@ -54,7 +54,7 @@ public final class NoteStoreReader: NoteDatabase {
     }
 
     /// The decoded note, or nil when it cannot be read or decoded.
-    public func document(forNoteKey key: Int) -> (document: NoteDocument, attachments: [NoteStoreAttachment])? {
+    public func document(forNoteKey key: Int) -> DecodedNote? {
         guard let data = rawData(forNoteKey: key) else { return nil }
         do {
             return try NoteStoreDecoder.decode(data)
