@@ -3,10 +3,23 @@ import NotesCore
 import os
 import SQLite3
 
+/// A note's row in Notes' database: its decoded data, and when the row says the note was last changed (nil when the
+/// database has no such column). Notes writes the row a little after an edit: a date other than the one AppleScript
+/// gives means the data may not hold that edit yet.
+public struct DatabaseNote: Sendable {
+    public var decoded: DecodedNote
+    public var modified: Date?
+
+    public init(decoded: DecodedNote, modified: Date? = nil) {
+        self.decoded = decoded
+        self.modified = modified
+    }
+}
+
 /// What `NotesStore` reads from Notes' database; `NoteStoreReader` is the real one, tests use a fake.
 public protocol NoteDatabase: Sendable {
     var isReadable: Bool { get }
-    func document(forNoteKey key: Int) -> DecodedNote?
+    func note(forNoteKey key: Int) -> DatabaseNote?
     func attachmentFile(forAttachmentKey key: Int) -> URL?
 }
 
@@ -39,25 +52,36 @@ public final class NoteStoreReader: NoteDatabase {
     }
 
     /// ZICNOTEDATA.ZDATA of a note, the gzip protobuf.
-    public func rawData(forNoteKey key: Int) -> Data? {
+    public func rawData(forNoteKey key: Int) -> Data? { row(forNoteKey: key)?.data }
+
+    /// ZDATA with the row's ZMODIFICATIONDATE1, read in one query so both are of the same moment.
+    private func row(forNoteKey key: Int) -> (data: Data, modified: Date?)? {
         withDatabase { db in
+            let hasDate = Self.columns(of: "ZICCLOUDSYNCINGOBJECT", in: db).contains("ZMODIFICATIONDATE1")
             var statement: OpaquePointer?
             defer { sqlite3_finalize(statement) }
-            let sql = "SELECT d.ZDATA FROM ZICCLOUDSYNCINGOBJECT n JOIN ZICNOTEDATA d ON d.Z_PK = n.ZNOTEDATA WHERE n.Z_PK = ?"
+            let sql = "SELECT d.ZDATA, \(hasDate ? "n.ZMODIFICATIONDATE1" : "NULL") FROM ZICCLOUDSYNCINGOBJECT n "
+                + "JOIN ZICNOTEDATA d ON d.Z_PK = n.ZNOTEDATA WHERE n.Z_PK = ?"
             guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else { return nil }
             sqlite3_bind_int64(statement, 1, Int64(key))
             guard sqlite3_step(statement) == SQLITE_ROW, sqlite3_column_type(statement, 0) == SQLITE_BLOB else { return nil }
             let count = Int(sqlite3_column_bytes(statement, 0))
             guard count > 0, let bytes = sqlite3_column_blob(statement, 0) else { return nil }
-            return Data(bytes: bytes, count: count)
+            // Core Data keeps dates as seconds since 2001.
+            let modified = sqlite3_column_type(statement, 1) == SQLITE_NULL
+                ? nil : Date(timeIntervalSinceReferenceDate: sqlite3_column_double(statement, 1))
+            return (Data(bytes: bytes, count: count), modified)
         } ?? nil
     }
 
     /// The decoded note, or nil when it cannot be read or decoded.
-    public func document(forNoteKey key: Int) -> DecodedNote? {
-        guard let data = rawData(forNoteKey: key) else { return nil }
+    public func document(forNoteKey key: Int) -> DecodedNote? { note(forNoteKey: key)?.decoded }
+
+    /// The decoded note with its row's modification date, or nil when it cannot be read or decoded.
+    public func note(forNoteKey key: Int) -> DatabaseNote? {
+        guard let row = row(forNoteKey: key) else { return nil }
         do {
-            return try NoteStoreDecoder.decode(data)
+            return DatabaseNote(decoded: try NoteStoreDecoder.decode(row.data), modified: row.modified)
         } catch {
             Self.log.error("Could not decode note \(key, privacy: .public)")
             return nil

@@ -9,6 +9,8 @@ private final class FakeDatabase: NoteDatabase, @unchecked Sendable {
     var documents: [Int: NoteDocument] = [:]
     /// Notes whose data has formatting the document cannot hold.
     var formatted: Set<Int> = []
+    /// The row's modification date of a note (none: the database has no date).
+    var modified: [Int: Date] = [:]
     var files: [Int: URL] = [:]
     /// Seconds an attachment lookup takes (it runs off the main actor).
     var fileDelay: TimeInterval = 0
@@ -19,8 +21,11 @@ private final class FakeDatabase: NoteDatabase, @unchecked Sendable {
     var lookups: Int { lock.withLock { lookupCount } }
 
     var isReadable: Bool { readable }
-    func document(forNoteKey key: Int) -> DecodedNote? {
-        documents[key].map { DecodedNote(document: $0, attachments: [], hasUnsupportedFormatting: formatted.contains(key)) }
+    func note(forNoteKey key: Int) -> DatabaseNote? {
+        documents[key].map {
+            DatabaseNote(decoded: DecodedNote(document: $0, attachments: [], hasUnsupportedFormatting: formatted.contains(key)),
+                         modified: modified[key])
+        }
     }
     func attachmentFile(forAttachmentKey key: Int) -> URL? {
         lock.withLock { lookupCount += 1 }
@@ -544,6 +549,23 @@ private struct Harness {
         db.formatted = [key]
         await h.store.openNote(id)
         #expect(h.store.open?.safety == .readOnly([.formatting]))
+    }
+
+    /// Notes writes its database a little after an edit: data whose row date is not the note's date may lack that
+    /// edit (a line just made a checklist), so the note is not written from it.
+    @Test func databaseRowOlderThanTheNoteIsUnreadable() async throws {
+        let db = FakeDatabase()
+        let h = try await Harness(database: db)
+        let date = Date(timeIntervalSinceReferenceDate: 800_000_000)
+        let id = h.fake.addNote("a", in: h.folderID, html: "<div>a</div>", plainText: "a", modified: date)
+        let key = NotesIDs.databaseKey(of: id, entity: "ICNote")!
+        db.documents[key] = NoteDocument(blocks: [p("a")])
+        db.modified[key] = date.addingTimeInterval(-5)
+        await h.store.openNote(id)
+        #expect(h.store.open?.safety == .readOnly([.unreadable]))
+        db.modified[key] = date.addingTimeInterval(0.4)   // the same second, as AppleScript gives it
+        await h.store.openNote(id)
+        #expect(h.store.open?.safety == .editable)
     }
 
     @Test func fullDocumentIsShownWhenReadable() async throws {

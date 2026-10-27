@@ -79,6 +79,23 @@ private let minimalProtobuf = Data([0x12, 0x06, 0x1a, 0x04, 0x12, 0x02, 0x48, 0x
         #expect(decoded?.document.blocks.count == 1)
     }
 
+    @Test func readsTheRowsModificationDate() throws {
+        let store = try TempStore(objectColumns: ["Z_PK INTEGER PRIMARY KEY", "ZNOTEDATA INTEGER", "ZMODIFICATIONDATE1 TIMESTAMP"])
+        try store.insertNoteData(try gzip(minimalProtobuf), noteKey: 96, dataKey: 7)
+        try store.exec("UPDATE ZICCLOUDSYNCINGOBJECT SET ZMODIFICATIONDATE1 = 800000000.5 WHERE Z_PK = 96")
+        let note = NoteStoreReader(url: store.dbURL).note(forNoteKey: 96)
+        #expect(note?.modified == Date(timeIntervalSinceReferenceDate: 800000000.5))
+        #expect(note?.decoded.document.blocks.count == 1)
+    }
+
+    @Test func noDateColumnGivesNoDate() throws {
+        let store = try TempStore()
+        try store.insertNoteData(try gzip(minimalProtobuf), noteKey: 96, dataKey: 7)
+        let note = NoteStoreReader(url: store.dbURL).note(forNoteKey: 96)
+        #expect(note != nil)
+        #expect(note?.modified == nil)
+    }
+
     @Test func missingKeyIsNil() throws {
         let store = try TempStore()
         try store.insertNoteData(try gzip(minimalProtobuf), noteKey: 1, dataKey: 1)

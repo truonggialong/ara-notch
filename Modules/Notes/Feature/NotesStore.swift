@@ -192,6 +192,8 @@ final class NotesStore: ObservableObject {
         var ids: [String]
         var readable: Bool
         var full: DecodedNote?
+        /// The database row is not of the moment AppleScript read: the full document may lack the last edit.
+        var stale: Bool
     }
 
     private func load(_ id: String, generation: Int) async {
@@ -211,6 +213,10 @@ final class NotesStore: ObservableObject {
                                                     plainText: read.content.plainText,
                                                     unsupportedFormatting: read.full?.hasUnsupportedFormatting ?? false)
             var safety = composed
+            if read.stale {
+                Self.log.error("Notes' database does not hold the note's last change yet; opened read only")
+                safety = safety.adding(.unreadable)
+            }
             let (images, complete) = await loadImages(of: document, ids: read.ids, readable: read.readable)
             if !complete { safety = safety.adding(.imagesUnavailable) }
             guard generation == latestRequest else {
@@ -242,8 +248,21 @@ final class NotesStore: ObservableObject {
         let writes = writeCount[id, default: 0]
         let content = try await service.content(of: id)
         let ids = try await service.attachmentIDs(of: id)
-        let (readable, full) = await readFull(id)
-        return (writes, ReadNote(content: content, ids: ids, readable: readable, full: full))
+        var (readable, row) = await readFull(id)
+        // Notes writes its database a little after an edit: one more look a moment later.
+        if Self.isStale(row, comparedWith: content.modified) {
+            try? await Task.sleep(for: .milliseconds(300))
+            (readable, row) = await readFull(id)
+        }
+        return (writes, ReadNote(content: content, ids: ids, readable: readable, full: row?.decoded,
+                                 stale: Self.isStale(row, comparedWith: content.modified)))
+    }
+
+    /// Whether the row's date is another second than AppleScript's (which is rounded to the second).
+    /// A database without the date cannot tell, and is taken as it is.
+    static func isStale(_ row: DatabaseNote?, comparedWith modified: Date) -> Bool {
+        guard let rowDate = row?.modified else { return false }
+        return abs(rowDate.timeIntervalSince(modified)) >= 1
     }
 
     private func settleSaves(of id: String) async {
@@ -272,13 +291,13 @@ final class NotesStore: ObservableObject {
         return await Task.detached { database.isReadable }.value
     }
 
-    /// Whether the database is readable, and the note's document from it.
-    private func readFull(_ id: String) async -> (Bool, DecodedNote?) {
+    /// Whether the database is readable, and the note's row from it.
+    private func readFull(_ id: String) async -> (Bool, DatabaseNote?) {
         guard let database else { return (false, nil) }
         let key = NotesIDs.databaseKey(of: id, entity: "ICNote")
         return await Task.detached {
             guard database.isReadable else { return (false, nil) }
-            return (true, key.flatMap { database.document(forNoteKey: $0) })
+            return (true, key.flatMap { database.note(forNoteKey: $0) })
         }.value
     }
 
