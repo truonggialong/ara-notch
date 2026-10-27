@@ -1,0 +1,275 @@
+import Foundation
+import Testing
+@testable import NotesCore
+
+@Suite struct NoteStoreDecoderTests {
+    /// One attribute run of the synthetic note.
+    struct Run {
+        var length: Int
+        var style: Int?
+        var indent = 0
+        var done: Bool?
+        var weight = 0
+        var underlined = false
+        var strikethrough = false
+        var link: String?
+        var attachment: (id: String, uti: String)?
+        var quote = false
+    }
+
+    static func protobuf(text: String, runs: [Run], extra: (inout ProtobufWriter) -> Void = { _ in }) -> Data {
+        var root = ProtobufWriter()
+        root.message(2) { document in
+            document.message(3) { note in
+                note.string(2, text)
+                for run in runs {
+                    note.message(5) { r in
+                        r.varint(1, UInt64(run.length))
+                        if run.style != nil || run.quote {
+                            r.message(2) { p in
+                                if let style = run.style { p.varint(1, UInt64(style)) }
+                                if run.indent != 0 { p.varint(4, UInt64(run.indent)) }
+                                if let done = run.done {
+                                    p.message(5) { c in
+                                        c.string(1, "uuid")
+                                        c.varint(2, done ? 1 : 0)
+                                    }
+                                }
+                                if run.quote { p.varint(8, 1) }
+                            }
+                        }
+                        if run.weight != 0 { r.varint(5, UInt64(run.weight)) }
+                        if run.underlined { r.varint(6, 1) }
+                        if run.strikethrough { r.varint(7, 1) }
+                        if let link = run.link { r.string(9, link) }
+                        if let attachment = run.attachment {
+                            r.message(12) { a in
+                                a.string(1, attachment.id)
+                                a.string(2, attachment.uti)
+                            }
+                        }
+                    }
+                }
+                extra(&note)
+            }
+        }
+        return root.data
+    }
+
+    static func gzip(_ data: Data) throws -> Data {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let input = directory.appendingPathComponent("in.bin")
+        try data.write(to: input)
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/gzip")
+        process.arguments = ["-c", input.path]
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        try process.run()
+        let output = pipe.fileHandleForReading.readDataToEndOfFile()
+        process.waitUntilExit()
+        return output
+    }
+
+    static func decode(text: String, runs: [Run]) throws -> (document: NoteDocument, attachments: [NoteStoreAttachment]) {
+        try NoteStoreDecoder.decode(gzip(protobuf(text: text, runs: runs)))
+    }
+
+    @Test func decodesChecklistWithDoneState() throws {
+        let result = try Self.decode(text: "việc 1\nviệc 2\n", runs: [
+            Run(length: 7, style: 103, done: true), Run(length: 7, style: 103, done: false),
+        ])
+        #expect(result.document.blocks == [
+            .listItem(.checklist(done: true), indent: 0, [TextRun("việc 1")]),
+            .listItem(.checklist(done: false), indent: 0, [TextRun("việc 2")]),
+        ])
+    }
+
+    @Test func decodesNumberedAndQuote() throws {
+        let result = try Self.decode(text: "one\ntwo\nsaid\nplain", runs: [
+            Run(length: 4, style: 102), Run(length: 4, style: 102, indent: 1),
+            Run(length: 5, quote: true), Run(length: 5),
+        ])
+        #expect(result.document.blocks == [
+            .listItem(.numbered, indent: 0, [TextRun("one")]),
+            .listItem(.numbered, indent: 1, [TextRun("two")]),
+            .quote([TextRun("said")]),
+            .paragraph([TextRun("plain")]),
+        ])
+    }
+
+    @Test func decodesHeadingsBulletsDashesAndCode() throws {
+        let result = try Self.decode(text: "T\nH\nS\nb\nd\nlet x\n", runs: [
+            Run(length: 2, style: 0), Run(length: 2, style: 1), Run(length: 2, style: 2),
+            Run(length: 2, style: 100), Run(length: 2, style: 101), Run(length: 6, style: 4),
+        ])
+        #expect(result.document.blocks == [
+            .heading(level: 1, [TextRun("T")]), .heading(level: 2, [TextRun("H")]), .heading(level: 3, [TextRun("S")]),
+            .listItem(.bullet, indent: 0, [TextRun("b")]), .listItem(.dash, indent: 0, [TextRun("d")]),
+            .code("let x"),
+        ])
+    }
+
+    @Test func decodesBoldItalicLink() throws {
+        // "a bold it both u s link"
+        let result = try Self.decode(text: "a bold it both u s link", runs: [
+            Run(length: 2), Run(length: 4, weight: 1), Run(length: 1), Run(length: 2, weight: 2), Run(length: 1),
+            Run(length: 4, weight: 3), Run(length: 1), Run(length: 1, underlined: true), Run(length: 1),
+            Run(length: 1, strikethrough: true), Run(length: 1), Run(length: 4, link: "https://example.com/"),
+        ])
+        #expect(result.document.blocks == [.paragraph([
+            TextRun("a "), TextRun("bold", style: .bold), TextRun(" "), TextRun("it", style: .italic), TextRun(" "),
+            TextRun("both", style: [.bold, .italic]), TextRun(" "), TextRun("u", style: .underline), TextRun(" "),
+            TextRun("s", style: .strikethrough), TextRun(" "), TextRun("link", link: URL(string: "https://example.com/")),
+        ])])
+    }
+
+    @Test func mergesAdjacentRunsWithTheSameStyle() throws {
+        let result = try Self.decode(text: "abcd", runs: [Run(length: 2), Run(length: 2)])
+        #expect(result.document.blocks == [.paragraph([TextRun("abcd")])])
+    }
+
+    @Test func countsUTF16ForEmoji() throws {
+        let result = try Self.decode(text: "😀a", runs: [Run(length: 2, weight: 1), Run(length: 1)])
+        #expect(result.document.blocks == [.paragraph([TextRun("😀", style: .bold), TextRun("a")])])
+    }
+
+    @Test func mapsAttachmentsByUTI() throws {
+        let result = try Self.decode(text: "\u{FFFC}\n\u{FFFC}\n\u{FFFC}\n\u{FFFC}\n\u{FFFC}\n", runs: [
+            Run(length: 2, attachment: ("i0", "public.jpeg")),
+            Run(length: 2, attachment: ("i1", "com.apple.notes.table")),
+            Run(length: 2, attachment: ("i2", "com.adobe.pdf")),
+            Run(length: 2, attachment: ("i3", "com.apple.paper")),
+            Run(length: 2, attachment: ("i4", "public.heic")),
+        ])
+        #expect(result.document.blocks == [
+            .image(attachmentIndex: 0),
+            .table(html: "", cells: []),
+            .file(attachmentIndex: 2, name: "", uti: "com.adobe.pdf"),
+            .drawing(attachmentIndex: 3),
+            .image(attachmentIndex: 4),
+        ])
+        #expect(result.attachments == [
+            NoteStoreAttachment(identifier: "i0", uti: "public.jpeg"),
+            NoteStoreAttachment(identifier: "i1", uti: "com.apple.notes.table"),
+            NoteStoreAttachment(identifier: "i2", uti: "com.adobe.pdf"),
+            NoteStoreAttachment(identifier: "i3", uti: "com.apple.paper"),
+            NoteStoreAttachment(identifier: "i4", uti: "public.heic"),
+        ])
+    }
+
+    @Test func dropsAttachmentCharacterWithoutInfo() throws {
+        let result = try Self.decode(text: "a\u{FFFC}b\n\u{FFFC}", runs: [Run(length: 5)])
+        #expect(result.document.blocks == [.paragraph([TextRun("ab")]), .paragraph([])])
+        #expect(result.attachments.isEmpty)
+    }
+
+    @Test func inlineAttachmentCountsButStaysOutOfText() throws {
+        let result = try Self.decode(text: "a\u{FFFC}b\n\u{FFFC}", runs: [
+            Run(length: 1), Run(length: 1, attachment: ("x", "public.png")), Run(length: 2), Run(length: 1, attachment: ("y", "public.png")),
+        ])
+        #expect(result.document.blocks == [.paragraph([TextRun("ab")]), .image(attachmentIndex: 1)])
+        #expect(result.attachments.count == 2)
+    }
+
+    @Test func keepsEmptyMiddleLinesAndDropsOnlyTheTrailingOne() throws {
+        let result = try Self.decode(text: "a\n\nb\n", runs: [Run(length: 5)])
+        #expect(result.document.blocks == [.paragraph([TextRun("a")]), .paragraph([]), .paragraph([TextRun("b")])])
+    }
+
+    @Test func textBeyondTheRunsIsPlainParagraph() throws {
+        let result = try Self.decode(text: "ab\ncd", runs: [Run(length: 3, style: 100)])
+        #expect(result.document.blocks == [.listItem(.bullet, indent: 0, [TextRun("ab")]), .paragraph([TextRun("cd")])])
+    }
+
+    @Test func skipsUnknownFieldsOfEveryWireType() throws {
+        var data = ProtobufWriter()
+        data.varint(1, 7)
+        data.fixed64(4, 9)
+        data.fixed32(6, 3)
+        data.message(2) { document in
+            document.varint(9, 1)
+            document.message(3) { note in
+                note.fixed64(1, 1)
+                note.string(2, "hi")
+                note.string(40, "ignored")
+                note.message(5) { run in
+                    run.varint(1, 2)
+                    run.fixed32(30, 5)
+                    run.string(31, "x")
+                }
+            }
+        }
+        let result = try NoteStoreDecoder.decode(Self.gzip(data.data))
+        #expect(result.document.blocks == [.paragraph([TextRun("hi")])])
+    }
+
+    @Test func rejectsNonGzip() {
+        #expect(throws: NoteStoreDecoderError.notGzip) { try NoteStoreDecoder.decode(Data("not gzip at all".utf8)) }
+        #expect(throws: NoteStoreDecoderError.notGzip) { try NoteStoreDecoder.decode(Data()) }
+    }
+
+    @Test func truncatedGzipThrows() throws {
+        let zipped = try Self.gzip(Self.protobuf(text: String(repeating: "hello ", count: 200), runs: [Run(length: 1200)]))
+        for cut in [3, 10, zipped.count / 2, zipped.count - 9, zipped.count - 1] {
+            #expect(throws: NoteStoreDecoderError.self) { try NoteStoreDecoder.decode(zipped.prefix(cut)) }
+        }
+    }
+
+    @Test func decompressesLargeOutput() throws {
+        let big = Data((0..<2_000_000).map { UInt8(truncatingIfNeeded: $0 &* 31 >> 3) })
+        #expect(try Gzip.decompress(Self.gzip(big)) == big)
+    }
+
+    @Test func truncatedProtobufThrows() throws {
+        let good = Self.protobuf(text: "hello", runs: [Run(length: 5, weight: 1)])
+        for cut in 1..<good.count {
+            _ = try? NoteStoreDecoder.decode(Self.gzip(good.prefix(cut)))   // must not crash
+        }
+        #expect(throws: NoteStoreDecoderError.self) { try NoteStoreDecoder.decode(Self.gzip(good.prefix(good.count - 1))) }
+        var lengthOverrun = ProtobufWriter()
+        lengthOverrun.raw([0x12, 0x7F, 0x01])   // field 2, length 127, one byte left
+        #expect(throws: NoteStoreDecoderError.self) { try NoteStoreDecoder.decode(Self.gzip(lengthOverrun.data)) }
+    }
+
+    @Test func hostileProtobufThrows() throws {
+        for bytes: [UInt8] in [
+            [0x08] + [UInt8](repeating: 0xFF, count: 11),   // varint over 10 bytes
+            [0x0B],                                          // start-group wire type
+            [0x0C],                                          // end-group wire type
+            [0x00, 0x01],                                    // field number 0
+            [0x09, 1, 2, 3],                                 // fixed64 short
+            [0x0D, 1, 2],                                    // fixed32 short
+            [0x12],                                          // tag with no length
+        ] {
+            var writer = ProtobufWriter()
+            writer.raw(bytes)
+            #expect(throws: NoteStoreDecoderError.self) { try NoteStoreDecoder.decode(Self.gzip(writer.data)) }
+        }
+    }
+
+    @Test func readerWalksAllWireTypes() throws {
+        var writer = ProtobufWriter()
+        writer.varint(1, 300)
+        writer.bytes(2, Data([1, 2]))
+        writer.fixed32(3, 5)
+        writer.fixed64(4, 6)
+        var reader = ProtobufReader(writer.data)
+        let first = try #require(try reader.next())
+        #expect(first.field == 1)
+        guard case .varint(300) = first.value else { Issue.record("varint"); return }
+        guard case .bytes(let b)? = try reader.next()?.value, b == Data([1, 2]) else { Issue.record("bytes"); return }
+        guard case .fixed32(5)? = try reader.next()?.value else { Issue.record("fixed32"); return }
+        guard case .fixed64(6)? = try reader.next()?.value else { Issue.record("fixed64"); return }
+        #expect(try reader.next() == nil)
+    }
+
+    @Test func missingNoteMessageGivesEmptyDocument() throws {
+        var root = ProtobufWriter()
+        root.varint(1, 1)
+        let result = try NoteStoreDecoder.decode(Self.gzip(root.data))
+        #expect(result.document.blocks.isEmpty)
+    }
+}
