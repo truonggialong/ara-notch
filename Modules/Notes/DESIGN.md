@@ -36,7 +36,7 @@ Một ghi chú thử trong thư mục "AraNotch-probe" (đã xoá), tạo qua Ap
 | Danh sách số | Thành `<ul>` thường | Không (`<ol>` thành `<ul>`) |
 | Trích dẫn | Thành `<div>` thường | Không |
 | Bảng | `<object><table>…</table></object>` | Có, giữ nguyên khi ghi lại đúng HTML đã đọc |
-| Ảnh | Không có trong `body` (chỉ một `<div>` trống); `plaintext` có `U+FFFC` đúng chỗ; `save attachment … in file` lấy ra tệp gốc, không cần Full Disk Access **(sửa 2026-10-27: sai, `save attachment` hỏng trên macOS 27 với lỗi -10000; ảnh lấy từ tệp media trong cơ sở dữ liệu, cần Full Disk Access, hoặc từ cache của app theo id tệp đính kèm)** | `<img src="data:image/png;base64,…">` thành tệp đính kèm thật, hiện trong Notes |
+| Ảnh | Không có trong `body` (chỉ một `<div>` trống); `plaintext` có `U+FFFC` đúng chỗ; `save attachment … in file` lấy ra tệp gốc, không cần Full Disk Access **(sửa 2026-10-27: sai, `save attachment` hỏng trên macOS 27 với lỗi -10000; ảnh lấy từ tệp media trong cơ sở dữ liệu, cần Full Disk Access, hoặc từ cache của app theo id tệp đính kèm)** | `<img src="data:image/png;base64,…">` thành tệp đính kèm thật, hiện trong Notes **(sửa 2026-10-27: hiện là ô "File", loại `public.data`, không phải ảnh; ảnh phải ghi bằng `src="file://…"` trỏ tới tệp Notes đọc được, xem README)** |
 
 Hệ quả:
 
@@ -64,7 +64,7 @@ Modules/Notes/
 
 - `NoteDocument`: một ghi chú là dãy khối. Khối: đoạn, tiêu đề (cấp 1–3), mục danh sách (chấm, gạch, số, việc kèm đã tích hay chưa; có mức thụt), trích dẫn, khối đơn cách, ảnh (id tệp đính kèm), bảng (HTML gốc và lưới ô để hiển thị), tệp khác (tên, loại). Trong khối là các đoạn chữ có kiểu: đậm, nghiêng, gạch chân, gạch ngang, đơn cách, liên kết.
 - `NotesHTMLReader`: HTML của `body` cộng thứ tự ảnh từ `plaintext` thành `NoteDocument`. Bỏ qua cỡ chữ và font, trừ: Courier là đơn cách; chữ đậm `.AppleSystemUIFontBold` cỡ 21 hay 15 px đứng riêng một dòng là tiêu đề (vì chính AraNotch ghi tiêu đề ra như vậy). **Sửa 2026-10-27:** Notes ép mọi cỡ dưới 18 px về 11 px, nên AraNotch ghi thân bài 18 px (Notes hiện 15) và tiêu đề đậm 28/24/21 (Notes giữ 24/21/18); bộ đọc nhận cả dạng cũ lẫn chữ đậm 24/21/18 đứng riêng một dòng.
-- `NotesHTMLWriter`: `NoteDocument` thành HTML cho `set body`. Tiêu đề ghi thành chữ đậm cỡ to; ảnh nhúng `data:` đúng chỗ; bảng ghi lại nguyên HTML đã đọc.
+- `NotesHTMLWriter`: `NoteDocument` thành HTML cho `set body`. Tiêu đề ghi thành chữ đậm cỡ to; ảnh đúng chỗ (sửa 2026-10-27: bằng `file://` tới tệp đặt tạm trong thư mục chứa của Notes, không bằng `data:`); bảng ghi lại nguyên HTML đã đọc.
 - `NoteStoreDecoder`: dữ liệu `ZICNOTEDATA.ZDATA` (gzip, rồi protobuf của Notes) thành `NoteDocument` đầy đủ: kiểu đoạn (tiêu đề, đề mục, đề mục phụ, đơn cách, chấm, gạch, số, việc, trích dẫn), trạng thái tích, kiểu chữ, liên kết, vị trí tệp đính kèm và loại của nó. Bộ đọc protobuf tự viết, nhỏ, không thêm thư viện.
 - `EditSafety`: từ `NoteDocument` đầy đủ trả về `.editable` hoặc `.readOnly(lý do)`. Chỉ xem khi có: danh sách việc, danh sách số, trích dẫn, tệp đính kèm không phải ảnh hay bảng, bản vẽ, ghi chú bị khoá. Tiêu đề, Đề mục của Notes không chặn sửa, nhưng sổ ghi rõ là sau khi lưu chúng thành chữ đậm cỡ to.
 - `EditSafety` khi không có bản đầy đủ (chế độ chỉ AppleScript): mọi ghi chú có `<ul>` không có class đều chỉ xem.
