@@ -166,12 +166,50 @@ import Testing
         #expect(result.attachments.isEmpty)
     }
 
-    @Test func inlineAttachmentCountsButStaysOutOfText() throws {
+    @Test func inlineAttachmentIsKeptAsFileAfterItsLine() throws {
         let result = try Self.decode(text: "a\u{FFFC}b\n\u{FFFC}", runs: [
             Run(length: 1), Run(length: 1, attachment: ("x", "public.png")), Run(length: 2), Run(length: 1, attachment: ("y", "public.png")),
         ])
-        #expect(result.document.blocks == [.paragraph([TextRun("ab")]), .image(attachmentIndex: 1)])
+        #expect(result.document.blocks == [
+            .paragraph([TextRun("ab")]), .file(attachmentIndex: 0, name: "", uti: "public.png"), .image(attachmentIndex: 1),
+        ])
         #expect(result.attachments.count == 2)
+    }
+
+    @Test func inlineHashtagAttachmentIsNotHidden() throws {
+        let uti = "com.apple.notes.inlinetextattachment.hashtag"
+        let result = try Self.decode(text: "see \u{FFFC} now", runs: [
+            Run(length: 4), Run(length: 1, attachment: ("h", uti)), Run(length: 4),
+        ])
+        #expect(result.document.blocks == [.paragraph([TextRun("see  now")]), .file(attachmentIndex: 0, name: "", uti: uti)])
+    }
+
+    @Test func unknownStyleTypeThrows() {
+        #expect(throws: NoteStoreDecoderError.malformed("style 7")) { try Self.decode(text: "a", runs: [Run(length: 1, style: 7)]) }
+    }
+
+    @Test func minusOneStyleIsBodyText() throws {
+        var writer = ProtobufWriter()
+        writer.message(2) { d in
+            d.message(3) { n in
+                n.string(2, "a")
+                n.message(5) { r in
+                    r.varint(1, 1)
+                    r.message(2) { p in p.varint(1, UInt64.max) }
+                }
+            }
+        }
+        #expect(try NoteStoreDecoder.decode(Self.gzip(writer.data)).document.blocks == [.paragraph([TextRun("a")])])
+    }
+
+    @Test func quoteBeatsCode() throws {
+        let result = try Self.decode(text: "x", runs: [Run(length: 1, style: 4, quote: true)])
+        #expect(result.document.blocks == [.quote([TextRun("x")])])
+    }
+
+    @Test func runAcrossNewlineStylesBothLines() throws {
+        let result = try Self.decode(text: "ab\ncd", runs: [Run(length: 5, weight: 1)])
+        #expect(result.document.blocks == [.paragraph([TextRun("ab", style: .bold)]), .paragraph([TextRun("cd", style: .bold)])])
     }
 
     @Test func keepsEmptyMiddleLinesAndDropsOnlyTheTrailingOne() throws {
@@ -266,10 +304,14 @@ import Testing
         #expect(try reader.next() == nil)
     }
 
-    @Test func missingNoteMessageGivesEmptyDocument() throws {
+    @Test func missingNoteMessageThrows() throws {
         var root = ProtobufWriter()
         root.varint(1, 1)
-        let result = try NoteStoreDecoder.decode(Self.gzip(root.data))
+        #expect(throws: NoteStoreDecoderError.malformed("no note")) { try NoteStoreDecoder.decode(Self.gzip(root.data)) }
+    }
+
+    @Test func presentNoteWithEmptyTextIsEmptyDocument() throws {
+        let result = try Self.decode(text: "", runs: [])
         #expect(result.document.blocks.isEmpty)
     }
 }

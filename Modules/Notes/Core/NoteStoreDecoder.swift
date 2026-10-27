@@ -24,12 +24,14 @@ public enum NoteStoreDecoder {
         let message = try Gzip.decompress(data)
         var text = ""
         var runs: [Run] = []
+        var sawNote = false
         var reader = ProtobufReader(message)
         while let (field, value) = try reader.next() {
             guard field == 2, case .bytes(let document) = value else { continue }
             var documentReader = ProtobufReader(document)
             while let (documentField, documentValue) = try documentReader.next() {
                 guard documentField == 3, case .bytes(let note) = documentValue else { continue }
+                sawNote = true
                 var noteReader = ProtobufReader(note)
                 while let (noteField, noteValue) = try noteReader.next() {
                     guard case .bytes(let bytes) = noteValue else { continue }
@@ -40,6 +42,12 @@ public enum NoteStoreDecoder {
                     }
                 }
             }
+        }
+        guard sawNote else { throw NoteStoreDecoderError.malformed("no note") }
+        let known: Set<Int> = [0, 1, 2, 4, 100, 101, 102, 103]
+        for run in runs {
+            // Only an absent style or -1 is body text; anything else may be a kind this reader cannot show.
+            if let style = run.styleType, style != -1, !known.contains(style) { throw NoteStoreDecoderError.malformed("style \(style)") }
         }
         return Builder(text: text, runs: runs).build()
     }
@@ -77,7 +85,7 @@ public enum NoteStoreDecoder {
             var reader = ProtobufReader(data)
             while let (field, value) = try reader.next() {
                 switch (field, value) {
-                case (1, .varint(let v)): styleType = Int(clamping: v)
+                case (1, .varint(let v)): styleType = Int(truncatingIfNeeded: v)
                 case (4, .varint(let v)): indent = Int(clamping: v)
                 case (5, .bytes(let b)):
                     var checklist = ProtobufReader(b)
@@ -143,7 +151,7 @@ public enum NoteStoreDecoder {
             while start < units.count {
                 var end = start
                 while end < units.count, units[end] != 0x0A { end += 1 }
-                blocks.append(block(from: start, to: end))
+                blocks.append(contentsOf: lineBlocks(from: start, to: end))
                 start = end + 1   // a trailing newline ends the last line instead of starting an empty one
             }
             return (NoteDocument(blocks: blocks), attachments)
@@ -153,6 +161,21 @@ public enum NoteStoreDecoder {
             placed.first { $0.start <= offset && offset < $0.end }
         }
 
+        /// The line's block, followed by a `.file` block for each attachment sitting inside the line's
+        /// text, so nothing an inline attachment stands for (hashtag, mention, link) is hidden.
+        private func lineBlocks(from start: Int, to end: Int) -> [NoteBlock] {
+            let main = block(from: start, to: end)
+            if end - start == 1, case .some = covering(start)?.attachmentIndex, units[start] == 0xFFFC { return [main] }
+            let inline = placed.filter { entry in
+                guard entry.attachmentIndex != nil else { return false }
+                return entry.start >= start && entry.start < end && units[entry.start] == 0xFFFC
+            }
+            return [main] + inline.compactMap { entry in
+                guard let index = entry.attachmentIndex, let attachment = entry.run.attachment else { return nil }
+                return .file(attachmentIndex: index, name: "", uti: attachment.uti)
+            }
+        }
+
         private func block(from start: Int, to end: Int) -> NoteBlock {
             let first = covering(start)
             let paragraph = first?.run ?? Run.plain
@@ -160,6 +183,7 @@ public enum NoteStoreDecoder {
                 return attachmentBlock(attachment, index: index)
             }
             let runs = textRuns(from: start, to: end)
+            if paragraph.quote, paragraph.styleType == 4 { return .quote(runs) }   // quote wins: read-only later
             switch paragraph.styleType {
             case 4:
                 return .code(runs.map(\.text).joined())
