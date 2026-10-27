@@ -84,12 +84,12 @@ enum NotesScripts {
         """
     }
 
-    /// {body, plaintext, modification date, attachment count}
+    /// {body, plaintext, modification date, attachment count, password protected}
     static func content(noteID: String) -> String {
         """
         tell application "Notes"
             set n to note id \(quoted(noteID))
-            return {body of n, plaintext of n, modification date of n, count of attachments of n}
+            return {body of n, plaintext of n, modification date of n, count of attachments of n, password protected of n}
         end tell
         """
     }

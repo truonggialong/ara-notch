@@ -695,6 +695,16 @@ private struct Harness {
         #expect(h.store.open?.safety == .readOnly([.locked]))
     }
 
+    /// Locked in Notes after the listing: the note opens read only, not as an empty editable note.
+    @Test func noteLockedSinceTheListingIsReadOnly() async throws {
+        let h = try await Harness()
+        let id = h.plainNote()
+        await h.store.refresh()
+        h.fake.lock(id)
+        await h.store.openNote(id)
+        #expect(h.store.open?.safety == .readOnly([.locked]))
+    }
+
     @Test func lockedNoteOutsideTheListIsStillFound() async throws {
         let h = try await Harness()
         let id = h.fake.addNote("a", in: h.folderID, html: "", plainText: "", locked: true)

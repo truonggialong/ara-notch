@@ -106,7 +106,9 @@ public final class NotesBridge: NotesService {
         try await run(NotesScripts.content(noteID: noteID)) { result in
             NoteContent(html: result.atIndex(1)?.stringValue ?? "", plainText: result.atIndex(2)?.stringValue ?? "",
                         modified: try Self.date(result.atIndex(3)),
-                        attachmentCount: Int(result.atIndex(4)?.int32Value ?? 0))
+                        attachmentCount: Int(result.atIndex(4)?.int32Value ?? 0),
+                        // Unknown counts as locked: a locked note reads empty and must never be written.
+                        isLocked: result.atIndex(5)?.booleanValue ?? true)
         }
     }
 

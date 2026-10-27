@@ -50,18 +50,21 @@ public struct NoteSummary: Identifiable, Hashable, Sendable {
     public var databaseKey: Int? { NotesIDs.databaseKey(of: id, entity: "ICNote") }
 }
 
-/// A note as AppleScript gives it: HTML body, plain text (images are U+FFFC), modification date.
+/// A note as AppleScript gives it: HTML body, plain text (images are U+FFFC), modification date, and whether it is
+/// locked (a locked note's body and text read empty), all read together.
 public struct NoteContent: Sendable {
     public var html: String
     public var plainText: String
     public var modified: Date
     public var attachmentCount: Int
+    public var isLocked: Bool
 
-    public init(html: String, plainText: String, modified: Date, attachmentCount: Int) {
+    public init(html: String, plainText: String, modified: Date, attachmentCount: Int, isLocked: Bool = false) {
         self.html = html
         self.plainText = plainText
         self.modified = modified
         self.attachmentCount = attachmentCount
+        self.isLocked = isLocked
     }
 }
 

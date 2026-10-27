@@ -80,7 +80,8 @@ final class NotesStore: ObservableObject {
     /// Saves of each load that ended in a conflict (its edit not written). A load that replaces the open one looks
     /// whether this grew while it ran: then the open one stays, with its edit and the conflict banner.
     private var conflicts: [Int: Int] = [:]
-    /// Whether each note seen in a listing is locked.
+    /// Whether each note seen in a listing is locked. Only says the note was listed: the lock state used is the one
+    /// read with the note.
     private var lockedByID: [String: Bool] = [:]
 
     init(service: NotesService, database: NoteDatabase?, cache: NoteImageCache, settings: NotesSettings,
@@ -228,7 +229,7 @@ final class NotesStore: ObservableObject {
     private func load(_ id: String, generation: Int, replacing replaced: OpenNote? = nil, conflictsSeen: Int? = nil) async {
         defer { if generation == latestRequest { isReloading = false } }
         do {
-            guard let isLocked = try await lockedState(of: id) else { throw NotesServiceError.notFound }
+            guard try await isInNotes(id) else { throw NotesServiceError.notFound }
             // A save of this note (an edit made on an earlier load) is written first, so the note read includes it;
             // when one lands while reading, the note is read again.
             var (writes, read) = try await settledRead(id)
@@ -239,6 +240,9 @@ final class NotesStore: ObservableObject {
             }
             fullView = read.readable
             let html = NotesHTMLReader.read(html: read.content.html, plainText: read.content.plainText)
+            // The lock state read with the content, not the listing's: the note may have been locked since.
+            let isLocked = read.content.isLocked
+            lockedByID[id] = isLocked
             let (document, composed) = Self.compose(full: read.full?.document, html: html, isLocked: isLocked,
                                                     plainText: read.content.plainText,
                                                     unsupportedFormatting: read.full?.hasUnsupportedFormatting ?? false)
@@ -312,11 +316,12 @@ final class NotesStore: ObservableObject {
         }
     }
 
-    /// nil when the note is not in Notes. Looks through every folder when no listing has shown it yet.
-    private func lockedState(of id: String) async throws -> Bool? {
-        if let known = lockedByID[id] { return known }
+    /// Whether a listing showed the note (Recently Deleted is never listed). Looks through every folder when no
+    /// listing has shown it yet.
+    private func isInNotes(_ id: String) async throws -> Bool {
+        if lockedByID[id] != nil { return true }
         remember(try await service.notes(in: nil))
-        return lockedByID[id]
+        return lockedByID[id] != nil
     }
 
     private func databaseIsReadable() async -> Bool {

@@ -38,6 +38,11 @@ import Testing
         #expect(one.contains("of notes of folder id \"f1\""))
     }
 
+    /// The lock state comes with the content, read at open time, not from the last listing.
+    @Test func contentReadsTheLockState() {
+        #expect(NotesScripts.content(noteID: "n1").contains("password protected of n}"))
+    }
+
     @Test func attachmentIDsListsInOrder() {
         #expect(NotesScripts.attachmentIDs(noteID: "n1").contains("id of attachments of note id \"n1\""))
     }

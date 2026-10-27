@@ -66,7 +66,8 @@ final class FakeNotesService: NotesService, @unchecked Sendable {
             let id = "x-coredata://FAKE/ICNote/p\(counter)"
             notesByID[id] = NoteSummary(id: id, name: name, folderID: folderID, modified: modified,
                                         snippet: snippet, hasImages: !ids.isEmpty, isLocked: locked)
-            contentByID[id] = NoteContent(html: html, plainText: plainText, modified: modified, attachmentCount: ids.count)
+            contentByID[id] = NoteContent(html: html, plainText: plainText, modified: modified, attachmentCount: ids.count,
+                                          isLocked: locked)
             attachments[id] = ids
             order.append(id)
             return id
@@ -88,6 +89,16 @@ final class FakeNotesService: NotesService, @unchecked Sendable {
 
     /// Sets the attachment ids a note reports.
     func setAttachments(_ ids: [String], of noteID: String) { lock.withLock { attachments[noteID] = ids } }
+
+    /// Locks a note, as if done in Notes: its body and text read empty from now on.
+    func lock(_ id: String) {
+        lock.withLock {
+            notesByID[id]?.isLocked = true
+            contentByID[id]?.isLocked = true
+            contentByID[id]?.html = ""
+            contentByID[id]?.plainText = ""
+        }
+    }
 
     /// Changes a note's modification date, as if it was edited in Notes.
     func touch(_ id: String, to date: Date) {
