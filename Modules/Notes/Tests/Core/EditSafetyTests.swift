@@ -105,6 +105,13 @@ import Testing
         #expect(safety == .editable)
     }
 
+    @Test func addingAReasonKeepsDeclarationOrder() {
+        #expect(EditSafety.editable.adding(.unreadable) == .readOnly([.unreadable]))
+        #expect(EditSafety.readOnly([.unreadable]).adding(.imagesUnavailable) == .readOnly([.imagesUnavailable, .unreadable]))
+        #expect(EditSafety.readOnly([.quote, .unreadable]).adding(.unreadable) == .readOnly([.quote, .unreadable]))
+        #expect(EditSafety.readOnly([.listsUnknown]).adding(.checklist) == .readOnly([.checklist, .listsUnknown]))
+    }
+
     @Test func sameSecondWrites() {
         let t = Date(timeIntervalSince1970: 1000)
         #expect(SaveGuard.decide(openedAt: t, currentModification: t) == .write)

@@ -3,6 +3,8 @@ import Foundation
 /// Why a note may not be written back.
 public enum ReadOnlyReason: Hashable, Sendable {
     case checklist, numberedList, quote, file, drawing, locked, listsUnknown
+    /// An image of the note could not be read, so a write would have to drop it.
+    case imagesUnavailable
     /// What the editor would show differs from the note's own text, so a write could lose content.
     case unreadable
 }
@@ -33,7 +35,20 @@ public enum EditSafety: Hashable, Sendable {
         }
         if normalise(edited.plainText) != normalise(plainText) { found.insert(.unreadable) }
 
-        let order: [ReadOnlyReason] = [.checklist, .numberedList, .quote, .file, .drawing, .locked, .listsUnknown, .unreadable]
+        return make(found)
+    }
+
+    /// This safety with one more reason; reasons stay unique and in declaration order.
+    public func adding(_ reason: ReadOnlyReason) -> EditSafety {
+        guard case .readOnly(let reasons) = self else { return .readOnly([reason]) }
+        return Self.make(Set(reasons).union([reason]))
+    }
+
+    private static let order: [ReadOnlyReason] = [
+        .checklist, .numberedList, .quote, .file, .drawing, .locked, .listsUnknown, .imagesUnavailable, .unreadable,
+    ]
+
+    private static func make(_ found: Set<ReadOnlyReason>) -> EditSafety {
         let reasons = order.filter(found.contains)
         return reasons.isEmpty ? .editable : .readOnly(reasons)
     }

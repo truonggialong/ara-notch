@@ -3,9 +3,16 @@ import NotesCore
 import os
 import SQLite3
 
+/// What `NotesStore` reads from Notes' database; `NoteStoreReader` is the real one, tests use a fake.
+public protocol NoteDatabase: Sendable {
+    var isReadable: Bool { get }
+    func document(forNoteKey key: Int) -> (document: NoteDocument, attachments: [NoteStoreAttachment])?
+    func attachmentFile(forAttachmentKey key: Int) -> URL?
+}
+
 /// Reads Apple Notes' own database, read only. It needs Full Disk Access; without it every call returns nil/false.
 /// Each read opens the database and closes it again, so nothing stays locked while Notes is writing.
-public final class NoteStoreReader: Sendable {
+public final class NoteStoreReader: NoteDatabase {
     public static let defaultURL: URL = FileManager.default.homeDirectoryForCurrentUser
         .appendingPathComponent("Library/Group Containers/group.com.apple.notes/NoteStore.sqlite")
 

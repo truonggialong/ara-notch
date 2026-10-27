@@ -1,0 +1,469 @@
+import Combine
+import Foundation
+import NotesCore
+import os
+
+/// The note shown in the editor. `images` maps an `.image` block's attachmentIndex to a file holding its bytes.
+public struct OpenNote: Equatable {
+    public var id: String
+    public var document: NoteDocument
+    public var safety: EditSafety
+    /// The note's modification date when it was read or last written by AraNotch; SaveGuard compares against it.
+    public var openedAt: Date
+    public var images: [Int: URL]
+}
+
+public enum NoteSaveState: Equatable { case saved, pending, saving, conflict, failed(String), deleted }
+
+/// The model behind the Notes page and window: folders, notes, the open note and its saving.
+///
+/// Every write goes through one path (`save`), which writes only when the open note is `.editable`,
+/// the note was not changed elsewhere since it was read (SaveGuard), and every image's bytes are at hand
+/// (the writer throws otherwise). Anything uncertain at open time makes the note read only.
+@MainActor
+final class NotesStore: ObservableObject {
+    private static let log = Logger(subsystem: "AraNotch", category: "Notes")
+    private static let recentLimit = 20
+    nonisolated private static let mimeTypes = ["png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg", "heic": "image/heic",
+                                    "gif": "image/gif", "tiff": "image/tiff", "tif": "image/tiff"]
+
+    private let service: NotesService
+    private let database: NoteDatabase?
+    private let cache: NoteImageCache
+    private let settings: NotesSettings
+    private let debounce: Duration
+
+    @Published private(set) var access: NotesAccess = .unknown
+    /// Notes' database can be read (Full Disk Access): lists of every kind and images are shown faithfully.
+    @Published private(set) var fullView = false
+    @Published private(set) var folders: [NoteFolder] = []
+    /// Of the selected folder, newest first.
+    @Published private(set) var notes: [NoteSummary] = []
+    /// nil: every folder. Call `refresh()` after changing it.
+    @Published var selectedFolderID: String? {
+        didSet { if settings.selectedFolderID != selectedFolderID { settings.selectedFolderID = selectedFolderID } }
+    }
+    @Published var searchText = ""
+    @Published private(set) var open: OpenNote?
+    @Published private(set) var saveState: NoteSaveState = .saved
+
+    /// The latest edit not written yet, with the note it was made in: an edit that arrives while another
+    /// note is loading belongs to the note it was made in, never to the one opened next.
+    private var pending: (note: OpenNote, document: NoteDocument)?
+    private var debounceTask: Task<Void, Never>?
+    private var saveTask: Task<Void, Never>?
+    /// Whether each note seen in a listing is locked.
+    private var lockedByID: [String: Bool] = [:]
+
+    init(service: NotesService, database: NoteDatabase?, cache: NoteImageCache, settings: NotesSettings,
+         debounce: Duration = .milliseconds(1500)) {
+        self.service = service
+        self.database = database
+        self.cache = cache
+        self.settings = settings
+        self.debounce = debounce
+        selectedFolderID = settings.selectedFolderID
+    }
+
+    /// `notes` filtered by `searchText` in the name and snippet, ignoring case and accents.
+    var visibleNotes: [NoteSummary] {
+        let query = Self.fold(searchText.trimmingCharacters(in: .whitespacesAndNewlines))
+        guard !query.isEmpty else { return notes }
+        return notes.filter { Self.fold($0.name).contains(query) || Self.fold($0.snippet).contains(query) }
+    }
+
+    /// Diacritic folding leaves "đ" alone, so it is mapped by hand.
+    static func fold(_ text: String) -> String {
+        text.replacingOccurrences(of: "đ", with: "d").replacingOccurrences(of: "Đ", with: "D")
+            .folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)
+    }
+
+    // MARK: Listing
+
+    func requestAccess() async {
+        access = await service.access(askIfNeeded: true)
+        if access == .granted { await refresh() }
+    }
+
+    func refresh() async {
+        access = await service.access(askIfNeeded: false)
+        guard access == .granted else {
+            if access == .denied { clearLists() }
+            return
+        }
+        fullView = await databaseIsReadable()
+        do {
+            folders = try await service.folders()
+            if let selected = selectedFolderID, !folders.contains(where: { $0.id == selected }) { selectedFolderID = nil }
+            let list = try await service.notes(in: selectedFolderID)
+            remember(list)
+            notes = list
+        } catch {
+            handle(error, "refresh")
+        }
+    }
+
+    private func clearLists() {
+        folders = []
+        notes = []
+    }
+
+    private func remember(_ list: [NoteSummary]) {
+        for note in list { lockedByID[note.id] = note.isLocked }
+    }
+
+    // MARK: Opening
+
+    func openNote(_ id: String) async {
+        await flush()
+        await load(id)
+    }
+
+    /// After a conflict: drops the unsaved edit and reads the note again.
+    func reloadOpenNote() async {
+        guard let id = open?.id else { return }
+        await dropPendingEdit()
+        await load(id)
+    }
+
+    private func load(_ id: String) async {
+        do {
+            guard let isLocked = try await lockedState(of: id) else { throw NotesServiceError.notFound }
+            let content = try await service.content(of: id)
+            let ids = try await service.attachmentIDs(of: id)
+            let (readable, full) = await readFull(id)
+            fullView = readable
+            let html = NotesHTMLReader.read(html: content.html, plainText: content.plainText)
+            let (document, composed) = Self.compose(full: full, html: html, isLocked: isLocked, plainText: content.plainText)
+            var safety = composed
+            let (images, complete) = await loadImages(of: document, ids: ids, readable: readable)
+            if !complete { safety = safety.adding(.imagesUnavailable) }
+            if safety != .editable { Self.log.info("Note opened read only: \(String(describing: safety), privacy: .public)") }
+            // An edit made in this note while it was reloading was made on the old version: writing it with the
+            // fresh modification date would pass SaveGuard and overwrite what changed elsewhere.
+            if pending?.note.id == id {
+                Self.log.error("Dropped an edit made while the note reloaded")
+                pending = nil
+            }
+            open = OpenNote(id: id, document: document, safety: safety, openedAt: content.modified, images: images)
+            saveState = .saved
+            addRecent(id)
+        } catch {
+            open = nil
+            saveState = .saved
+            if case NotesServiceError.notFound = error { forget(id) }
+            handle(error, "open")
+        }
+    }
+
+    /// nil when the note is not in Notes. Looks through every folder when no listing has shown it yet.
+    private func lockedState(of id: String) async throws -> Bool? {
+        if let known = lockedByID[id] { return known }
+        remember(try await service.notes(in: nil))
+        return lockedByID[id]
+    }
+
+    private func databaseIsReadable() async -> Bool {
+        guard let database else { return false }
+        return await Task.detached { database.isReadable }.value
+    }
+
+    /// Whether the database is readable, and the note's document from it.
+    private func readFull(_ id: String) async -> (Bool, NoteDocument?) {
+        guard let database else { return (false, nil) }
+        let key = NotesIDs.databaseKey(of: id, entity: "ICNote")
+        return await Task.detached {
+            guard database.isReadable else { return (false, nil) }
+            return (true, key.flatMap { database.document(forNoteKey: $0)?.document })
+        }.value
+    }
+
+    /// The document to show (`full ?? html`) and its safety. A table of the full document takes its HTML from the
+    /// AppleScript document's table at the same attachment position; without one the note is unreadable.
+    static func compose(full: NoteDocument?, html: NoteDocument, isLocked: Bool, plainText: String) -> (NoteDocument, EditSafety) {
+        var safety = EditSafety.check(full: full, html: html, isLocked: isLocked, plainText: plainText)
+        guard var document = full else { return (html, safety) }
+        var htmlTables: [Int: NoteBlock] = [:]
+        for (slot, block) in attachmentBlocks(html) { if case .table = block { htmlTables[slot] = block } }
+        for (position, (slot, block)) in zip(attachmentPositions(document), attachmentBlocks(document)) {
+            guard case .table(let tableHTML, _) = block, tableHTML.isEmpty else { continue }
+            if case .table(let found, let cells)? = htmlTables[slot], !found.isEmpty {
+                document.blocks[position] = .table(html: found, cells: cells)
+            } else {
+                safety = safety.adding(.unreadable)
+            }
+        }
+        return (document, safety)
+    }
+
+    /// The attachment blocks (image, table, file, drawing) with their position among the note's attachments.
+    static func attachmentBlocks(_ document: NoteDocument) -> [(slot: Int, block: NoteBlock)] {
+        document.blocks.filter(isAttachment).enumerated().map { ($0.offset, $0.element) }
+    }
+
+    private static func attachmentPositions(_ document: NoteDocument) -> [Int] {
+        document.blocks.indices.filter { isAttachment(document.blocks[$0]) }
+    }
+
+    private static func isAttachment(_ block: NoteBlock) -> Bool {
+        switch block {
+        case .image, .table, .file, .drawing: return true
+        default: return false
+        }
+    }
+
+    /// Each image's file, from the cache or else copied from Notes' media. `complete` is false when an image has
+    /// no bytes, or when the attachment ids do not line up with the document (an image could be swapped).
+    private func loadImages(of document: NoteDocument, ids: [String], readable: Bool) async -> ([Int: URL], complete: Bool) {
+        let slots = Self.attachmentBlocks(document)
+        let imageSlots = slots.compactMap { item -> (slot: Int, index: Int)? in
+            if case .image(let index) = item.block { return (item.slot, index) }
+            return nil
+        }
+        guard !imageSlots.isEmpty else { return ([:], true) }
+        guard ids.count == slots.count, imageSlots.allSatisfy({ $0.slot == $0.index }) else {
+            Self.log.error("Attachment ids do not line up with the note: \(ids.count) ids, \(slots.count) attachments")
+            return ([:], false)
+        }
+        cache.trim()
+        var images: [Int: URL] = [:]
+        var complete = true
+        for (_, index) in imageSlots where images[index] == nil {
+            let id = ids[index]
+            if let url = cache.url(forAttachmentID: id) {
+                images[index] = url
+            } else if readable, let url = await copyFromDatabase(id) {
+                images[index] = url
+            } else {
+                complete = false
+            }
+        }
+        return (images, complete)
+    }
+
+    private func copyFromDatabase(_ id: String) async -> URL? {
+        guard let database, let key = NotesIDs.attachmentKey(of: id) else { return nil }
+        let found: (Data, String)? = await Task.detached {
+            guard let file = database.attachmentFile(forAttachmentKey: key) else { return nil }
+            let ext = file.pathExtension.lowercased()
+            // An unknown type could not be embedded with the right MIME type.
+            guard Self.mimeTypes[ext] != nil, let data = try? Data(contentsOf: file), !data.isEmpty else { return nil }
+            return (data, ext)
+        }.value
+        guard let (data, ext) = found else { return nil }
+        do {
+            return try cache.store(data, forAttachmentID: id, fileExtension: ext)
+        } catch {
+            Self.log.error("Could not cache an image: \(error.localizedDescription, privacy: .public)")
+            return nil
+        }
+    }
+
+    private func addRecent(_ id: String) {
+        var recent = settings.recentIDs.filter { $0 != id }
+        recent.insert(id, at: 0)
+        settings.recentIDs = Array(recent.prefix(Self.recentLimit))
+    }
+
+    private func forget(_ id: String) {
+        notes.removeAll { $0.id == id }
+        lockedByID[id] = nil
+        if settings.recentIDs.contains(id) { settings.recentIDs.removeAll { $0 == id } }
+    }
+
+    // MARK: Editing
+
+    /// Adds an image the user put in the open note and returns the attachmentIndex for its `.image` block,
+    /// or nil when the note is not editable or the bytes could not be kept.
+    func addImage(_ data: Data, fileExtension: String) -> Int? {
+        guard var note = open, note.safety == .editable, !data.isEmpty else { return nil }
+        do {
+            let key = try cache.storeNew(data, fileExtension: fileExtension)
+            guard let url = cache.url(forKey: key) else { return nil }
+            let used = note.document.blocks.compactMap { block -> Int? in
+                switch block {
+                case .image(let i), .file(let i, _, _), .drawing(let i): return i
+                default: return nil
+                }
+            } + Array(note.images.keys) + [Self.attachmentBlocks(note.document).count - 1]
+            let index = (used.max() ?? -1) + 1
+            note.images[index] = url
+            open = note
+            return index
+        } catch {
+            Self.log.error("Could not keep a new image: \(error.localizedDescription, privacy: .public)")
+            return nil
+        }
+    }
+
+    /// Takes the editor's document and saves it once typing stops. Ignored for a note that may not be written.
+    func edit(_ document: NoteDocument) {
+        guard var note = open, note.safety == .editable else { return }
+        note.document = document
+        open = note
+        // After a conflict or deletion nothing is written again; the user reloads or makes a new note.
+        guard saveState != .conflict, saveState != .deleted else { return }
+        pending = (note, document)
+        saveState = .pending
+        debounceTask?.cancel()
+        debounceTask = Task { [weak self, debounce] in
+            try? await Task.sleep(for: debounce)
+            guard !Task.isCancelled else { return }
+            self?.startSaving()
+        }
+    }
+
+    /// Saves now if an edit is waiting, and returns once nothing is being saved.
+    func flush() async {
+        debounceTask?.cancel()
+        debounceTask = nil
+        startSaving()
+        while let task = saveTask { await task.value }
+    }
+
+    private func dropPendingEdit() async {
+        debounceTask?.cancel()
+        debounceTask = nil
+        pending = nil
+        while let task = saveTask { await task.value }
+    }
+
+    private func startSaving() {
+        guard saveTask == nil, pending != nil else { return }
+        saveTask = Task { [weak self] in
+            await self?.saveLoop()
+            self?.saveTask = nil
+        }
+    }
+
+    /// Writes the pending edit, then any edit made meanwhile, one at a time.
+    /// The save state is shown only for the open note; a late save of a note left behind is only logged.
+    private func saveLoop() async {
+        while let (note, document) = pending {
+            pending = nil
+            if open?.id == note.id { saveState = .saving }
+            let result = await save(document, of: note)
+            if result != .saved { Self.log.error("Note not saved: \(String(describing: result), privacy: .public)") }
+            guard open?.id == note.id else { continue }
+            if result == .saved {
+                saveState = pending == nil ? .saved : .pending
+            } else {
+                saveState = result
+                pending = nil
+                return
+            }
+        }
+    }
+
+    /// The only place a note is written.
+    /// `edited` is the note as it was when the edit was made; while it is still open its current state
+    /// (newer `openedAt` after an earlier save) is used instead.
+    private func save(_ document: NoteDocument, of edited: OpenNote) async -> NoteSaveState {
+        let id = edited.id
+        do {
+            let current = try await service.modification(of: id)
+            let note = open?.id == id ? open ?? edited : edited
+            guard note.safety == .editable else { return .failed("The note may not be written") }
+            if SaveGuard.decide(openedAt: note.openedAt, currentModification: current) == .conflict { return .conflict }
+            let images = imageData(for: document, from: note.images)
+            let html = try NotesHTMLWriter.write(document, images: images)
+            let modified = try await service.setBody(html, of: id)
+            guard open?.id == id else { return .saved }  // a note left behind: nothing of it is kept here
+            open?.openedAt = modified
+            await keepImages(of: document, images: images, noteID: id)
+            return .saved
+        } catch NotesServiceError.notFound {
+            return .deleted
+        } catch NotesServiceError.denied {
+            access = .denied
+            return .failed(String(describing: NotesServiceError.denied))
+        } catch {
+            Self.log.error("Save failed: \(String(describing: error), privacy: .public)")
+            return .failed(String(describing: error))
+        }
+    }
+
+    /// The bytes of every image block that has them; a missing one makes the writer throw.
+    private func imageData(for document: NoteDocument, from files: [Int: URL]) -> [Int: NoteImageData] {
+        var result: [Int: NoteImageData] = [:]
+        for block in document.blocks {
+            guard case .image(let index) = block, result[index] == nil, let url = files[index],
+                  let data = try? Data(contentsOf: url), !data.isEmpty else { continue }
+            result[index] = NoteImageData(data: data, mimeType: Self.mimeTypes[url.pathExtension.lowercased()] ?? "image/png")
+        }
+        return result
+    }
+
+    /// Notes gives written images new attachment ids: the cache keeps their bytes under those ids, so the note
+    /// can be written again without Full Disk Access. The open document keeps its own indexes (an editor holding
+    /// them stays right); only the files behind them move. Skipped when the ids do not line up.
+    private func keepImages(of document: NoteDocument, images: [Int: NoteImageData], noteID: String) async {
+        guard !images.isEmpty else { return }
+        let ids: [String]
+        do { ids = try await service.attachmentIDs(of: noteID) } catch {
+            Self.log.error("No attachment ids after a save: \(String(describing: error), privacy: .public)")
+            return
+        }
+        let slots = Self.attachmentBlocks(document)
+        guard ids.count == slots.count else {
+            Self.log.error("Saved note has \(ids.count) attachment ids for \(slots.count) attachments; images not re-keyed")
+            return
+        }
+        var moved: [Int: URL] = [:]
+        for (slot, block) in slots {
+            guard case .image(let index) = block, let image = images[index] else { continue }
+            let ext = Self.mimeTypes.first(where: { $0.value == image.mimeType })?.key ?? "png"
+            if let url = try? cache.store(image.data, forAttachmentID: ids[slot], fileExtension: ext) { moved[index] = url }
+        }
+        guard var note = open, note.id == noteID else { return }
+        for (index, url) in moved {
+            if let old = note.images[index], old.lastPathComponent.hasPrefix("new-") { try? FileManager.default.removeItem(at: old) }
+            note.images[index] = url
+        }
+        open = note
+    }
+
+    // MARK: Creating and deleting
+
+    /// Makes a note in the default folder (or the first one) and opens it. `document` re-creates a note's content,
+    /// for instance after a conflict; its images come from the open note.
+    func newNote(_ document: NoteDocument? = nil) async {
+        await flush()
+        if folders.isEmpty { await refresh() }
+        guard let folder = folders.first(where: { $0.id == settings.defaultFolderID }) ?? folders.first else {
+            Self.log.error("No folder to make a note in")
+            return
+        }
+        let document = document ?? NoteDocument(blocks: [.paragraph([])])
+        do {
+            let html = try NotesHTMLWriter.write(document, images: imageData(for: document, from: open?.images ?? [:]))
+            let id = try await service.create(in: folder.id, html: html)
+            await refresh()
+            await load(id)
+        } catch {
+            handle(error, "create")
+        }
+    }
+
+    func delete(_ id: String) async {
+        if open?.id == id { await dropPendingEdit() }
+        do {
+            try await service.delete(id)
+        } catch NotesServiceError.notFound {
+            // Already gone: drop it here too.
+        } catch {
+            handle(error, "delete")
+            return
+        }
+        forget(id)
+        if open?.id == id {
+            open = nil
+            saveState = .saved
+        }
+    }
+
+    private func handle(_ error: Error, _ action: String) {
+        if case NotesServiceError.denied = error { access = .denied }
+        Self.log.error("Notes \(action, privacy: .public) failed: \(String(describing: error), privacy: .public)")
+    }
+}

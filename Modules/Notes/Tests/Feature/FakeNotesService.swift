@@ -13,6 +13,36 @@ final class FakeNotesService: NotesService, @unchecked Sendable {
     private var setBodyCount = 0
     private var lastBody: String?
     private var attachments: [String: [String]] = [:]
+    private var bodyDelay: Duration = .zero
+    private var readDelay: Duration = .zero
+
+    /// How long `content` takes, to test edits made while another note opens.
+    var contentDelay: Duration {
+        get { lock.withLock { readDelay } }
+        set { lock.withLock { readDelay = newValue } }
+    }
+
+    /// How long `setBody` takes, to test edits made while a save is in flight.
+    var setBodyDelay: Duration {
+        get { lock.withLock { bodyDelay } }
+        set { lock.withLock { bodyDelay = newValue } }
+    }
+
+    /// Puts a note straight into a folder (which must exist), as if it was written in Notes.
+    @discardableResult
+    func addNote(_ name: String, in folderID: String, html: String, plainText: String, modified: Date = Date(),
+                 snippet: String = "", locked: Bool = false, attachments ids: [String] = []) -> String {
+        lock.withLock {
+            counter += 1
+            let id = "x-coredata://FAKE/ICNote/p\(counter)"
+            notesByID[id] = NoteSummary(id: id, name: name, folderID: folderID, modified: modified,
+                                        snippet: snippet, hasImages: !ids.isEmpty, isLocked: locked)
+            contentByID[id] = NoteContent(html: html, plainText: plainText, modified: modified, attachmentCount: ids.count)
+            attachments[id] = ids
+            order.append(id)
+            return id
+        }
+    }
 
     var setBodyCalls: Int { lock.withLock { setBodyCount } }
     var lastHTML: String? { lock.withLock { lastBody } }
@@ -53,7 +83,8 @@ final class FakeNotesService: NotesService, @unchecked Sendable {
     }
 
     func content(of noteID: String) async throws -> NoteContent {
-        try lock.withLock {
+        if contentDelay > .zero { try await Task.sleep(for: contentDelay) }
+        return try lock.withLock {
             guard let c = contentByID[noteID] else { throw NotesServiceError.notFound }
             return c
         }
@@ -81,7 +112,8 @@ final class FakeNotesService: NotesService, @unchecked Sendable {
     }
 
     func setBody(_ html: String, of noteID: String) async throws -> Date {
-        try lock.withLock {
+        if setBodyDelay > .zero { try await Task.sleep(for: setBodyDelay) }
+        return try lock.withLock {
             guard contentByID[noteID] != nil else { throw NotesServiceError.notFound }
             setBodyCount += 1
             lastBody = html
