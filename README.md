@@ -4,23 +4,25 @@
 
 A macOS app that turns the MacBook notch into a small control panel: clipboard, now playing, timers, calendar and reminders, notes, a file shelf, screen capture, quick translate and the state of coding agents.
 
-## Mới trong bản 0.27.0 · New in 0.27.0
+## Mới trong bản 0.28.0 · New in 0.28.0
 
-- **Ghi chú:** trang Ghi chú mới trên notch và một cửa sổ Ghi chú riêng. Viết và định dạng chữ ngay tại chỗ: đậm, nghiêng, gạch chân, gạch ngang, chữ đơn cách, liên kết, đề mục, danh sách và ảnh. Bôi chữ là có menu định dạng, hoặc dùng phím tắt (⌘B, ⌘I, ⌘U…).
-- **Dùng chính Apple Notes:** ghi chú của AraNotch là ghi chú trong app Notes, nên tự đồng bộ qua iCloud sang iPhone và iPad. Ghi chú có danh sách việc, trích dẫn hay hình vẽ vẫn hiện đầy đủ để xem, kèm nút mở trong Notes để sửa.
-- **"Ghi chú mới" tạo ghi chú trong Notes:** phím tắt và mục "Ghi chú mới" mở một ghi chú Apple Notes mới trong cửa sổ Ghi chú.
-- **Không còn hỏi mật khẩu máy liên tục:** khi bật "Lấy giới hạn từ tài khoản Claude", macOS không còn hỏi mật khẩu sau mỗi lần cập nhật app.
+- **Ghi chú gọn trên notch:** không còn cửa sổ Ghi chú riêng. Mọi thứ của nó giờ nằm ngay trên trang Ghi chú, và notch mở cao hơn để có chỗ viết.
+- **Thư mục và danh sách:** bấm nút thư mục để chọn thư mục hay tạo thư mục mới. Ghi chú xếp theo ngày như trong Apple Notes, mỗi dòng có vài chữ đầu của nội dung.
+- **Thanh định dạng và ảnh lớn:** thanh định dạng luôn nằm trên ghi chú (kiểu chữ, đề mục, danh sách, khối mã, chèn ảnh). Ảnh hiện rộng bằng khung viết.
+- **Chuột phải để mở hay xoá:** chuột phải vào một ghi chú để mở trong Notes hay xoá; app hỏi lại trước khi xoá.
+- **"Ghi chú mới" mở ngay trên notch:** phím tắt và mục "Ghi chú mới" mở notch với ghi chú mới, gõ được ngay. Notch không tự đóng khi bạn đang viết hay đang chọn thư mục.
 
-Lần đầu dùng Ghi chú, AraNotch xin quyền điều khiển Notes. Để sửa ghi chú, cấp thêm **Full Disk Access** trong System Settings › Privacy & Security; chưa cấp thì ghi chú chỉ xem được.
+Ghi chú dùng chính Apple Notes. Lần đầu, AraNotch xin quyền điều khiển Notes; để sửa ghi chú, cấp thêm **Full Disk Access** trong System Settings › Privacy & Security.
 
 ---
 
-- **Notes:** a new Notes page on the notch and a Notes window of its own. Write and format right there: bold, italic, underline, strikethrough, monospaced text, links, headings, lists and pictures. Select text for a format menu, or use the shortcuts (⌘B, ⌘I, ⌘U…).
-- **It is Apple Notes:** AraNotch's notes are notes in the Notes app, so iCloud syncs them to your iPhone and iPad. Notes with checklists, quotes or drawings still show in full to read, with a button to edit them in Notes.
-- **"New note" makes a note in Notes:** the shortcut and the "New note" item open a new Apple Notes note in the Notes window.
-- **No more password prompts:** with "Read limits from the Claude account" on, macOS no longer asks for your password after each app update.
+- **Notes, all on the notch:** the separate Notes window is gone. Everything it had is now on the Notes page, and the notch opens taller to give you room to write.
+- **Folders and the list:** click the folder button to pick a folder or make a new one. Notes are listed by date as in Apple Notes, each with the first words of its text.
+- **Format toolbar and large pictures:** a format toolbar sits above the note (text styles, headings, lists, code blocks, pictures). Pictures fill the width of the note.
+- **Right-click to open or delete:** right-click a note to open it in Notes or delete it; the app asks before deleting.
+- **"New note" opens right on the notch:** the shortcut and the "New note" item open the notch on a new note, ready to type. The notch stays open while you write or pick a folder.
 
-The first time you use Notes, AraNotch asks to control Notes. To edit notes, also give it **Full Disk Access** in System Settings › Privacy & Security; without it notes are read only.
+Notes are your Apple Notes. The first time, AraNotch asks to control Notes; to edit notes, also give it **Full Disk Access** in System Settings › Privacy & Security.
 
 ## Tính năng · Features
 
