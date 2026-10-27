@@ -314,4 +314,24 @@ import Testing
         let result = try Self.decode(text: "", runs: [])
         #expect(result.document.blocks.isEmpty)
     }
+
+    /// A note made by hand in Notes on macOS 27: title, a checklist with the first item done, a numbered list,
+    /// a quote and a picture.
+    @Test func decodesRealNoteFromMacOS27() throws {
+        let data = try Data(contentsOf: #require(Bundle.module.url(forResource: "Fixtures/real-macos27", withExtension: "notedata")))
+        let result = try NoteStoreDecoder.decode(data)
+        // Notes moves a done item below the others.
+        #expect(result.document.blocks == [
+            .heading(level: 1, [TextRun("Mẫu thử AraNotch", style: .bold)]),
+            .listItem(.checklist(done: false), indent: 0, [TextRun("Việc hai")]),
+            .listItem(.checklist(done: true), indent: 0, [TextRun("Việc một")]),
+            .listItem(.numbered, indent: 0, [TextRun("Số một")]),
+            .listItem(.numbered, indent: 0, [TextRun("Số hai")]),
+            .quote([TextRun("Câu trích dẫn")]),
+            .paragraph([]),
+            .paragraph([]),
+            .image(attachmentIndex: 0),
+        ])
+        #expect(result.attachments == [NoteStoreAttachment(identifier: "9A3CCEDB-3080-404F-875A-A3C58E3006F5", uti: "public.png")])
+    }
 }
