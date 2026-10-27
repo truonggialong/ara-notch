@@ -579,6 +579,16 @@ final class NotesStore: ObservableObject {
         }
     }
 
+    /// Opens a note in the Notes app: for a note AraNotch only shows (locked, or read only).
+    func showInNotes(_ id: String) async {
+        do {
+            try await service.show(id)
+        } catch {
+            if case NotesServiceError.notFound = error { forget(id) }
+            handle(error, "show")
+        }
+    }
+
     private func handle(_ error: Error, _ action: String) {
         if case NotesServiceError.denied = error { access = .denied }
         Self.log.error("Notes \(action, privacy: .public) failed: \(String(describing: error), privacy: .public)")

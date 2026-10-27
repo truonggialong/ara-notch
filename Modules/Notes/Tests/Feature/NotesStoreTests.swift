@@ -66,6 +66,8 @@ private struct Harness {
     }
 }
 
+// Inside NotesMainActorSuites: its timings must not share the main actor with the editor tests.
+extension NotesMainActorSuites {
 @MainActor @Suite struct NotesStoreTests {
     // MARK: Saving
 
@@ -676,4 +678,5 @@ private struct Harness {
         #expect(cache.url(forAttachmentID: attachmentID(2)) != nil)
         #expect(cache.url(forAttachmentID: attachmentID(3)) != nil)
     }
+}
 }
