@@ -131,7 +131,7 @@ final class NoteEditorCoordinator: NSObject, NSTextViewDelegate, NSTextStorageDe
         textView.isAutomaticDashSubstitutionEnabled = false
         textView.isAutomaticTextReplacementEnabled = false
         textView.drawsBackground = false
-        textView.textContainerInset = NSSize(width: 4, height: 6)
+        textView.textContainerInset = NSSize(width: 12, height: 10)
         textView.linkTextAttributes = [.foregroundColor: NSColor.linkColor, .underlineStyle: NSUnderlineStyle.single.rawValue,
                                        .cursor: NSCursor.pointingHand]
         textView.textStorage?.delegate = self
@@ -248,6 +248,11 @@ final class NoteEditorCoordinator: NSObject, NSTextViewDelegate, NSTextStorageDe
     nonisolated func textStorage(_ textStorage: NSTextStorage, didProcessEditing editedMask: NSTextStorageEditActions,
                                  range editedRange: NSRange, changeInLength delta: Int) {
         MainActor.assumeIsolated {
+            // Any edit, undo included, may move text in or out of the first line. Only sizes change, which may be
+            // done here; a rebuild's text comes fitted.
+            if !isRebuilding, !isResizingImages, let storage = textView.textStorage {
+                NoteAttributedText.fitLeadLine(in: storage, edited: editedRange)
+            }
             guard let undo = textView.undoManager, undo.isUndoing || undo.isRedoing,
                   !isRebuilding, !isResizingImages, generation != nil else { return }
             scheduleCommit()

@@ -99,8 +99,9 @@ final class NoteEditorHandle: ObservableObject {
     }
 }
 
-/// The fixed toolbar over the page's editor: the floating menu's styles, the paragraph kinds, a bulleted list,
-/// a code block and a picture. Greyed out while the note cannot be edited.
+/// The toolbar at the top of the editor's card: first what makes paragraphs (the paragraph kinds, a bulleted list,
+/// a code block, a picture), then the floating menu's styles, lit in orange while the selection has them. The
+/// page shows it only for a note that can be edited; it is greyed out while the note is read again.
 struct FormatToolbar: View {
     @Environment(\.araScale) private var ui
     @ObservedObject var handle: NoteEditorHandle
@@ -121,10 +122,6 @@ struct FormatToolbar: View {
 
     var body: some View {
         HStack(spacing: 1 * ui) {
-            ForEach(Self.styles, id: \.1) { format, symbol, key in
-                button(symbol, key, isLit: handle.active.contains(format)) { handle.apply(format) }
-            }
-            divider
             Menu {
                 ForEach(Self.paragraphKinds, id: \.1) { block, key in
                     Button(L10n.string(key)) { handle.apply(block) }
@@ -136,7 +133,7 @@ struct FormatToolbar: View {
                     Image(systemName: "chevron.down")
                         .font(.system(size: 7 * ui, weight: .bold))
                 }
-                .foregroundStyle(AraPalette.ground)
+                .foregroundStyle(AraPalette.ink.opacity(0.86))
                 .padding(.horizontal, 6 * ui)
                 .frame(height: 24 * ui)
                 .contentShape(Rectangle())
@@ -150,12 +147,14 @@ struct FormatToolbar: View {
             .accessibilityLabel(L10n.string("notes.toolbar.paragraph"))
             button("list.bullet", "notes.toolbar.bulletList", isLit: false) { handle.apply(.bulletList) }
             button("curlybraces", "notes.toolbar.codeBlock", isLit: false) { handle.apply(.codeBlock) }
-            divider
             button("photo", "notes.toolbar.image", isLit: false) { handle.chooseImages(onChoosing: onChoosingImages) }
+            divider
+            ForEach(Self.styles, id: \.1) { format, symbol, key in
+                button(symbol, key, isLit: handle.active.contains(format)) { handle.apply(format) }
+            }
         }
-        .padding(.horizontal, 5 * ui)
-        .frame(height: 28 * ui)
-        .background(Capsule().fill(AraPalette.onGround))
+        .padding(.horizontal, 6 * ui)
+        .frame(height: 30 * ui)
         .fixedSize()
         .disabled(!isEnabled)
         .opacity(isEnabled ? 1 : 0.45)
@@ -163,7 +162,7 @@ struct FormatToolbar: View {
 
     private var divider: some View {
         Rectangle()
-            .fill(AraPalette.ground.opacity(0.25))
+            .fill(AraPalette.hairline)
             .frame(width: 1, height: 14 * ui)
             .padding(.horizontal, 3 * ui)
     }
@@ -172,8 +171,10 @@ struct FormatToolbar: View {
         Button(action: action) {
             Image(systemName: symbol)
                 .font(.system(size: 11 * ui, weight: .semibold))
-                .foregroundStyle(isLit ? AraPalette.accent : AraPalette.ground)
+                // The one orange: on the notch the accent is nearly the colour of the other marks.
+                .foregroundStyle(isLit ? AraPalette.brand : AraPalette.ink.opacity(0.86))
                 .frame(width: 24 * ui, height: 24 * ui)
+                .background(RoundedRectangle(cornerRadius: 6 * ui).fill(isLit ? AraPalette.brand.opacity(0.16) : .clear))
                 .contentShape(Rectangle())
         }
         .buttonStyle(AraPressStyle())

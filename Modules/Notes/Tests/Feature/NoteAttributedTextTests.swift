@@ -239,3 +239,29 @@ private let sample = NoteDocument(blocks: [
     let style = text.attribute(.paragraphStyle, at: 0, effectiveRange: nil) as? NSParagraphStyle
     #expect(style?.headIndent == NoteAttributedText.indentStep * CGFloat(NoteDocument.maxListIndent + 1))
 }
+
+/// A first line that is a plain paragraph is drawn larger, its styles kept; the size is not read back into the note.
+@Test @MainActor func aPlainFirstLineIsDrawnLarger() {
+    let doc = NoteDocument(blocks: [.paragraph([TextRun("Groceries "), TextRun("today", style: .bold)]), .paragraph([TextRun("milk")])])
+    let text = storage(doc)
+    let first = text.attribute(.font, at: 0, effectiveRange: nil) as? NSFont
+    let bold = text.attribute(.font, at: 10, effectiveRange: nil) as? NSFont
+    let second = text.attribute(.font, at: 16, effectiveRange: nil) as? NSFont
+    #expect(first?.pointSize == NoteAttributedText.leadSize)
+    #expect(bold?.pointSize == NoteAttributedText.leadSize)
+    #expect(bold?.fontDescriptor.symbolicTraits.contains(.bold) == true)
+    #expect(second?.pointSize == NoteAttributedText.font(kind: .paragraph).pointSize)
+    #expect(NoteAttributedText.document(from: text, original: doc) == doc)
+}
+
+@Test @MainActor func aHeadingFirstLineKeepsItsSize() {
+    let text = storage(NoteDocument(blocks: [.heading(level: 1, [TextRun("Title")]), .paragraph([TextRun("body")])]))
+    let font = text.attribute(.font, at: 0, effectiveRange: nil) as? NSFont
+    #expect(font?.pointSize == NoteAttributedText.font(kind: .h1).pointSize)
+}
+
+@Test func everyKindOfParagraphHasRoomBetweenLines() {
+    for kind in [NoteBlockKind.paragraph, .h1, .h3, .bullet, .numbered, .quote, .code] {
+        #expect(NoteAttributedText.paragraphStyle(kind: kind, indent: 0).lineSpacing == NoteAttributedText.lineSpacing)
+    }
+}

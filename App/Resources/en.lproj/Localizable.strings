@@ -939,6 +939,13 @@
 "notes.toolbar.bulletList" = "Bulleted list";
 "notes.toolbar.codeBlock" = "Code block";
 "notes.toolbar.image" = "Insert picture";
+"notes.header.modified" = "Edited %@";
+"notes.status.saved" = "Saved";
+"notes.status.saving" = "Saving…";
+"notes.status.viewOnly" = "View only";
+"notes.status.notSaved" = "Not saved";
+"notes.status.deleted" = "Deleted";
+"notes.status.loading" = "Loading…";
 "settings.notes.newNote.note" = "Opens a new note in Notes' default folder";
 "settings.notes.defaultFolder" = "Folder for new notes";
 "settings.notes.defaultFolder.note" = "Where New note puts a note";

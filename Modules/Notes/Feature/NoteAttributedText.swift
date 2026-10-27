@@ -65,6 +65,7 @@ enum NoteAttributedText {
     static func paragraphStyle(kind: NoteBlockKind, indent: Int) -> NSParagraphStyle {
         let indent = min(max(indent, 0), NoteDocument.maxListIndent)
         let style = NSMutableParagraphStyle()
+        style.lineSpacing = lineSpacing
         if kind.isList {
             style.firstLineHeadIndent = indentStep * CGFloat(indent)
             style.headIndent = indentStep * CGFloat(indent + 1)
@@ -159,7 +160,49 @@ enum NoteAttributedText {
             }
         }
         if out.length > 0 { out.deleteCharacters(in: NSRange(location: out.length - 1, length: 1)) }   // no newline at the end
+        fitLeadLine(in: out, edited: NSRange(location: 0, length: out.length))
         return out
+    }
+
+    // MARK: The first line
+
+    /// The size a first line that is a plain paragraph is drawn at, so it reads as the note's name. Only drawn: sizes
+    /// are never read back into the note.
+    static let leadSize: CGFloat = 16
+    /// Room added between the lines of every paragraph.
+    static let lineSpacing: CGFloat = 3
+
+    /// Draws the first paragraph at `leadSize` when it is a plain paragraph, and the other paragraphs `edited` touches
+    /// at their usual size. The second paragraph is always looked at: a Return or a join moves text in and out of
+    /// first place.
+    static func fitLeadLine(in text: NSMutableAttributedString, edited: NSRange) {
+        let string = text.string as NSString
+        guard string.length > 0 else { return }
+        let first = string.paragraphRange(for: NSRange(location: 0, length: 0))
+        let location = min(max(edited.location, 0), string.length)
+        let touched = string.paragraphRange(for: NSRange(location: location, length: min(max(edited.length, 0), string.length - location)))
+        var paragraphs = [first]
+        if NSMaxRange(first) < string.length {
+            paragraphs.append(string.paragraphRange(for: NSRange(location: NSMaxRange(first), length: 0)))
+        }
+        let lookedAt = NSMaxRange(paragraphs[paragraphs.count - 1])
+        string.enumerateSubstrings(in: touched, options: [.byParagraphs, .substringNotRequired]) { _, _, enclosing, _ in
+            if enclosing.location >= lookedAt { paragraphs.append(enclosing) }
+        }
+        for paragraph in paragraphs where paragraph.length > 0 {
+            let isFirst = paragraph.location == 0
+            // Within one paragraph, so a font run that runs on into the next line is cut where the lines differ.
+            text.enumerateAttribute(.font, in: paragraph, options: []) { value, run, _ in
+                guard let font = value as? NSFont else { return }
+                let kind = kind(of: text.attributes(at: run.location, effectiveRange: nil))
+                let mono = font.fontDescriptor.symbolicTraits.contains(.monoSpace)
+                let size = isFirst && kind == .paragraph
+                    ? leadSize - (mono ? 1 : 0)
+                    : NoteAttributedText.font(kind: kind, mono: mono).pointSize
+                guard font.pointSize != size else { return }
+                text.addAttribute(.font, value: NSFont(descriptor: font.fontDescriptor, size: size) ?? font, range: run)
+            }
+        }
     }
 
     /// One paragraph with its newline.

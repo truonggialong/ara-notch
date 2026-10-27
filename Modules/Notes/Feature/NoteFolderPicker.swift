@@ -3,32 +3,37 @@ import NotchShell
 import NotesCore
 import SwiftUI
 
-/// The button over the page's list that names the folder shown and opens the folder list.
+/// The title of the page's list: the folder shown and how many notes it has. A click opens the folder list.
 struct NoteFolderPicker: View {
     @Environment(\.araScale) private var ui
     @ObservedObject var store: NotesStore
     @ObservedObject var model: NotesPageModel
 
     var body: some View {
+        let folder = store.folders.first { $0.id == store.selectedFolderID }
         Button {
             model.isChoosingFolder.toggle()
             if !model.isChoosingFolder { model.isAddingFolder = false }
         } label: {
-            HStack(spacing: 4 * ui) {
-                Image(systemName: "folder")
+            HStack(spacing: 5 * ui) {
+                Image(systemName: folder == nil ? "tray.full" : "folder")
                     .font(.system(size: 10 * ui, weight: .semibold))
-                Text(store.folders.first { $0.id == store.selectedFolderID }?.name ?? L10n.string("notes.allNotes.short"))
-                    .font(.system(size: 11 * ui, weight: .semibold))
+                    .foregroundStyle(AraPalette.label)
+                Text(folder?.name ?? L10n.string("notes.allNotes"))
+                    .font(.system(size: AraType.body * ui, weight: .semibold))
                     .lineLimit(1)
-                    .frame(maxWidth: 64 * ui, alignment: .leading)
+                Text((folder?.noteCount ?? store.folders.reduce(0) { $0 + $1.noteCount }).formatted())
+                    .font(.system(size: AraType.caption * ui, weight: .semibold))
+                    .monospacedDigit()
+                    .foregroundStyle(AraPalette.value)
                 Image(systemName: "chevron.down")
                     .font(.system(size: 7 * ui, weight: .bold))
+                    .foregroundStyle(AraPalette.label)
                     .rotationEffect(.degrees(model.isChoosingFolder ? 180 : 0))
             }
-            .padding(.horizontal, 8 * ui)
-            .frame(height: 24 * ui)
+            .padding(.horizontal, 7 * ui)
+            .frame(height: 22 * ui)
             .contentShape(Rectangle())
-            .araField()
         }
         .buttonStyle(AraPressStyle())
         .help(L10n.string("notes.chooseFolder"))

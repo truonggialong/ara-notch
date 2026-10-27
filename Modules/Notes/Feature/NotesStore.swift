@@ -86,6 +86,7 @@ final class NotesStore: ObservableObject {
     /// Whether each note seen in a listing is locked. Only says the note was listed: the lock state used is the one
     /// read with the note.
     private var lockedByID: [String: Bool] = [:]
+    private var folderByID: [String: String] = [:]
 
     init(service: NotesService, database: NoteDatabase?, cache: NoteImageCache, settings: NotesSettings,
          debounce: Duration = .milliseconds(1500), imageDebounce: Duration = .seconds(5),
@@ -169,8 +170,14 @@ final class NotesStore: ObservableObject {
     }
 
     private func remember(_ list: [NoteSummary]) {
-        for note in list { lockedByID[note.id] = note.isLocked }
+        for note in list {
+            lockedByID[note.id] = note.isLocked
+            folderByID[note.id] = note.folderID
+        }
     }
+
+    /// The folder a note was last listed in, also when the list now shows another folder.
+    func folderID(of id: String) -> String? { folderByID[id] }
 
     // MARK: Opening
 

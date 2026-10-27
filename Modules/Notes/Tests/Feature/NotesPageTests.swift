@@ -48,6 +48,39 @@ private struct PageHarness {
 }
 
 @MainActor @Suite struct NotesPageTests {
+    /// The editor's header says what became of the note: what is wrong first, then whether it is saved.
+    @Test func headerSaysWhetherTheNoteIsSaved() async throws {
+        let h = try await PageHarness()
+        await h.store.openNote(h.note(["Title", "body"]))
+        let open = try #require(h.store.open)
+        func status(_ state: NoteSaveState, reloading: Bool = false) -> NoteEditorHeader.Status {
+            NoteEditorHeader.status(open: open, state: state, isReloading: reloading)
+        }
+        #expect(status(.saved) == .saved)
+        #expect(status(.pending) == .saving)
+        #expect(status(.saving) == .saving)
+        #expect(status(.conflict) == .notSaved)
+        #expect(status(.failed("x")) == .notSaved)
+        #expect(status(.deleted) == .deleted)
+        #expect(status(.saved, reloading: true) == .loading)
+        await h.store.openNote(h.note(["Secret"], locked: true))
+        let locked = try #require(h.store.open)
+        #expect(NoteEditorHeader.status(open: locked, state: .saved, isReloading: false) == .viewOnly)
+        #expect(NoteEditorHeader.status(open: locked, state: .deleted, isReloading: false) == .deleted)
+    }
+
+    /// The header names the open note's folder even after the list moved to another folder.
+    @Test func theOpenNotesFolderIsKnownAfterTheListMoves() async throws {
+        let h = try await PageHarness()
+        let id = h.note(["In Notes"])
+        await h.store.refresh()
+        await h.store.openNote(id)
+        #expect(h.store.folderID(of: id) == h.folderID)
+        _ = await h.store.createFolder(named: "Work")   // selects the new, empty folder
+        #expect(h.store.notes.isEmpty)
+        #expect(h.store.folderID(of: id) == h.folderID)
+    }
+
     @Test func createFolderSelectsIt() async throws {
         let h = try await PageHarness()
         h.note(["In Notes"])

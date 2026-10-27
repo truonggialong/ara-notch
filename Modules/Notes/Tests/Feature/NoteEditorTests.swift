@@ -291,6 +291,42 @@ private func key(_ characters: String, _ flags: NSEvent.ModifierFlags) -> NSEven
                                                   .listItem(.bullet, indent: 0, [TextRun("b")]), .paragraph([])])
     }
 
+    /// Only the first line is drawn larger: a line made by Return after it is not, a style put on it keeps its size,
+    /// and a line joined onto it grows with it. None of it reaches the note.
+    @Test func onlyTheFirstLineIsDrawnLarger() async throws {
+        let h = try await EditorHarness()
+        await h.store.openNote(h.note(["Title", "body"]))
+        let editor = h.editor()
+        let text = editor.textView
+        let normal = NoteAttributedText.font(kind: .paragraph).pointSize
+        func size(_ i: Int) -> CGFloat? { (text.textStorage?.attribute(.font, at: i, effectiveRange: nil) as? NSFont)?.pointSize }
+        #expect(size(0) == NoteAttributedText.leadSize)
+        #expect(size(6) == normal)
+        text.setSelectedRange(NSRange(location: 5, length: 0))
+        text.doCommand(by: #selector(NSResponder.insertNewline(_:)))
+        text.insertText("next", replacementRange: text.selectedRange())
+        #expect(text.string == "Title\nnext\nbody")
+        #expect(size(0) == NoteAttributedText.leadSize)
+        #expect(size(6) == normal)
+        text.setSelectedRange(NSRange(location: 0, length: 5))
+        #expect(text.performKeyEquivalent(with: key("b", .command)))
+        #expect(size(0) == NoteAttributedText.leadSize)
+        editor.commitNow()
+        #expect(h.store.open?.document.blocks == [.paragraph([TextRun("Title", style: .bold)]), .paragraph([TextRun("next")]),
+                                                  .paragraph([TextRun("body")])])
+        // Return at the very start pushes the first line down: it is drawn at the usual size, the new empty line large.
+        text.setSelectedRange(NSRange(location: 0, length: 0))
+        text.doCommand(by: #selector(NSResponder.insertNewline(_:)))
+        #expect(size(1) == normal)
+        text.doCommand(by: #selector(NSResponder.deleteBackward(_:)))
+        #expect(size(0) == NoteAttributedText.leadSize)
+        // Joining the second line onto the first draws it large too.
+        text.setSelectedRange(NSRange(location: 6, length: 0))
+        text.doCommand(by: #selector(NSResponder.deleteBackward(_:)))
+        #expect(text.string == "Titlenext\nbody")
+        #expect(size(5) == NoteAttributedText.leadSize)
+    }
+
     @Test func imagePastedOverTheStartOfABulletLineStaysAnImage() async throws {
         let h = try await EditorHarness()
         await h.store.openNote(h.note(["Title"]))

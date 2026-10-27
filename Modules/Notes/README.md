@@ -4,7 +4,7 @@ Sổ của module **Notes**. Đọc `Modules/README.md` trước: luật ranh gi
 
 ## Vai trò
 
-Ghi chú định dạng chữ kiểu Telegram (bôi chữ là có menu nổi, có phím tắt), và dữ liệu là chính Apple Notes: ghi chú của AraNotch là ghi chú trong Notes, iCloud lo việc đồng bộ. Gồm trang Ghi chú trên notch (trái: nút chọn thư mục, ô tìm, nút + và danh sách nhóm theo ngày, chuột phải để mở trong Notes hay xoá; phải: thanh định dạng và trình soạn, ảnh rộng bằng khung), tạo ghi chú mới (menu, công cụ, phím tắt, `--new-note`, đều mở notch ở trang Ghi chú), và mục Ghi chú trong Cài đặt. Từ 2026-10-27 không còn cửa sổ Ghi chú riêng: mọi thứ của nó nằm trên trang. Module thay "Ghi chú mới" cũ của Clipboard.
+Ghi chú định dạng chữ kiểu Telegram (bôi chữ là có menu nổi, có phím tắt), và dữ liệu là chính Apple Notes: ghi chú của AraNotch là ghi chú trong Notes, iCloud lo việc đồng bộ. Gồm trang Ghi chú trên notch (bố cục A từ 2026-10-27; trái, 30% bề ngang: ô tìm và nút + màu nhấn, tên thư mục đang xem kèm số ghi chú (bấm để chọn thư mục), danh sách nhóm theo ngày, rê chuột lên dòng thì có nút xoá, chuột phải để mở trong Notes hay xoá; phải: một khung gồm hàng đầu (thư mục, giờ sửa, trạng thái lưu, nút Mở trong Notes và Xoá), thanh định dạng khi ghi chú sửa được, rồi trình soạn với dòng đầu cỡ lớn và ảnh rộng bằng khung), tạo ghi chú mới (menu, công cụ, phím tắt, `--new-note`, đều mở notch ở trang Ghi chú), và mục Ghi chú trong Cài đặt. Từ 2026-10-27 không còn cửa sổ Ghi chú riêng: mọi thứ của nó nằm trên trang. Module thay "Ghi chú mới" cũ của Clipboard.
 
 ## Target và thư mục
 
@@ -34,6 +34,8 @@ Ghi chú định dạng chữ kiểu Telegram (bôi chữ là có menu nổi, c�
 Đổi `newNote()` hay `.newNote` là đụng chỗ App và Platform dùng: báo chủ dự án trước.
 
 ## Ghi chú cho người sửa
+- Bố cục trang (2026-10-27, phương án A, thiết kế `docs/superpowers/specs/2026-10-27-notes-page-layout-design.md`): `NoteEditorHeader.status(open:state:isReloading:)` quyết định chữ trạng thái (lỗi trước, rồi đang tải, rồi chỉ xem, rồi đã lưu / đang lưu). Thư mục trên hàng đầu lấy từ `NotesStore.folderID(of:)`, nhớ từ mọi lần liệt kê, nên vẫn còn khi danh sách sang thư mục khác. Thanh định dạng chỉ hiện khi ghi chú sửa được (bỏ qua lúc đang tải lại, khi đó nó chỉ mờ đi để chữ không nhảy). Nút đang bật dùng `AraPalette.brand` (cam): trên notch, màu nhấn gần như trùng màu biểu tượng. Nút + dùng kiểu `.accent` của hệ thống, nên trên notch là đĩa trắng.
+- Dòng đầu cỡ 16 (`NoteAttributedText.leadSize`, đơn cách 15) khi là đoạn thường, giãn dòng 3 pt (`lineSpacing`), lề chữ 12 × 10: chỉ là cách vẽ. `fitLeadLine` chạy ở cuối `make` và trong `textStorage(_:didProcessEditing:)` cho đoạn đầu, đoạn thứ hai và các đoạn vừa sửa; chỉ đổi cỡ phông, giữ nét. Bộ đọc lại tài liệu (`document(from:)`) chỉ xem nét đậm, nghiêng, đơn cách và thuộc tính khối, không xem cỡ, nên Notes nhận đúng như trước.
 
 - Nguyên tắc số một: không bao giờ làm mất hay hỏng ghi chú của người dùng. Ghi lại bằng AppleScript là thay cả `body`, nên bất cứ thứ gì bộ đọc không hiểu mà bị bỏ rơi là mất dữ liệu. Vì vậy `EditSafety` chặn ghi (ghi chú chỉ xem) mỗi khi có nghi ngờ, kể cả khi bộ đọc dựng lại chữ khác với `plaintext` của ghi chú (lý do `unreadable`).
 - Hai đường đọc: cơ sở dữ liệu của Notes (`NoteStoreReader` → `NoteStoreDecoder`, cần Full Disk Access, đầy đủ) và AppleScript (`body` + `plaintext` → `NotesHTMLReader`, thiếu kiểu danh sách). Đường ghi chỉ có AppleScript (`NotesHTMLWriter`).
@@ -87,13 +89,14 @@ Ghi chú định dạng chữ kiểu Telegram (bôi chữ là có menu nổi, c�
 - `Modules/Notes/Core/SaveGuard.swift` — Detects a note that changed elsewhere since it was opened.
 - `Modules/Notes/Feature/FormatPopover.swift` — What the format menu shows: which styles the selection has, and the link being typed.
 - `Modules/Notes/Feature/FormatToolbar.swift` — What the page's toolbar acts on: the page's editor, through the same calls as the floating menu
+- `Modules/Notes/Feature/NoteEditorHeader.swift` — The row over the open note: its folder, when it was changed, whether it is saved, Show in Notes and Delete.
 - `Modules/Notes/Feature/NoteAttachmentCells.swift` — A read-only preview drawn in place of a table, a file or a drawing inside the editor text.
 - `Modules/Notes/Feature/NoteAttributedText.swift` — How wide or tall pictures are drawn in the text.
 - `Modules/Notes/Feature/NoteEditorView.swift` — The editor of the open note, on the notch page.
 - `Modules/Notes/Feature/NoteFormatting.swift` — The Telegram-style commands of the editor: a style is removed when the whole selection has it, otherwise added to all of it.
 - `Modules/Notes/Feature/NoteImageCache.swift` — AraNotch's own copy of note images, so a note's images can be written back without Full Disk Access
-- `Modules/Notes/Feature/NoteFolderPicker.swift` — The button over the page's list that names the folder shown and opens the folder list; the folder list, drawn inside the notch.
-- `Modules/Notes/Feature/NoteListColumn.swift` — The page's list by date, with Show in Notes and Delete on a right click and the delete question in a card.
+- `Modules/Notes/Feature/NoteFolderPicker.swift` — The title of the page's list (folder shown and its count) that opens the folder list; the folder list, drawn inside the notch.
+- `Modules/Notes/Feature/NoteListColumn.swift` — The page's list by date and its rows (`NoteListRow`: delete button under the pointer, Show in Notes and Delete on a right click), the delete question in a card.
 - `Modules/Notes/Feature/NoteListGrouping.swift` — The date groups of the page's list, as Notes shows them: Today, Yesterday, Previous 7 Days,
 - `Modules/Notes/Feature/NoteStatusBanner.swift` — The strip above the editor that says why the note cannot be edited
 - `Modules/Notes/Feature/NoteStoreReader.swift` — What `NotesStore` reads from Notes' database; `NoteStoreReader` is the real one, tests use a fake.
@@ -108,6 +111,7 @@ Ghi chú định dạng chữ kiểu Telegram (bôi chữ là có menu nổi, c�
 - `Modules/Notes/Feature/NotesService.swift` — Notes ids look like "x-coredata://UUID/ICNote/p96"; the number is the row key in its database.
 - `Modules/Notes/Feature/NotesSettings.swift` — Observable Notes settings; every change is written through to the store.
 - `Modules/Notes/Feature/NotesStore.swift` — The note shown in the editor. `images` maps an `.image` block's attachmentIndex to a file holding its bytes.
+- `docs/superpowers/specs/2026-10-27-notes-page-layout-design.md` — thiết kế bố cục A của trang (hai cột tinh gọn).
 - `Modules/Notes/DESIGN.md` — thiết kế (có phần sửa ngày 2026-10-27).
 - `docs/superpowers/specs/2026-10-27-notes-in-notch-design.md`, `docs/superpowers/plans/2026-10-27-notes-in-notch.md` — thiết kế và kế hoạch bỏ cửa sổ Ghi chú.
 - `Modules/Notes/PLAN.md` — kế hoạch làm (có phần sửa ngày 2026-10-27).
@@ -130,9 +134,12 @@ Ghi chú định dạng chữ kiểu Telegram (bôi chữ là có menu nổi, c�
 - **Cơ sở dữ liệu của Notes không có tài liệu.** Bộ giải mã dựng theo thực nghiệm, thử trên ghi chú thật của macOS 27; bản macOS khác có thể đổi. Giải mã hỏng thì lùi về chế độ chỉ AppleScript và ghi log.
 - **Chưa có màu riêng cho trang Ghi chú** trên notch: sáu màu của `AraHue` đã dùng hết, nên trang trung tính như Công cụ và Tổng quan. Thêm màu là đổi `NotchCore`, việc của chủ dự án.
 - **Nhỏ, còn để lại:** bộ đọc HTML bỏ chữ nằm ngoài khối (chặn ghi bằng `unreadable`); thụt lề sâu hơn danh sách đang mở thì bị làm phẳng; thụt lề danh sách quá 10 cấp (chỉ có ở dữ liệu hỏng) bị coi là 10; hai khối mã liền nhau gộp một; mỗi lần gõ vẫn dựng lại tài liệu từ văn bản và đăng lại ghi chú mở, nên danh sách ghi chú cũng vẽ lại (xem độ trễ với ghi chú dài); menu kiểu đoạn trên thanh định dạng chỉ có biểu tượng (cho vừa cột soạn); "+" dùng thư mục đang hiện (Tất cả: thư mục mặc định); thư mục mới tạo trong tài khoản mặc định; bắt kịp trình soạn kia thì mất lịch sử hoàn tác và vùng chọn.
+- **Bố cục A chưa thử bằng con trỏ thật**: nút xoá hiện khi rê chuột lên dòng (cần con trỏ thật), trang ở chế độ chỉ xem (thanh định dạng ẩn; chỉ có test). Đã thử qua Accessibility trên app thật (2026-10-27): hàng đầu, nút đang bật sáng cam, thẻ hỏi xoá từ hàng đầu và Huỷ, bảng chọn thư mục, đổi thư mục, mở ghi chú khác.
 - **Chưa thử tay** (xem mục Test): phím định dạng, menu nổi, ⌘K, dán ảnh, cắt và dán ảnh trong ghi chú, đóng notch giữa lúc lưu, thoát app ngay sau khi gõ, xung đột khi sửa ở Notes, độ trễ khi gõ. Đã kiểm trên Notes thật (2026-10-27): `ZMODIFICATIONDATE1` khớp ngày AppleScript (ghi chú thường sửa được); hai ảnh hiện đúng thứ tự; chữ màu (trường 10) bị khoá đúng; đoạn kiểm "Recently Deleted"; một lần lưu thật qua `--append-note` giữ khoảng trắng, tab và ảnh thật. Chưa kiểm: tô sáng (trường 14), chữ trên (8), căn lề (2) trên ghi chú thật.
 
 ## Nhật ký sửa lỗi
+
+- 2026-10-27 (bố cục A, thử trên app thật): chip thư mục trên hàng đầu biến mất khi danh sách sang thư mục không chứa ghi chú đang mở, vì nó tìm trong danh sách đang hiện. Sửa: `NotesStore` nhớ thư mục của mọi ghi chú đã liệt kê (`folderID(of:)`). Test `theOpenNotesFolderIsKnownAfterTheListMoves`.
 
 - 2026-10-27: bộ giải mã chưa từng chạy trên dữ liệu thật; thêm test `decodesRealNoteFromMacOS27` trên một ghi chú tạo trong Notes trên macOS 27. Giải mã đúng ngay lần đầu, ảnh đọc được từ tệp media qua cơ sở dữ liệu (commit 56a9bad).
 - 2026-10-27: chữ AraNotch ghi qua HTML bị Notes ép về 11 px, nhỏ hơn chữ gốc, và tiêu đề cũ (đậm hệ thống 21/15/13) đọc lại thành chữ đậm thường. Sửa: thân bài ghi 18 px, tiêu đề đậm 28/24/21; bộ đọc nhận cả dạng cũ và dạng đậm 24/21/18. Test mô phỏng việc Notes đổi cỡ bằng `keptByNotes()` (commit 6c5ef14).

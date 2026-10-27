@@ -939,6 +939,13 @@
 "notes.toolbar.bulletList" = "Danh sách chấm";
 "notes.toolbar.codeBlock" = "Khối mã";
 "notes.toolbar.image" = "Chèn ảnh";
+"notes.header.modified" = "Sửa %@";
+"notes.status.saved" = "Đã lưu";
+"notes.status.saving" = "Đang lưu…";
+"notes.status.viewOnly" = "Chỉ xem";
+"notes.status.notSaved" = "Chưa lưu";
+"notes.status.deleted" = "Đã bị xoá";
+"notes.status.loading" = "Đang tải…";
 "settings.notes.newNote.note" = "Mở một ghi chú mới trong thư mục mặc định của Notes";
 "settings.notes.defaultFolder" = "Thư mục cho ghi chú mới";
 "settings.notes.defaultFolder.note" = "Nơi Ghi chú mới đặt ghi chú";

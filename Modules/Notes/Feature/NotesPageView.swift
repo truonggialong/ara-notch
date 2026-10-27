@@ -91,7 +91,9 @@ final class NotesPageModel: ObservableObject {
     }
 }
 
-/// The Notes page of the notch: search, "+" and the notes by date on the left, the open note's editor on the right.
+/// The Notes page of the notch. Left: search and "+", the folder shown, and its notes by date. Right: the open note,
+/// with a header (folder, time, whether it is saved, Show in Notes, Delete), the toolbar while it can be edited, and
+/// the text.
 struct NotesPageView: View {
     @Environment(\.araScale) private var ui
     @ObservedObject var store: NotesStore
@@ -105,7 +107,7 @@ struct NotesPageView: View {
                 GeometryReader { geometry in
                     HStack(spacing: 10 * ui) {
                         listColumn
-                            .frame(width: (geometry.size.width * 0.38).rounded())
+                            .frame(width: (geometry.size.width * 0.3).rounded())
                         editorColumn
                     }
                 }
@@ -117,15 +119,13 @@ struct NotesPageView: View {
     // MARK: List
 
     private var listColumn: some View {
-        VStack(spacing: 6 * ui) {
+        VStack(alignment: .leading, spacing: 4 * ui) {
             HStack(spacing: 6 * ui) {
-                NoteFolderPicker(store: store, model: model)
-                    .fixedSize(horizontal: true, vertical: false)
                 searchField
-                    .frame(minWidth: 84 * ui)
-                    .layoutPriority(1)
-                AraIconButton(.add, size: .small, help: L10n.string("notes.new")) { model.onNewNote?() }
+                AraIconButton(.add, look: .accent, help: L10n.string("notes.new")) { model.onNewNote?() }
             }
+            .padding(.bottom, 2 * ui)
+            NoteFolderPicker(store: store, model: model)
             ZStack(alignment: .top) {
                 VStack(spacing: 6 * ui) {
                     if model.hasChecked, !store.fullView {
@@ -161,7 +161,7 @@ struct NotesPageView: View {
         }
         .font(.system(size: 12 * ui))
         .padding(.horizontal, 9 * ui)
-        .frame(height: 24 * ui)
+        .frame(height: 28 * ui)
         .araField()
     }
 
@@ -175,16 +175,25 @@ struct NotesPageView: View {
 
     private var editorColumn: some View {
         VStack(alignment: .leading, spacing: 6 * ui) {
-            FormatToolbar(handle: model.editor,
-                          isEnabled: NoteEditorCoordinator.isEditable(store.open, store.saveState, isReloading: store.isReloading),
-                          onChoosingImages: { model.isChoosingImages = $0 })
             NoteStatusBanner(store: store)
-            if store.open != nil {
-                GeometryReader { geometry in
-                    // The text's insets and the line padding take about 20 pt of the width.
-                    NoteEditorView(store: store, imageSize: .fitWidth(max(80, (geometry.size.width - 20 * ui).rounded(.down))))
-                        .handle(model.editor)
-                        .focusChanged { model.onEditorFocus?($0) }
+            if let open = store.open {
+                VStack(spacing: 0) {
+                    NoteEditorHeader(store: store, model: model, open: open)
+                    hairline
+                    // Not on a note that cannot be edited (the banner says why). A read under way only greys it, so the
+                    // text does not jump.
+                    if NoteEditorCoordinator.isEditable(open, store.saveState, isReloading: false) {
+                        FormatToolbar(handle: model.editor, isEnabled: !store.isReloading,
+                                      onChoosingImages: { model.isChoosingImages = $0 })
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        hairline
+                    }
+                    GeometryReader { geometry in
+                        // The text's insets and the line padding take about 34 pt of the width.
+                        NoteEditorView(store: store, imageSize: .fitWidth(max(80, (geometry.size.width - 34 * ui).rounded(.down))))
+                            .handle(model.editor)
+                            .focusChanged { model.onEditorFocus?($0) }
+                    }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .araCard(radius: 12, level: .plate)
@@ -193,5 +202,11 @@ struct NotesPageView: View {
                               detail: L10n.string("notes.none.detail"))
             }
         }
+    }
+
+    private var hairline: some View {
+        Rectangle()
+            .fill(AraPalette.hairline)
+            .frame(height: 1)
     }
 }
