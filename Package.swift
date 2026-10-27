@@ -28,7 +28,7 @@ func tests(_ feature: String, _ part: String, dependencies: [Target.Dependency])
 }
 
 let features = ["Clipboard", "SystemEvents", "Timer", "Media", "Files", "Agent", "Windows", "Translate",
-                "Calendar", "Capture", "Overview", "Tools"]
+                "Calendar", "Capture", "Overview", "Tools", "Notes"]
 
 let package = Package(
     name: "AraNotch",
@@ -83,6 +83,8 @@ let package = Package(
         core("Timer"), feature("Timer"), tests("Timer", "Core", dependencies: ["TimerCore"]),
         core("Translate"), feature("Translate"), tests("Translate", "Core", dependencies: ["TranslateCore"]),
         core("Windows"), feature("Windows"), tests("Windows", "Core", dependencies: ["WindowsCore"]),
+        core("Notes", dependencies: ["NotchCore"]), feature("Notes"),
+        tests("Notes", "Core", dependencies: ["NotesCore"]), tests("Notes", "Feature", dependencies: ["NotesFeature"]),
         feature("Tools", hasCore: false), tests("Tools", "Feature", dependencies: ["ToolsFeature"]),
     ]
 )

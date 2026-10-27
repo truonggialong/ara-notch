@@ -26,6 +26,7 @@ Clipboard có thêm `MCP/` (`ClipboardMCP`) và `aranotch-mcp/`; Agent có thêm
 | Tính năng | Timer | `TimerCore`, `TimerFeature` | [Timer/README.md](Timer/README.md) |
 | Tính năng | Agent | `AgentCore`, `AgentFeature`, `aranotch-hook` | [Agent/README.md](Agent/README.md) |
 | Tính năng | Files | `FilesCore`, `FilesFeature` | [Files/README.md](Files/README.md) |
+| Tính năng | Notes | `NotesCore`, `NotesFeature` | [Notes/README.md](Notes/README.md) |
 | Tính năng | Capture | `CaptureCore`, `CaptureFeature` | [Capture/README.md](Capture/README.md) |
 | Tính năng | Translate | `TranslateCore`, `TranslateFeature` | [Translate/README.md](Translate/README.md) |
 | Tính năng | Windows | `WindowsCore`, `WindowsFeature` | [Windows/README.md](Windows/README.md) |

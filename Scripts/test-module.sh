@@ -5,7 +5,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-MODULES="Platform App Clipboard Calendar Media Timer Agent Files Capture Translate Windows SystemEvents Overview Tools"
+MODULES="Platform App Clipboard Calendar Media Timer Agent Files Capture Translate Windows SystemEvents Overview Tools Notes"
 module="${1:-}"
 
 case "$module" in
@@ -15,6 +15,7 @@ case "$module" in
     Capture) suites="CaptureCoreTests|CaptureFeatureTests" ;;
     Calendar | Media | Timer | Files | Translate | Windows | SystemEvents) suites="${module}CoreTests" ;;
     Overview) suites="OverviewCoreTests|OverviewFeatureTests" ;;
+    Notes) suites="NotesCoreTests|NotesFeatureTests" ;;
     Tools) suites="ToolsFeatureTests" ;;
     App) suites="" ;;
     *)
