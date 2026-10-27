@@ -89,6 +89,8 @@ public enum NoteStoreDecoder {
         var attachment: NoteStoreAttachment?
         /// Font, superscript, colour, highlight or a non-left alignment: formatting a write would drop.
         var hasUnsupportedFormatting = false
+        var fontName: String?
+        var pointSize: Double?
 
         init(parsing data: Data) throws {
             var reader = ProtobufReader(data)
@@ -101,7 +103,9 @@ public enum NoteStoreDecoder {
                 case (7, .varint(let v)): strikethrough = v != 0
                 case (9, .bytes(let b)): link = URL(string: String(decoding: b, as: UTF8.self))
                 case (12, .bytes(let b)): attachment = try Self.parseAttachment(b)
-                case (3, .bytes(let b)): if try Self.isForeignFont(b) { hasUnsupportedFormatting = true }
+                case (3, .bytes(let b)):
+                    try parseFont(b)
+                    if let fontName, !Self.ownFonts.contains(fontName) { hasUnsupportedFormatting = true }
                 case (3, _), (10, _): hasUnsupportedFormatting = true
                 case (8, .varint(let v)), (14, .varint(let v)): if v != 0 { hasUnsupportedFormatting = true }
                 case (14, _): hasUnsupportedFormatting = true
@@ -131,12 +135,15 @@ public enum NoteStoreDecoder {
         /// Font names Notes gives the text AraNotch writes: body, bold headings, code.
         static let ownFonts: Set<String> = [".AppleSystemUIFont", ".AppleSystemUIFontBold", "Courier"]
 
-        private static func isForeignFont(_ data: Data) throws -> Bool {
+        private mutating func parseFont(_ data: Data) throws {
             var reader = ProtobufReader(data)
             while let (field, value) = try reader.next() {
-                if field == 1, case .bytes(let b) = value, !ownFonts.contains(String(decoding: b, as: UTF8.self)) { return true }
+                switch (field, value) {
+                case (1, .bytes(let b)): fontName = String(decoding: b, as: UTF8.self)
+                case (2, .fixed32(let bits)): pointSize = Double(Float(bitPattern: bits))
+                default: break
+                }
             }
-            return false
         }
 
         private static func parseAttachment(_ data: Data) throws -> NoteStoreAttachment {
@@ -156,6 +163,7 @@ public enum NoteStoreDecoder {
             if weight & 2 != 0 { style.insert(.italic) }
             if underlined { style.insert(.underline) }
             if strikethrough { style.insert(.strikethrough) }
+            if fontName == "Courier" { style.insert(.monospaced) }
             return style
         }
     }
@@ -240,8 +248,26 @@ public enum NoteStoreDecoder {
             case 0: return .heading(level: 1, runs)
             case 1: return .heading(level: 2, runs)
             case 2: return .heading(level: 3, runs)
-            default: return .paragraph(runs)
+            default: break
             }
+            if let level = sizeHeadingLevel(from: start, to: end) { return .heading(level: level, runs) }
+            return .paragraph(runs)
+        }
+
+        /// What the HTML reader takes for a heading, from the runs' fonts: every character bold at one size, in
+        /// Notes' bold system font at 21, 15 or 13 points (its form for h1–h3), or in no named font at 24, 21 or 18
+        /// (what Notes keeps of AraNotch's headings). Notes keeps the sizes in points as the HTML gives them in px.
+        private func sizeHeadingLevel(from start: Int, to end: Int) -> Int? {
+            let runs = placed.filter { entry in
+                entry.start < end && entry.end > start
+                    && (max(entry.start, start)..<min(entry.end, end)).contains { units[$0] != 0x0A }
+            }.map(\.run)
+            guard !runs.isEmpty, runs.allSatisfy({ $0.weight & 1 != 0 }) else { return nil }
+            let sizes = Set(runs.map { $0.pointSize.map { Int($0.rounded()) } })
+            guard sizes.count == 1, let size = sizes.first ?? nil else { return nil }
+            if runs.allSatisfy({ $0.fontName == ".AppleSystemUIFontBold" }) { return [21: 1, 15: 2, 13: 3][size] }
+            if runs.allSatisfy({ $0.fontName == nil }) { return [24: 1, 21: 2, 18: 3][size] }
+            return nil
         }
 
         private func attachmentBlock(_ attachment: NoteStoreAttachment, index: Int) -> NoteBlock {

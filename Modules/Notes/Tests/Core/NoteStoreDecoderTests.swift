@@ -415,4 +415,36 @@ import Testing
     @Test func realColouredWordIsFlagged() throws {
         #expect(try Self.real("real-html-colour").hasUnsupportedFormatting)
     }
+
+    /// Each block as its kind and text, with headings' levels: what a save would write back.
+    static func outline(_ name: String) throws -> [String] {
+        try real(name).document.blocks.map { block in
+            switch block {
+            case .heading(let level, let runs): "h\(level) " + runs.map(\.text).joined()
+            case .paragraph(let runs): "p " + runs.map(\.text).joined()
+            case .code(let text): "code " + text
+            default: "other"
+            }
+        }
+    }
+
+    /// The database keeps the sizes the HTML gives; headings must read back as headings there too, or the next
+    /// save writes them at body size. Real notes: AraNotch's bold 24/21/18 form, and Notes' h1–h3 form.
+    @Test func realHeadingsReadAsHeadingsFromTheDatabase() throws {
+        #expect(try Self.outline("real-araNotch-headings") == [
+            "h1 H1 title", "h2 H2 head", "h3 H3 sub", "p body text 80", "h2 H2 it mid", "p end",
+        ])
+        #expect(try Self.outline("real-html-headings") == [
+            "h1 H1 title", "h2 H2 head", "p H3 sub", "p body text 80", "p H2 it mid", "p end",
+        ])
+    }
+
+    @Test func courierIsMonospaced() throws {
+        #expect(try Self.outline("real-html-written").contains("code x"))
+        let runs = try Self.real("real-inline-courier").document.blocks.flatMap { block -> [TextRun] in
+            if case .paragraph(let runs) = block { return runs } else { return [] }
+        }
+        #expect(runs.contains(TextRun("mono", style: .monospaced)))
+        #expect(runs.contains(TextRun("bold", style: .bold)))
+    }
 }
