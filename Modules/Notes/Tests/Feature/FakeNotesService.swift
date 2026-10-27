@@ -23,6 +23,19 @@ final class FakeNotesService: NotesService, @unchecked Sendable {
     private var bodyDateOffset: TimeInterval = 0
     private var modDelay: Duration = .zero
     private var failAfterWrite = false
+    private var pictures: [Data?] = []
+
+    /// What each `<img src>` of the last write held at the moment of writing, as Notes copies it then: the bytes
+    /// of a file URL (nil when the file could not be read), nil for anything else.
+    var lastPictures: [Data?] { lock.withLock { pictures } }
+
+    private static func pictures(in html: String) -> [Data?] {
+        html.components(separatedBy: "<img src=\"").dropFirst().map { part in
+            let source = String(part.prefix(while: { $0 != "\"" })).replacingOccurrences(of: "&amp;", with: "&")
+            guard let url = URL(string: source), url.isFileURL else { return nil }
+            return try? Data(contentsOf: url)
+        }
+    }
 
     /// The next `setBody` writes, then reports a script error: a write whose outcome AraNotch cannot know.
     var nextSetBodyFailsAfterWriting: Bool {
@@ -187,6 +200,7 @@ final class FakeNotesService: NotesService, @unchecked Sendable {
             guard contentByID[noteID] != nil else { throw NotesServiceError.notFound }
             setBodyCount += 1
             lastBody = html
+            pictures = Self.pictures(in: html)
             let now = Date().addingTimeInterval(bodyDateOffset)
             contentByID[noteID]?.html = html
             if !html.contains("<img"), !html.contains("<object") {

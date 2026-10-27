@@ -29,7 +29,7 @@ private struct WindowHarness {
     init() async throws {
         folderID = try await fake.createFolder(named: "Notes").id
         store = NotesStore(service: fake, database: nil, cache: NoteImageCache(root: temporaryDirectory()), settings: settings,
-                           debounce: .seconds(30))
+                           debounce: .seconds(30), staging: NoteImageStaging(folder: temporaryDirectory()))
     }
 
     func note(_ lines: [String], locked: Bool = false) -> String {

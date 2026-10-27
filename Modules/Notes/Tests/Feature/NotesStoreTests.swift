@@ -76,12 +76,15 @@ private struct Harness {
     let folderID: String
     let store: NotesStore
 
+    let staging: URL
+
     init(database: NoteDatabase? = nil, debounce: Duration = .milliseconds(10), imageDebounce: Duration? = nil,
-         cacheLimit: Int = 200_000_000) async throws {
+         cacheLimit: Int = 200_000_000, staging: URL? = nil) async throws {
         cache = NoteImageCache(root: temporaryDirectory(), limitBytes: cacheLimit)
+        self.staging = staging ?? temporaryDirectory()
         folderID = try await fake.createFolder(named: "Notes").id
         store = NotesStore(service: fake, database: database, cache: cache, settings: settings, debounce: debounce,
-                           imageDebounce: imageDebounce ?? debounce)
+                           imageDebounce: imageDebounce ?? debounce, staging: NoteImageStaging(folder: self.staging))
     }
 
     /// A two-paragraph note with no attachments.
@@ -299,8 +302,7 @@ private struct Harness {
         let indexes = Set(open.document.blocks.compactMap { b -> Int? in if case .image(let i) = b { i } else { nil } })
         #expect(Set(open.images.keys) == indexes)
         // The k-th image shown has the bytes Notes now holds as its k-th image.
-        let inNotes = try await h.fake.content(of: id).html.components(separatedBy: "base64,").dropFirst()
-            .map { Data(base64Encoded: String($0.prefix { $0 != "\"" }))! }
+        let inNotes = h.fake.lastPictures.compactMap { $0 }  // what Notes copied in when the note was written
         let shown = try open.document.blocks.compactMap { b -> Int? in if case .image(let i) = b { i } else { nil } }
             .map { try Data(contentsOf: try #require(open.images[$0])) }
         #expect(shown == Array(inNotes))
@@ -514,7 +516,33 @@ private struct Harness {
         await h.store.flush()
         #expect(h.fake.setBodyCalls == 1)
         #expect(imageCount(h.fake.lastHTML) == 2)
-        #expect(h.fake.lastHTML?.contains("data:image/jpeg;base64,") == true)
+        #expect(h.fake.lastPictures == [pngBytes, Data([9, 9, 9])])
+    }
+
+    /// Notes on macOS 27 keeps a data URI picture as a "File": pictures go as files it can read, removed after.
+    @Test func picturesAreWrittenAsFilesNotesCanReadAndRemovedAfter() async throws {
+        let h = try await Harness()
+        let id = try h.twoImageNote()
+        await h.store.openNote(id)
+        h.store.edit(generation: h.store.open?.generation, NoteDocument(blocks: [p("b"), .image(attachmentIndex: 0), .image(attachmentIndex: 1)]))
+        await h.store.flush()
+        let html = try #require(h.fake.lastHTML)
+        #expect(!html.contains("data:"))
+        #expect(h.fake.lastPictures == [pngBytes, pngBytes])
+        let staged = try FileManager.default.contentsOfDirectory(at: h.staging, includingPropertiesForKeys: nil)
+        #expect(staged.isEmpty)
+        #expect(html.contains(h.staging.standardizedFileURL.absoluteString) || html.contains(h.staging.absoluteString))
+    }
+
+    /// Without a folder Notes can read (no Full Disk Access), a note with pictures is not written at all.
+    @Test func picturesThatCannotBeStagedFailTheSave() async throws {
+        let h = try await Harness(staging: URL(fileURLWithPath: "/nonexistent/\(UUID().uuidString)"))
+        let id = try h.twoImageNote()
+        await h.store.openNote(id)
+        h.store.edit(generation: h.store.open?.generation, NoteDocument(blocks: [p("b"), .image(attachmentIndex: 0), .image(attachmentIndex: 1)]))
+        await h.store.flush()
+        #expect(h.fake.setBodyCalls == 0)
+        if case .failed = h.store.saveState {} else { Issue.record("expected a failed save, got \(h.store.saveState)") }
     }
 
     @Test func savedImagesAreKeptUnderTheirNewIDs() async throws {

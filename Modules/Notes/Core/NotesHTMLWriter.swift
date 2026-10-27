@@ -34,8 +34,21 @@ public enum NotesHTMLWriter {
     static let bodySize = 18
     static func headingSize(_ level: Int) -> Int { [1: 28, 2: 24, 3: 21][level] ?? 28 }
 
-    /// `images[i]` is the image with `attachmentIndex` i. A missing image throws; nothing is ever dropped.
+    /// `images[i]` is the image with `attachmentIndex` i, embedded as a data URI. A missing image throws; nothing is
+    /// ever dropped. Notes on macOS 27 keeps a data URI picture as a "File" attachment, so a note is written with
+    /// `write(_:imageSources:)` and file URLs Notes can read; this form is for reading tests.
     public static func write(_ document: NoteDocument, images: [Int: NoteImageData]) throws -> String {
+        var sources: [Int: String] = [:]
+        for (index, image) in images where !image.data.isEmpty {
+            let mime = image.mimeType.isEmpty ? "image/png" : image.mimeType
+            sources[index] = "data:\(mime);base64,\(image.data.base64EncodedString())"
+        }
+        return try write(document, imageSources: sources)
+    }
+
+    /// `imageSources[i]` is the `src` of the image with `attachmentIndex` i: a file URL Notes can read, which it
+    /// copies into the note as a picture. A missing one throws; nothing is ever dropped.
+    public static func write(_ document: NoteDocument, imageSources: [Int: String]) throws -> String {
         var html = ""
         var lists: [ListKind] = []  // open lists; the innermost `<li>` is left open
         for block in document.blocks {
@@ -59,9 +72,8 @@ public enum NotesHTMLWriter {
             case .code(let text):
                 html += "<div><font face=\"Courier\">" + sized(text.isEmpty ? "<br>" : escape(text), bodySize) + "</font></div>"
             case .image(let index):
-                guard let image = images[index], !image.data.isEmpty else { throw NotesHTMLWriterError.missingImage(index) }
-                let mime = image.mimeType.isEmpty ? "image/png" : image.mimeType
-                html += "<div><img src=\"data:\(escape(mime));base64,\(image.data.base64EncodedString())\"></div>"
+                guard let source = imageSources[index], !source.isEmpty else { throw NotesHTMLWriterError.missingImage(index) }
+                html += "<div><img src=\"\(escape(source))\"></div>"
             case .table(let tableHTML, _):
                 guard !tableHTML.isEmpty else { throw NotesHTMLWriterError.unwritableBlock("table") }
                 html += tableHTML

@@ -128,6 +128,26 @@ public final class NotesController {
         return (try? data.write(to: file)) != nil
     }
 
+    /// For checks by hand: opens the note, adds a paragraph at its end the way the editor would, saves, and writes
+    /// how that went (the note's safety, the save state) to `report`.
+    public func appendParagraph(_ text: String, toNote noteID: String, report: URL) async {
+        await store.openNote(noteID)
+        var lines: [String] = []
+        if let open = store.open, open.id == noteID {
+            lines.append("safety: \(open.safety)")
+            if open.safety == .editable {
+                var document = open.document
+                document.blocks.append(.paragraph([TextRun(text)]))
+                store.edit(document, generation: open.generation)
+                await store.flush()
+            }
+        } else {
+            lines.append("not opened")
+        }
+        lines.append("save: \(store.saveState)")
+        try? lines.joined(separator: "\n").write(to: report, atomically: true, encoding: .utf8)
+    }
+
     public func start() {
         notch.shortcuts.setHandler(.newNote) { [weak self] in self?.newNote() }
         notch.setSheetHeight(Self.sheetHeight, forPage: Self.pageID)

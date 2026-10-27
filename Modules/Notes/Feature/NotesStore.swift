@@ -33,6 +33,7 @@ final class NotesStore: ObservableObject {
     private let service: NotesService
     private let database: NoteDatabase?
     private let cache: NoteImageCache
+    private let staging: NoteImageStaging
     private let settings: NotesSettings
     private let debounce: Duration
     /// A note with pictures waits longer: each write sends every picture to Notes and iCloud again.
@@ -85,8 +86,10 @@ final class NotesStore: ObservableObject {
     private var lockedByID: [String: Bool] = [:]
 
     init(service: NotesService, database: NoteDatabase?, cache: NoteImageCache, settings: NotesSettings,
-         debounce: Duration = .milliseconds(1500), imageDebounce: Duration = .seconds(5)) {
+         debounce: Duration = .milliseconds(1500), imageDebounce: Duration = .seconds(5),
+         staging: NoteImageStaging = NoteImageStaging()) {
         self.service = service
+        self.staging = staging
         self.database = database
         self.cache = cache
         self.settings = settings
@@ -565,9 +568,10 @@ final class NotesStore: ObservableObject {
             guard note.safety == .editable else { return .failed("The note may not be written") }
             let base = lastWritten[generation] ?? edited.openedAt
             if SaveGuard.decide(openedAt: base, currentModification: current) == .conflict { return .conflict }
-            // Reading the pictures and building the HTML (base64 of every picture) is done off the main actor.
+            // Staging the pictures where Notes can read them and building the HTML is done off the main actor.
             let files = note.images
-            let html = try await Task.detached { try NotesHTMLWriter.write(document, images: Self.imageData(for: document, from: files)) }.value
+            let (html, staged) = try await Self.html(for: document, files: files, staging: staging)
+            defer { staging.remove(staged) }
             // No await between this check and the write: saves run one at a time.
             guard writeCount[id, default: 0] == (loadStamp[generation] ?? -1) + ownWrites[generation, default: 0] else {
                 Self.log.error("Note was written from another load since this one read it")
@@ -616,15 +620,19 @@ final class NotesStore: ObservableObject {
         }
     }
 
-    /// The bytes of every image block that has them; a missing one makes the writer throw.
-    nonisolated private static func imageData(for document: NoteDocument, from files: [Int: URL]) -> [Int: NoteImageData] {
-        var result: [Int: NoteImageData] = [:]
-        for block in document.blocks {
-            guard case .image(let index) = block, result[index] == nil, let url = files[index],
-                  let data = try? Data(contentsOf: url), !data.isEmpty else { continue }
-            result[index] = NoteImageData(data: data, mimeType: Self.mimeTypes[url.pathExtension.lowercased()] ?? "image/png")
-        }
-        return result
+    /// The HTML of `document`, its pictures staged as files Notes can read, and those files, to remove once written.
+    /// Throws, staging nothing, when a picture cannot be staged.
+    nonisolated private static func html(for document: NoteDocument, files: [Int: URL],
+                                         staging: NoteImageStaging) async throws -> (String, [URL]) {
+        try await Task.detached {
+            let staged = try staging.stage(document, files: files)
+            do {
+                return (try NotesHTMLWriter.write(document, imageSources: staged.sources), staged.staged)
+            } catch {
+                staging.remove(staged.staged)
+                throw error
+            }
+        }.value
     }
 
     /// Notes gives written images new attachment ids: the cache keeps their files under those ids too (linked, the
@@ -674,9 +682,8 @@ final class NotesStore: ObservableObject {
         }
         let document = document ?? NoteDocument(blocks: [.paragraph([])])
         do {
-            let html = try await Task.detached {
-                try NotesHTMLWriter.write(document, images: Self.imageData(for: document, from: imageFiles))
-            }.value
+            let (html, staged) = try await Self.html(for: document, files: imageFiles, staging: staging)
+            defer { staging.remove(staged) }
             let id = try await service.create(in: folder.id, html: html)
             let generation = requestLoad()
             await refresh()

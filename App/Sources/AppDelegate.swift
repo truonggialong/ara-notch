@@ -378,6 +378,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if let dump = arguments.dumpNoteData {
             print(notes.dumpNoteData(noteID: dump.id, to: dump.file) ? "note data written to \(dump.file.path)" : "note data not written")
         }
+        if let append = arguments.appendNote {
+            Task { await notes.appendParagraph(append.text, toNote: append.id, report: append.report) }
+        }
         if let file = arguments.checkRemindersFile {
             try? "can write reminders: \(calendar.canWriteReminders())\n".write(to: file, atomically: true, encoding: .utf8)
         }
