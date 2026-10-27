@@ -63,6 +63,7 @@ enum NoteAttributedText {
     }
 
     static func paragraphStyle(kind: NoteBlockKind, indent: Int) -> NSParagraphStyle {
+        let indent = min(max(indent, 0), NoteDocument.maxListIndent)
         let style = NSMutableParagraphStyle()
         if kind.isList {
             style.firstLineHeadIndent = indentStep * CGFloat(indent)
@@ -76,6 +77,7 @@ enum NoteAttributedText {
 
     /// The attributes shared by every character of a paragraph, newline included.
     static func blockAttributes(kind: NoteBlockKind, indent: Int = 0) -> [NSAttributedString.Key: Any] {
+        let indent = min(max(indent, 0), NoteDocument.maxListIndent)
         var attributes: [NSAttributedString.Key: Any] = [
             .font: font(kind: kind), .foregroundColor: NSColor.labelColor,
             .paragraphStyle: paragraphStyle(kind: kind, indent: indent), NoteAttribute.block: kind.rawValue,
@@ -241,7 +243,7 @@ enum NoteAttributedText {
             let range = NSRange(location: start, length: end - start)
             let attributeLocation = range.length > 0 ? start : (newline == NSNotFound ? nil : newline)
             let attributes = attributeLocation.map { text.attributes(at: $0, effectiveRange: nil) } ?? [:]
-            paragraph(range, kind: kind(of: attributes), indent: attributes[NoteAttribute.indent] as? Int ?? 0,
+            paragraph(range, kind: kind(of: attributes), indent: min(max(attributes[NoteAttribute.indent] as? Int ?? 0, 0), NoteDocument.maxListIndent),
                       text: text, original: original, emit: emit, code: { codeLines.append($0) })
             if newline == NSNotFound { break }
             start = newline + 1

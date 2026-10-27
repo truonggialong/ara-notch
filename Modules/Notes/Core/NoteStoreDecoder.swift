@@ -86,7 +86,7 @@ public enum NoteStoreDecoder {
             while let (field, value) = try reader.next() {
                 switch (field, value) {
                 case (1, .varint(let v)): styleType = Int(truncatingIfNeeded: v)
-                case (4, .varint(let v)): indent = Int(clamping: v)
+                case (4, .varint(let v)): indent = Int(min(v, UInt64(NoteDocument.maxListIndent)))
                 case (5, .bytes(let b)):
                     var checklist = ProtobufReader(b)
                     while let (checklistField, checklistValue) = try checklist.next() {
@@ -132,7 +132,8 @@ public enum NoteStoreDecoder {
             var attachments: [NoteStoreAttachment] = []
             var offset = 0
             for run in runs {
-                let end = min(offset + run.length, units.count)
+                // Compared before adding: a huge length (corrupt data) must not overflow.
+                let end = run.length >= units.count - offset ? units.count : offset + run.length
                 var index: Int?
                 if let attachment = run.attachment {
                     index = attachments.count

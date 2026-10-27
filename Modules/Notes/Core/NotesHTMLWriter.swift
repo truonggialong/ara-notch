@@ -45,7 +45,7 @@ public enum NotesHTMLWriter {
                 case .numbered: throw NotesHTMLWriterError.unwritableBlock("numberedList")
                 case .checklist: throw NotesHTMLWriterError.unwritableBlock("checklist")
                 }
-                openItem(kind, depth: max(1, min(indent + 1, lists.count + 1)), lists: &lists, html: &html)
+                openItem(kind, depth: indent >= lists.count ? lists.count + 1 : max(1, indent + 1), lists: &lists, html: &html)
                 html += sized(inline(runs) ?? "<br>", bodySize)
                 continue
             }

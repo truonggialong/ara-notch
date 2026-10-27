@@ -288,6 +288,27 @@ import Testing
         }
     }
 
+    /// A huge run length after a non-empty run, and a huge indent, must not overflow (a trap kills the app).
+    @Test func hugeLengthAndIndentAreClamped() throws {
+        let data = Self.protobuf(text: "ab\ncd", runs: [Run(length: 1)]) { note in
+            note.message(5) { r in
+                r.varint(1, UInt64.max)
+                r.message(2) { p in
+                    p.varint(1, 100)
+                    p.varint(4, UInt64(Int64.max))
+                }
+            }
+        }
+        let decoded = try NoteStoreDecoder.decode(Self.gzip(data))
+        #expect(decoded.document.plainText == "ab\ncd")
+        #expect(decoded.document.blocks.last == .listItem(.bullet, indent: NoteDocument.maxListIndent, [TextRun("cd")]))
+    }
+
+    @Test func writerTakesAHugeIndentAsOneLevelDeeper() throws {
+        let html = try NotesHTMLWriter.write(NoteDocument(blocks: [.listItem(.bullet, indent: Int.max, [TextRun("a")])]), images: [:])
+        #expect(html.hasPrefix("<ul><li>"))
+    }
+
     @Test func readerWalksAllWireTypes() throws {
         var writer = ProtobufWriter()
         writer.varint(1, 300)

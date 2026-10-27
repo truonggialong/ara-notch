@@ -232,3 +232,10 @@ private let sample = NoteDocument(blocks: [
     #expect(attributes[NoteAttribute.decoration] == nil)
     #expect(attributes[NoteAttribute.block] as? String == "bullet")
 }
+
+/// A list indent no note has (hostile data) is drawn at the deepest level, not trapped on.
+@Test @MainActor func hugeIndentIsDrawnAtTheDeepestLevel() {
+    let text = storage(NoteDocument(blocks: [.listItem(.bullet, indent: Int.max, [TextRun("a")])]))
+    let style = text.attribute(.paragraphStyle, at: 0, effectiveRange: nil) as? NSParagraphStyle
+    #expect(style?.headIndent == NoteAttributedText.indentStep * CGFloat(NoteDocument.maxListIndent + 1))
+}

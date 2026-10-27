@@ -45,6 +45,9 @@ public enum NoteBlock: Hashable, Sendable {
 
 /// The content of a note as blocks, independent of how Notes stores it.
 public struct NoteDocument: Hashable, Sendable {
+    /// The deepest list indent kept; a deeper one (only hostile or corrupt data has it) is taken as this one.
+    public static let maxListIndent = 10
+
     public var blocks: [NoteBlock]
 
     public init(blocks: [NoteBlock]) { self.blocks = blocks }
