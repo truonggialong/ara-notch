@@ -663,7 +663,8 @@ final class NotesStore: ObservableObject {
     func newNote(_ document: NoteDocument? = nil, in folderID: String? = nil) async {
         let imageFiles = open?.images ?? [:]  // the document's indexes are those of the load open now
         await flush()
-        if folders.isEmpty { await refresh() }
+        // Right after login Notes may be closed and nothing listed yet: it is started rather than nothing made.
+        if folders.isEmpty { await refresh(launchingNotes: true) }
         guard let folder = folders.first(where: { $0.id == folderID }) ?? folders.first(where: { $0.id == settings.defaultFolderID })
                 ?? folders.first else {
             Self.log.error("No folder to make a note in")

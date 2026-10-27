@@ -70,15 +70,15 @@ public final class NotesController {
 
     // MARK: Actions
 
-    /// Makes an empty note in the default folder and opens it.
+    /// Makes an empty note in the default folder and opens it in the window. When no note could be made (no access
+    /// yet, no folder) the window opens all the same: it shows the access card, so the command never does nothing.
     public func newNote() {
         Task {
             await flush()
             let before = store.open?.generation
             await store.newNote()
-            // Nothing new opened: the note could not be made (no folder, no access).
-            guard let id = store.open?.id, store.open?.generation != before else { return }
-            showWindow(noteID: id)
+            let made = store.open.flatMap { $0.generation != before ? $0.id : nil }
+            showWindow(noteID: made)
         }
     }
 

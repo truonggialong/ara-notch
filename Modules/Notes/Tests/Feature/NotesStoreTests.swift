@@ -742,6 +742,16 @@ private struct Harness {
         #expect(h.store.open?.safety == .editable)
     }
 
+    /// Right after login Notes may be closed and nothing listed yet: a new note starts it rather than doing nothing.
+    @Test func newNoteStartsAClosedNotes() async throws {
+        let h = try await Harness()
+        h.fake.accessValue = .notRunning
+        h.fake.accessAfterLaunch = .granted
+        await h.store.newNote()
+        #expect(h.fake.launchCalls == 1)
+        #expect(h.store.open != nil)
+    }
+
     @Test func newNoteFallsBackToFirstFolder() async throws {
         let h = try await Harness()
         h.settings.defaultFolderID = "x-coredata://FAKE/ICFolder/p999"
