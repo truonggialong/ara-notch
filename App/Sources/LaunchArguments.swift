@@ -48,7 +48,7 @@ struct LaunchArguments {
     /// `--copy-color <format>`: copy the newest colour clip as `hex`, `rgb` or `hsl`.
     let copyColor: String?
     /// `--simulate-now-playing <json>`: show this track instead of asking the system; one line
-    /// in the format of the now-playing helper.
+    /// in the format of the now-playing helper. Several lines are shown three seconds apart.
     let simulatedNowPlaying: String?
     /// `--print-audio-outputs <file>`: write the list of sound output devices to this file.
     let audioOutputsFile: URL?

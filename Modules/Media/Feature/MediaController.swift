@@ -48,6 +48,9 @@ public final class MediaController {
     private var lyricsTask: Task<Void, Never>?
     /// What the resting activity was last drawn from, so it is set again only on a change.
     private var restingKey: String?
+    /// A paused track stays beside the notch for a while; this takes it away after.
+    private var pausedResting = PausedResting()
+    private var restingHide: DispatchWorkItem?
 
     private let settings: MediaSettings
     private let notch: NotchController
@@ -208,11 +211,16 @@ public final class MediaController {
 
     /// Feeds one line of helper output, as if the helper had printed it. The real helper is
     /// not used from then on.
+    /// Several lines, one per row, are shown one after another, three seconds apart.
     public func simulate(line: String) {
         usesHelper = false
         helper.stop()
-        if let update = NowPlayingParser.parse(line: line) {
-            apply(update)
+        for (index, row) in line.split(separator: "\n").enumerated() {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3 * Double(index)) { [weak self] in
+                if let update = NowPlayingParser.parse(line: String(row)) {
+                    self?.apply(update)
+                }
+            }
         }
     }
 
@@ -272,10 +280,18 @@ public final class MediaController {
         }
     }
 
-    /// While something plays, its artwork and moving bars rest beside the closed notch;
-    /// anything announced for a moment shows over them and they come back after.
+    /// While something plays, and for a while after it was paused, its artwork, bars and
+    /// progress rest beside the closed notch; anything announced for a moment shows over them
+    /// and they come back after.
     private func refreshRestingActivity(shows: Bool) {
-        guard shows, settings.isEnabled, let track = viewModel.track, track.isPlaying else {
+        let now = Date()
+        if let track = viewModel.track {
+            pausedResting.update(isPlaying: track.isPlaying, at: now)
+        } else {
+            pausedResting.reset()
+        }
+        scheduleRestingHide(after: now)
+        guard shows, settings.isEnabled, let track = viewModel.track, pausedResting.shows(at: now) else {
             if restingKey != nil {
                 restingKey = nil
                 notch.setRestingActivity(nil, id: Self.restingActivityID)
@@ -283,25 +299,31 @@ public final class MediaController {
             return
         }
         // Set again only when what it draws has changed: the track, or its artwork arriving.
-        let key = "\(track.artworkID ?? track.title)|\(viewModel.artwork != nil)|\(viewModel.sourceApp?.bundleID ?? "")"
+        // Playing or paused, and the position, are followed by the views themselves.
+        let hasLength = (track.duration ?? 0) > 0
+        let key = "\(track.artworkID ?? track.title)|\(viewModel.artwork != nil)|\(viewModel.sourceApp?.bundleID ?? "")|\(hasLength)"
         guard key != restingKey else { return }
         restingKey = key
-        let artwork = viewModel.artwork
-        let icon = viewModel.sourceApp?.icon
+        let model = viewModel
+        let picture = viewModel.artwork ?? viewModel.sourceApp?.icon
+        let colors = Self.colors(of: picture)
+        let notch = notch
         var activity = NotchLiveActivity(id: Self.restingActivityID, priority: 0, duration: 0, pageID: "media") {
-            if let picture = artwork ?? icon {
-                Image(nsImage: picture)
-                    .resizable()
-                    .scaledToFill()
-                    .frame(width: 18, height: 18)
-                    .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
-            } else {
-                Image(systemName: "music.note")
-                    .font(.system(size: 12, weight: .medium))
+            RestingArtwork(model: model, picture: picture, colors: colors) {
+                notch.selectPage(id: "media")
+                notch.open()
             }
         } trailing: {
-            PlayingBarsView()
-                .foregroundStyle(AraPalette.tint(.sky).line)
+            RestingBars(model: model, colors: colors)
+        }
+        // Just room for the artwork and the bars.
+        activity.sideWidth = 44
+        // The sides and the line are the player's controls: the pointer there does not open the notch.
+        activity.keepsSides = true
+        if hasLength {
+            activity.setBottom(height: 8, hoveredHeight: 20) {
+                TrackProgressLine(model: model, colors: colors)
+            }
         }
         activity.peek = [track.title, track.artist ?? ""].filter { !$0.isEmpty }.joined(separator: " — ")
         // Fingers moving left bring the next track, as they bring the next page.
@@ -309,6 +331,29 @@ public final class MediaController {
             MediaCommands.send(direction == .next ? .nextTrack : .previousTrack)
         }
         notch.setRestingActivity(activity, id: Self.restingActivityID)
+    }
+
+    /// Looks again when a paused track is due to leave.
+    private func scheduleRestingHide(after now: Date) {
+        restingHide?.cancel()
+        restingHide = nil
+        guard let hideDate = pausedResting.hideDate, hideDate > now else { return }
+        let hide = DispatchWorkItem { [weak self] in
+            guard let self else { return }
+            self.refreshRestingActivity(shows: self.settings.showsWhilePlaying)
+        }
+        restingHide = hide
+        DispatchQueue.main.asyncAfter(deadline: .now() + hideDate.timeIntervalSince(now), execute: hide)
+    }
+
+    /// The colours the track is drawn in beside the notch: its artwork's, or the app's icon's,
+    /// or the notch's sky blue when the picture is grey or missing.
+    private static func colors(of picture: NSImage?) -> [Color] {
+        if let picture, let found = TrackColors.from(pixels: ArtworkPixels.sample(picture)) {
+            return [found.first, found.second].map { Color(red: $0.red, green: $0.green, blue: $0.blue) }
+        }
+        let sky = AraPalette.tint(.sky).line
+        return [sky, sky.opacity(0.7)]
     }
 
     private func apply(_ update: NowPlayingUpdate) {
