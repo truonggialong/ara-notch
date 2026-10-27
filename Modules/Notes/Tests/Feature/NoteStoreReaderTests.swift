@@ -113,6 +113,31 @@ private let minimalProtobuf = Data([0x12, 0x06, 0x1a, 0x04, 0x12, 0x02, 0x48, 0x
         #expect(NoteStoreReader(url: store.dbURL).note(forNoteKey: 96)?.attachmentKeys == [40, nil])
     }
 
+    /// A picture Notes got through HTML is "public.data" in a file with no extension: its bytes make it a picture.
+    @Test func publicDataWhoseFileIsAPictureIsAPicture() throws {
+        func bytes(_ field: UInt8, _ data: Data) -> Data { Data([field << 3 | 2, UInt8(data.count)]) + data }
+        func varint(_ field: UInt8, _ value: UInt8) -> Data { Data([field << 3, value]) }
+        var note = bytes(2, Data("\u{FFFC}\n\u{FFFC}".utf8))
+        for (length, identifier) in [(UInt8(2), "PICTURE"), (1, "TEXT")] {
+            let info = bytes(1, Data(identifier.utf8)) + bytes(2, Data("public.data".utf8))
+            note += bytes(5, varint(1, length) + bytes(12, info))
+        }
+        let store = try TempStore()
+        try store.insertNoteData(try gzip(bytes(2, bytes(3, note))), noteKey: 96, dataKey: 7)
+        try store.exec("""
+            INSERT INTO ZICCLOUDSYNCINGOBJECT (Z_PK, ZIDENTIFIER) VALUES (5, 'ACC');
+            INSERT INTO ZICCLOUDSYNCINGOBJECT (Z_PK, ZIDENTIFIER, ZFILENAME) VALUES (21, 'M1', 'M1');
+            INSERT INTO ZICCLOUDSYNCINGOBJECT (Z_PK, ZIDENTIFIER, ZFILENAME) VALUES (23, 'M2', 'M2');
+            INSERT INTO ZICCLOUDSYNCINGOBJECT (Z_PK, ZIDENTIFIER, ZMEDIA, ZACCOUNT2) VALUES (20, 'PICTURE', 21, 5);
+            INSERT INTO ZICCLOUDSYNCINGOBJECT (Z_PK, ZIDENTIFIER, ZMEDIA, ZACCOUNT2) VALUES (22, 'TEXT', 23, 5);
+            """)
+        let png = try store.makeFile("Accounts/ACC/Media/M1/M1")
+        try Data([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0, 0, 0, 0]).write(to: png)
+        try store.makeFile("Accounts/ACC/Media/M2/M2")
+        let blocks = NoteStoreReader(url: store.dbURL).note(forNoteKey: 96)?.decoded.document.blocks
+        #expect(blocks == [.image(attachmentIndex: 0), .file(attachmentIndex: 1, name: "", uti: "public.data")])
+    }
+
     @Test func missingKeyIsNil() throws {
         let store = try TempStore()
         try store.insertNoteData(try gzip(minimalProtobuf), noteKey: 1, dataKey: 1)

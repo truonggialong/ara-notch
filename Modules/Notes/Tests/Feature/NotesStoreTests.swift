@@ -356,6 +356,23 @@ private struct Harness {
         #expect(h.store.open?.id == b)
     }
 
+    /// A picture Notes got through HTML lies in a file with no extension: its bytes give its type.
+    @Test func imageInAFileWithoutExtensionLoads() async throws {
+        let dir = temporaryDirectory()
+        let file = dir.appendingPathComponent("58E653A7-8BCF-426B-831B-82B3516D113B")
+        try Data([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0, 0, 0, 0]).write(to: file)
+        let db = FakeDatabase()
+        db.files[1] = file
+        let h = try await Harness(database: db)
+        let a = h.fake.addNote("A", in: h.folderID, html: "<div>A</div><div><br></div>", plainText: "A\n\u{FFFC}",
+                               attachments: [attachmentID(1)])
+        db.documents[NotesIDs.databaseKey(of: a, entity: "ICNote")!] = NoteDocument(blocks: [p("A"), .image(attachmentIndex: 0)])
+        await h.store.openNote(a)
+        let open = try #require(h.store.open)
+        #expect(open.safety == .editable)
+        #expect(open.images[0]?.pathExtension == "png")
+    }
+
     @Test func writeLandingWhileImagesLoadOpensAsConflict() async throws {
         let dir = temporaryDirectory()
         let file = dir.appendingPathComponent("photo.png")

@@ -85,13 +85,26 @@ public final class NoteStoreReader: NoteDatabase {
     public func note(forNoteKey key: Int) -> DatabaseNote? {
         guard let row = row(forNoteKey: key) else { return nil }
         do {
-            let decoded = try NoteStoreDecoder.decode(row.data)
+            let decoded = pictures(in: try NoteStoreDecoder.decode(row.data))
             return DatabaseNote(decoded: decoded, modified: row.modified,
                                 attachmentKeys: attachmentKeys(forIdentifiers: decoded.attachments.map(\.identifier)))
         } catch {
             Self.log.error("Could not decode note \(key, privacy: .public)")
             return nil
         }
+    }
+
+    /// The note with its "public.data" attachments whose file is a picture shown as pictures: that is how Notes
+    /// keeps a picture it got through HTML, so every picture AraNotch writes comes back this way.
+    private func pictures(in decoded: DecodedNote) -> DecodedNote {
+        let indices = decoded.attachments.indices.filter { index in
+            guard decoded.attachments[index].uti == "public.data",
+                  let file = attachmentFile(forIdentifier: decoded.attachments[index].identifier),
+                  let handle = try? FileHandle(forReadingFrom: file) else { return false }
+            defer { try? handle.close() }
+            return (try? handle.read(upToCount: 12)).flatMap { NoteImageFormat.fileExtension(of: $0) } != nil
+        }
+        return decoded.showingAsImages(Set(indices))
     }
 
     /// The row key of the attachment with each identifier (ZIDENTIFIER), nil for one not found.
@@ -107,6 +120,24 @@ public final class NoteStoreReader: NoteDatabase {
                 sqlite3_bind_text(statement, 1, identifier, -1, Self.sqliteTransient)
                 guard sqlite3_step(statement) == SQLITE_ROW else { return nil }
                 return Int(sqlite3_column_int64(statement, 0))
+            }
+        } ?? identifiers.map { _ in nil }
+    }
+
+    /// The type (ZTYPEUTI) of the attachment row with each identifier, nil for one not found.
+    func attachmentTypes(forIdentifiers identifiers: [String]) -> [String?] {
+        guard !identifiers.isEmpty else { return [] }
+        return withDatabase { db in
+            var statement: OpaquePointer?
+            defer { sqlite3_finalize(statement) }
+            guard Self.columns(of: "ZICCLOUDSYNCINGOBJECT", in: db).contains("ZTYPEUTI"),
+                  sqlite3_prepare_v2(db, "SELECT ZTYPEUTI FROM ZICCLOUDSYNCINGOBJECT WHERE ZIDENTIFIER = ? LIMIT 1", -1, &statement, nil) == SQLITE_OK
+            else { return identifiers.map { _ in nil } }
+            return identifiers.map { identifier -> String? in
+                sqlite3_reset(statement)
+                sqlite3_bind_text(statement, 1, identifier, -1, Self.sqliteTransient)
+                guard sqlite3_step(statement) == SQLITE_ROW else { return nil }
+                return Self.text(statement, 0)
             }
         } ?? identifiers.map { _ in nil }
     }

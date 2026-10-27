@@ -2,6 +2,7 @@ import AppKit
 import Combine
 import NotchCore
 import NotchShell
+import NotesCore
 import SwiftUI
 
 /// The Notes feature as the app sees it: the notch page, its settings, a new note, and saving whenever the
@@ -114,8 +115,16 @@ public final class NotesController {
     /// Writes the raw (compressed) body of a note's database row to `file`; for automated checks. False when
     /// the note has no row key or the database cannot be read (no Full Disk Access).
     public func dumpNoteData(noteID: String, to file: URL) -> Bool {
+        let reader = NoteStoreReader()
         guard let key = NotesIDs.databaseKey(of: noteID, entity: "ICNote"),
-              let data = NoteStoreReader().rawData(forNoteKey: key) else { return false }
+              let data = reader.rawData(forNoteKey: key) else { return false }
+        // Beside it, each attachment: identifier, type in the protobuf, type of its row, media file.
+        let attachments = (try? NoteStoreDecoder.decode(data))?.attachments ?? []
+        let types = reader.attachmentTypes(forIdentifiers: attachments.map(\.identifier))
+        let lines = zip(attachments, types).map { attachment, type in
+            "\(attachment.identifier) \(attachment.uti) \(type ?? "-") \(reader.attachmentFile(forIdentifier: attachment.identifier)?.lastPathComponent ?? "-")"
+        }
+        try? lines.joined(separator: "\n").write(to: file.appendingPathExtension("txt"), atomically: true, encoding: .utf8)
         return (try? data.write(to: file)) != nil
     }
 

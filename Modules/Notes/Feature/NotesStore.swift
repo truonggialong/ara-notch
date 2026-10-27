@@ -423,9 +423,11 @@ final class NotesStore: ObservableObject {
         guard let database, let key = NotesIDs.attachmentKey(of: id) else { return nil }
         let found: (Data, String)? = await Task.detached {
             guard let file = database.attachmentFile(forAttachmentKey: key) else { return nil }
-            let ext = file.pathExtension.lowercased()
+            guard let data = try? Data(contentsOf: file), !data.isEmpty else { return nil }
+            // A picture Notes got through HTML is in a file with no extension: its bytes tell its type.
+            let named = file.pathExtension.lowercased()
             // An unknown type could not be embedded with the right MIME type.
-            guard Self.mimeTypes[ext] != nil, let data = try? Data(contentsOf: file), !data.isEmpty else { return nil }
+            guard let ext = Self.mimeTypes[named] != nil ? named : NoteImageFormat.fileExtension(of: data) else { return nil }
             return (data, ext)
         }.value
         guard let (data, ext) = found else { return nil }
