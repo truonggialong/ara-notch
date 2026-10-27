@@ -17,18 +17,17 @@ public enum EditSafety: Hashable, Sendable {
         if isLocked { return .readOnly([.locked]) }
         let edited = full ?? html
         var found = Set<ReadOnlyReason>()
-        if full != nil {
-            for block in edited.blocks {
-                switch block {
-                case .listItem(.checklist, _, _): found.insert(.checklist)
-                case .listItem(.numbered, _, _): found.insert(.numberedList)
-                case .quote: found.insert(.quote)
-                case .file: found.insert(.file)
-                case .drawing: found.insert(.drawing)
-                default: break
-                }
+        for block in edited.blocks {
+            switch block {
+            case .listItem(.checklist, _, _): found.insert(.checklist)
+            case .listItem(.numbered, _, _): found.insert(.numberedList)
+            case .quote: found.insert(.quote)
+            case .file: found.insert(.file)
+            case .drawing: found.insert(.drawing)
+            default: break
             }
-        } else if edited.blocks.contains(where: { if case .listItem = $0 { true } else { false } }) {
+        }
+        if full == nil, edited.blocks.contains(where: { if case .listItem = $0 { true } else { false } }) {
             // Without the database, list kinds cannot be told apart, so no list is safe to rewrite.
             found.insert(.listsUnknown)
         }

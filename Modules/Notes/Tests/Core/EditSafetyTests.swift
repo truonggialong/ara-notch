@@ -89,6 +89,22 @@ import Testing
         #expect(safety == .readOnly([.unreadable]))
     }
 
+    @Test func htmlOnlyQuoteIsReadOnly() {
+        let doc = NoteDocument(blocks: [.quote([TextRun("q")])])
+        #expect(Self.check(full: nil, html: doc) == .readOnly([.quote]))
+    }
+
+    @Test func htmlOnlyFileIsReadOnly() {
+        let doc = NoteDocument(blocks: [.file(attachmentIndex: 0, name: "a", uti: "public.data")])
+        #expect(Self.check(full: nil, html: doc) == .readOnly([.file]))
+    }
+
+    @Test func tableLineHasOneAttachmentMarker() {
+        let doc = NoteDocument(blocks: [Self.p("before"), .table(html: "<table></table>", cells: [["a"]]), Self.p("after")])
+        let safety = EditSafety.check(full: nil, html: doc, isLocked: false, plainText: "before\n\u{FFFC}\nafter\n\n")
+        #expect(safety == .editable)
+    }
+
     @Test func sameSecondWrites() {
         let t = Date(timeIntervalSince1970: 1000)
         #expect(SaveGuard.decide(openedAt: t, currentModification: t) == .write)
