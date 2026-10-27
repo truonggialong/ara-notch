@@ -24,6 +24,7 @@ Xem các kiểu `public` trong mã của module.
 - `--new-note`: tạo ghi chú mới trong Notes và mở cửa sổ Notes.
 - `--show-notes`: mở cửa sổ Notes.
 - `--dump-note-data <noteID> <tệp>`: ghi dữ liệu thô của ghi chú (cần Full Disk Access) ra tệp, in kết quả ra stdout.
+- `--self-test-notes <tệp>`: tự thử cửa sổ Ghi chú bằng sự kiện phím và chuột gửi qua app (gõ, ⌘B ⌘I ⌘U ⌘⇧X ⌘⇧M, menu nổi, ⌘K, thanh công cụ, ⌘V ảnh, độ trễ khi gõ ghi chú 1500 dòng, ⌘Q ngay sau khi gõ), ghi từng bước ra tệp rồi thoát app. Tạo hai ghi chú trong thư mục mặc định; bảng dán được trả lại như cũ.
 - `--append-note <noteID> <chữ> <tệp>`: mở ghi chú, thêm một đoạn ở cuối và lưu như khi gõ; ghi độ an toàn và trạng thái lưu ra tệp.
 
 Notes nối ở `AppDelegate`: trang đăng ký sau trang Lịch, `makePageSettings()` ở tab Trang, `makeToolSettings()` ở tab Công cụ, công cụ "note", mục menu "Ghi chú mới" và phím `.newNote` đều gọi `NotesController` (`start()` giữ trình xử lý phím). Clipboard không còn ghi chú riêng. Khi thoát app, `applicationShouldTerminate` trả `.terminateLater`, chờ `notes.saveBeforeQuitting()` (ghi phần đang gõ dở, tối đa 5 giây) rồi mới cho thoát.

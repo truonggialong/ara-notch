@@ -95,17 +95,23 @@ extension NotesController {
         await pause(400)
         Self.restorePasteboard(saved)
         let pictures = text2.string.filter { $0 == "\u{FFFC}" }.count
-        log(pictures == 1 ? "⌘V picture: pasted" : "FAIL ⌘V picture: \(pictures) pictures in the text")
+        log(pictures == 1 ? "⌘V picture: pasted" : "FAIL ⌘V picture: \(pictures) pictures in the text "
+            + "(safety \(store.open.map { "\($0.safety)" } ?? "-"), staging \(store.staging.isAvailable), png bytes \(Self.samplePNG().count))")
         type("\nsau ảnh", in: window2)
         await pause(300)
         await flush()
         log("saved: \(store.saveState), note \(store.open?.id ?? "-")")
 
-        // The last letter, then quit at once.
+        // The last letter, then quit at once. ⌘Q is posted, not sent: sent from inside this task, the wait macOS runs
+        // for the save to finish would block the very task that saves.
         type("Z", in: window2)
         log("typed Z, quitting")
-        key("q", flags: .command, in: window2)
-        await pause(1500)
+        if let event = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: .command,
+                                         timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window2.windowNumber,
+                                         context: nil, characters: "q", charactersIgnoringModifiers: "q", isARepeat: false, keyCode: 12) {
+            NSApp.postEvent(event, atStart: false)
+        }
+        await pause(6000)
         log("⌘Q did not quit (no menu item takes it); quitting through the app")
         NSApp.terminate(nil)
     }
@@ -113,8 +119,13 @@ extension NotesController {
     private func openNewNote(log: (String) -> Void) async -> (NSWindow, NoteTextView, NoteEditorCoordinator)? {
         let before = store.open?.id
         newNote()
-        for _ in 0..<150 {
+        var seen = ""
+        let started = Date()
+        for _ in 0..<450 {
             try? await Task.sleep(for: .milliseconds(100))
+            let state = "open \(store.open?.id.split(separator: "/").last ?? "-") \(store.open.map { "\($0.safety)" } ?? "") "
+                + "reloading \(store.isReloading) save \(store.saveState)"
+            if state != seen { log("  waiting: " + state); seen = state }
             guard let window = window?.window, let open = store.open, open.id != before, open.safety == .editable,
                   let text = Self.textView(in: window.contentView), text.isEditable,
                   let editor = text.host as? NoteEditorCoordinator else { continue }
@@ -122,10 +133,11 @@ extension NotesController {
             window.makeKeyAndOrderFront(nil)
             window.makeFirstResponder(text)
             try? await Task.sleep(for: .milliseconds(300))
-            log("note open: \(open.id), key window \(window.isKeyWindow)")
+            log(String(format: "note open after %.1f s: %@, key window %@", Date().timeIntervalSince(started), open.id,
+                       window.isKeyWindow ? "yes" : "no"))
             return (window, text, editor)
         }
-        log("FAIL no editable new note in 15 s (open: \(store.open?.id ?? "-"), state \(store.saveState))")
+        log("FAIL no editable new note in 45 s (open: \(store.open?.id ?? "-"), state \(store.saveState))")
         return nil
     }
 

@@ -33,7 +33,7 @@ final class NotesStore: ObservableObject {
     private let service: NotesService
     private let database: NoteDatabase?
     private let cache: NoteImageCache
-    private let staging: NoteImageStaging
+    let staging: NoteImageStaging
     private let settings: NotesSettings
     private let debounce: Duration
     /// A note with pictures waits longer: each write sends every picture to Notes and iCloud again.

@@ -69,7 +69,7 @@ Ghi chú định dạng chữ kiểu Telegram (bôi chữ là có menu nổi, c�
 - Chạy: `Scripts/test-module.sh Notes`, rồi `Scripts/test.sh`.
 - Bộ test: `Modules/Notes/Tests/Core/`, `Modules/Notes/Tests/Feature/`. Feature test dùng Notes giả (`FakeNotesService`) và cơ sở dữ liệu giả; không chạm Notes thật.
 - Test bộ giải mã trên ghi chú thật làm ở Notes trên macOS 27: `decodesRealNoteFromMacOS27`.
-- Còn nợ thử tay (cần chuột và bàn phím thật): phím định dạng (⌘B, ⌘I, ⌘U, ⌘⇧X, ⌘⇧M), menu nổi khi bôi chữ, ⌘K liên kết, dán ảnh, cắt và dán ảnh, đóng notch giữa lúc đang lưu, ⌘Q ngay sau khi gõ, xung đột khi đang sửa ở Notes, độ trễ khi gõ ghi chú dài.
+- Tự thử bằng `--self-test-notes` (2026-10-27, sự kiện phím và chuột gửi qua app, không phải chuột và bàn phím thật): ⌘B, ⌘I, ⌘U, ⌘⇧X, ⌘⇧M đúng; menu nổi hiện trên vùng chọn (cách 6 pt) và cú bấm đầu tiên ăn; ⌘K thêm liên kết; đề mục và danh sách từ thanh công cụ; ⌘V dán ảnh thành ảnh thật trong Notes; gõ trong ghi chú 1500 dòng tốn tối đa khoảng 6 ms mỗi phím; chữ gõ ngay trước ⌘Q được lưu. Kết quả đã đối chiếu trong Notes. Chưa thử: kéo chuột để chọn chữ, kéo thả ảnh, cuộn bằng con lăn, trang Ghi chú trên notch (đóng notch giữa lúc lưu).
 
 ## Tệp
 
@@ -117,6 +117,7 @@ Ghi chú định dạng chữ kiểu Telegram (bôi chữ là có menu nổi, c�
 - **`save attachment` hỏng trên macOS 27** (lỗi -10000, với mọi tệp đính kèm). Ảnh lấy từ tệp media của cơ sở dữ liệu (cần Full Disk Access) hay cache của app.
 - **Cỡ chữ.** Notes đổi cỡ chữ nhận qua HTML (dưới 18 px thành 11 px, 18 px thành 15), không có HTML nào cho đúng cỡ thân bài gốc. Chủ dự án chọn: ghi thân bài 18 px (Notes hiện 15, to hơn chữ Notes gõ một chút) và tiêu đề đậm 28/24/21 (Notes giữ 24/21/18). Hệ quả: chữ trong ghi chú đã lưu từ AraNotch to hơn chữ gõ trong Notes một chút; một dòng toàn chữ đậm cỡ 24/21/18 gõ trong Notes được đọc là tiêu đề.
 - **"Đã xoá gần đây" ẩn theo tên** (tiếng Anh và hai cách viết tiếng Việt). Giao diện Notes ngôn ngữ khác thì thư mục đó hiện như thư mục thường, và ghi chú bị xoá ở Notes trong lúc đang mở thì lần lưu báo lỗi thay vì "đã bị xoá".
+- **Ghi chú mới chậm khi Notes đang bận**: thường 3–4 giây từ lúc bấm tới khi mở được; ngay sau khi lưu một ghi chú rất dài (1500 dòng) có lần tới 35 giây, vì các lệnh AppleScript chạy nối nhau sau lần ghi đó.
 - **Ghi ảnh cần Full Disk Access**: AraNotch đặt tạm tệp ảnh trong thư mục `AraNotch` của nó bên trong thư mục chứa của Notes (thư mục rỗng còn lại sau khi ghi; tệp bị bỏ lại khi app thoát giữa lúc lưu được dọn sau một giờ). Không đặt được thì ghi chú có ảnh là chỉ xem ("ảnh không có sẵn") và không dán được ảnh, vì ghi ảnh kiểu `data:` sẽ biến ảnh thành ô "File" trong Notes.
 - **Cỡ chữ riêng không giữ được**: cỡ chữ người dùng chọn trong Notes (khác cỡ AraNotch ghi) về cỡ thân bài sau một lần lưu từ AraNotch.
 - **Lưu ghi chú có ảnh chậm hơn**: 5 giây sau khi ngừng gõ (thay vì 1,5), để mỗi lần ghi không gửi lại mọi ảnh lên iCloud quá thường.
