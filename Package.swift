@@ -22,9 +22,9 @@ func feature(_ feature: String, hasCore: Bool = true) -> Target {
 }
 
 /// The tests of one part of a feature: Modules/<feature>/Tests/<part>.
-func tests(_ feature: String, _ part: String, dependencies: [Target.Dependency]) -> Target {
+func tests(_ feature: String, _ part: String, dependencies: [Target.Dependency], resources: [Resource] = []) -> Target {
     .testTarget(name: "\(feature == "Platform" ? "" : feature)\(part)Tests",
-                dependencies: dependencies, path: "Modules/\(feature)/Tests/\(part)")
+                dependencies: dependencies, path: "Modules/\(feature)/Tests/\(part)", resources: resources)
 }
 
 let features = ["Clipboard", "SystemEvents", "Timer", "Media", "Files", "Agent", "Windows", "Translate",
@@ -84,7 +84,7 @@ let package = Package(
         core("Translate"), feature("Translate"), tests("Translate", "Core", dependencies: ["TranslateCore"]),
         core("Windows"), feature("Windows"), tests("Windows", "Core", dependencies: ["WindowsCore"]),
         core("Notes", dependencies: ["NotchCore"]), feature("Notes"),
-        tests("Notes", "Core", dependencies: ["NotesCore"]), tests("Notes", "Feature", dependencies: ["NotesFeature"]),
+        tests("Notes", "Core", dependencies: ["NotesCore"], resources: [.copy("Fixtures")]), tests("Notes", "Feature", dependencies: ["NotesFeature"]),
         feature("Tools", hasCore: false), tests("Tools", "Feature", dependencies: ["ToolsFeature"]),
     ]
 )
