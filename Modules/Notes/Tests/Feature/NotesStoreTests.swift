@@ -534,15 +534,34 @@ private struct Harness {
         #expect(html.contains(h.staging.standardizedFileURL.absoluteString) || html.contains(h.staging.absoluteString))
     }
 
-    /// Without a folder Notes can read (no Full Disk Access), a note with pictures is not written at all.
-    @Test func picturesThatCannotBeStagedFailTheSave() async throws {
+    /// Files left by a write the app never finished are removed by a later one; recent ones are not.
+    @Test func stagingRemovesOldLeftovers() throws {
+        let folder = temporaryDirectory()
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let old = folder.appendingPathComponent("old.png"), recent = folder.appendingPathComponent("recent.png")
+        try Data([1]).write(to: old)
+        try Data([1]).write(to: recent)
+        try FileManager.default.setAttributes([.modificationDate: Date().addingTimeInterval(-2 * NoteImageStaging.leftoverAge)],
+                                              ofItemAtPath: old.path)
+        _ = try NoteImageStaging(folder: folder).stage(NoteDocument(blocks: []), files: [:])
+        #expect(!FileManager.default.fileExists(atPath: old.path))
+        #expect(FileManager.default.fileExists(atPath: recent.path))
+    }
+
+    /// Without a folder Notes can read (no Full Disk Access), a note with pictures is view only, a picture cannot
+    /// be added, and nothing is written.
+    @Test func picturesThatCannotBeStagedMakeTheNoteViewOnly() async throws {
         let h = try await Harness(staging: URL(fileURLWithPath: "/nonexistent/\(UUID().uuidString)"))
         let id = try h.twoImageNote()
         await h.store.openNote(id)
+        #expect(h.store.open?.safety == .readOnly([.imagesUnavailable]))
         h.store.edit(generation: h.store.open?.generation, NoteDocument(blocks: [p("b"), .image(attachmentIndex: 0), .image(attachmentIndex: 1)]))
         await h.store.flush()
         #expect(h.fake.setBodyCalls == 0)
-        if case .failed = h.store.saveState {} else { Issue.record("expected a failed save, got \(h.store.saveState)") }
+        let plain = h.plainNote()
+        await h.store.openNote(plain)
+        #expect(h.store.open?.safety == .editable)
+        #expect(h.store.addImage(Data([1, 2, 3]), fileExtension: "png") == nil)
     }
 
     @Test func savedImagesAreKeptUnderTheirNewIDs() async throws {

@@ -136,6 +136,12 @@ private let minimalProtobuf = Data([0x12, 0x06, 0x1a, 0x04, 0x12, 0x02, 0x48, 0x
         try store.makeFile("Accounts/ACC/Media/M2/M2")
         let blocks = NoteStoreReader(url: store.dbURL).note(forNoteKey: 96)?.decoded.document.blocks
         #expect(blocks == [.image(attachmentIndex: 0), .file(attachmentIndex: 1, name: "", uti: "public.data")])
+        // A real file keeps its name: a raw photo is TIFF inside, but it stays a file.
+        try store.exec("UPDATE ZICCLOUDSYNCINGOBJECT SET ZFILENAME = 'photo.dng' WHERE Z_PK = 21")
+        try FileManager.default.removeItem(at: png)
+        try Data([0x4D, 0x4D, 0x00, 0x2A, 0, 0, 0, 0]).write(to: try store.makeFile("Accounts/ACC/Media/M1/photo.dng"))
+        let raw = NoteStoreReader(url: store.dbURL).note(forNoteKey: 96)?.decoded.document.blocks.first
+        #expect(raw == .file(attachmentIndex: 0, name: "", uti: "public.data"))
     }
 
     @Test func missingKeyIsNil() throws {

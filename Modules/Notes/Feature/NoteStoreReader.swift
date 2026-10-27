@@ -100,6 +100,8 @@ public final class NoteStoreReader: NoteDatabase {
         let indices = decoded.attachments.indices.filter { index in
             guard decoded.attachments[index].uti == "public.data",
                   let file = attachmentFile(forIdentifier: decoded.attachments[index].identifier),
+                  // Only Notes' nameless copy of a picture it got through HTML: a real file keeps its name.
+                  file.pathExtension.isEmpty,
                   let handle = try? FileHandle(forReadingFrom: file) else { return false }
             defer { try? handle.close() }
             return (try? handle.read(upToCount: 12)).flatMap { NoteImageFormat.fileExtension(of: $0) } != nil

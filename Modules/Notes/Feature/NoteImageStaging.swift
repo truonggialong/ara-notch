@@ -15,9 +15,19 @@ struct NoteImageStaging: Sendable {
 
     enum StagingError: Error { case unreadable(Int) }
 
+    /// Whether pictures can be staged: the folder exists or can be made, and can be written.
+    var isAvailable: Bool {
+        (try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)) != nil
+            && FileManager.default.isWritableFile(atPath: folder.path)
+    }
+
+    /// Files a write left behind when the app stopped before removing them (quit mid-save, a crash).
+    static let leftoverAge: TimeInterval = 3600
+
     /// A file URL (as a string for `src`) for each image block of `document` whose file is in `files`, and the staged
     /// files to remove after the write. Throws when a picture cannot be staged: the note must not be written then.
     func stage(_ document: NoteDocument, files: [Int: URL]) throws -> (sources: [Int: String], staged: [URL]) {
+        removeLeftovers()
         var sources: [Int: String] = [:]
         var staged: [URL] = []
         do {
@@ -39,6 +49,14 @@ struct NoteImageStaging: Sendable {
             throw error
         }
         return (sources, staged)
+    }
+
+    private func removeLeftovers(now: Date = Date()) {
+        let files = (try? FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: [.contentModificationDateKey])) ?? []
+        for file in files {
+            let modified = (try? file.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate ?? now
+            if now.timeIntervalSince(modified) > Self.leftoverAge { try? FileManager.default.removeItem(at: file) }
+        }
     }
 
     func remove(_ staged: [URL]) {

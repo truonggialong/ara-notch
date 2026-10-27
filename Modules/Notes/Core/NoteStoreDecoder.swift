@@ -272,7 +272,9 @@ public enum NoteStoreDecoder {
 
         private func attachmentBlock(_ attachment: NoteStoreAttachment, index: Int) -> NoteBlock {
             let uti = attachment.uti
-            if ["public.jpeg", "public.png", "public.heic", "public.image"].contains(uti) { return .image(attachmentIndex: index) }
+            if ["public.jpeg", "public.png", "public.heic", "public.image", "com.compuserve.gif", "public.gif", "public.tiff"].contains(uti) {
+                return .image(attachmentIndex: index)
+            }
             if uti == "com.apple.notes.table" { return .table(html: "", cells: []) }
             if uti.hasPrefix("com.apple.drawing") || uti == "com.apple.paper" { return .drawing(attachmentIndex: index) }
             return .file(attachmentIndex: index, name: "", uti: uti)

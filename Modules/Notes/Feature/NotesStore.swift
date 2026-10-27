@@ -257,7 +257,9 @@ final class NotesStore: ObservableObject {
             // With the database, AppleScript's ids are put in document order (they may come in the order added).
             let ids = read.full == nil ? read.ids : Self.ordered(read.ids, byKeys: read.attachmentKeys)
             let (images, complete) = await loadImages(of: document, ids: ids ?? [], readable: read.readable)
-            if !complete { safety = safety.adding(.imagesUnavailable) }
+            // Pictures are written as files staged where Notes can read them; without that place (no Full Disk
+            // Access) a note with pictures cannot be written without turning them into files.
+            if !complete || (document.imageCount > 0 && !staging.isAvailable) { safety = safety.adding(.imagesUnavailable) }
             guard generation == latestRequest else {
                 Self.log.info("A later open replaced this one")
                 return
@@ -459,7 +461,7 @@ final class NotesStore: ObservableObject {
     /// Adds an image the user put in the open note and returns the attachmentIndex for its `.image` block,
     /// or nil when the note is not editable or the bytes could not be kept.
     func addImage(_ data: Data, fileExtension: String) -> Int? {
-        guard var note = open, note.safety == .editable, !data.isEmpty,
+        guard var note = open, note.safety == .editable, !data.isEmpty, staging.isAvailable,
               Self.mimeTypes[fileExtension.lowercased()] != nil else { return nil }
         do {
             let key = try cache.storeNew(data, fileExtension: fileExtension)
@@ -563,15 +565,16 @@ final class NotesStore: ObservableObject {
         savingID = id
         defer { savingID = nil }
         do {
-            let current = try await service.modification(of: id)
             let note = open?.generation == generation ? open ?? edited : edited
             guard note.safety == .editable else { return .failed("The note may not be written") }
-            let base = lastWritten[generation] ?? edited.openedAt
-            if SaveGuard.decide(openedAt: base, currentModification: current) == .conflict { return .conflict }
-            // Staging the pictures where Notes can read them and building the HTML is done off the main actor.
+            // Staging the pictures where Notes can read them and building the HTML is done off the main actor, and
+            // before the date check, so no more than that check stands between reading the date and writing.
             let files = note.images
             let (html, staged) = try await Self.html(for: document, files: files, staging: staging)
             defer { staging.remove(staged) }
+            let current = try await service.modification(of: id)
+            let base = lastWritten[generation] ?? edited.openedAt
+            if SaveGuard.decide(openedAt: base, currentModification: current) == .conflict { return .conflict }
             // No await between this check and the write: saves run one at a time.
             guard writeCount[id, default: 0] == (loadStamp[generation] ?? -1) + ownWrites[generation, default: 0] else {
                 Self.log.error("Note was written from another load since this one read it")
@@ -636,7 +639,7 @@ final class NotesStore: ObservableObject {
     }
 
     /// Notes gives written images new attachment ids: the cache keeps their files under those ids too (linked, the
-    /// bytes are not written again), so the note can be written again without Full Disk Access. The open document
+    /// bytes are not written again), so they are at hand for the next write without the database. The open document
     /// keeps its own indexes (an editor holding them stays right); only the files behind them move. Skipped when the
     /// ids do not line up.
     private func keepImages(of document: NoteDocument, files: [Int: URL], noteID: String, generation: Int) async {
