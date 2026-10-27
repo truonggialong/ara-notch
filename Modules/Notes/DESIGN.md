@@ -104,7 +104,7 @@ Modules/Notes/
 
 ## Đồng bộ và dữ liệu
 
-- Notes là nguồn duy nhất. AraNotch lưu trong UserDefaults: `notes.recentIDs` (id ghi chú mở gần đây), `notes.selectedFolderID`, `notes.defaultFolderID` (thư mục cho ghi chú mới; mặc định là thư mục mặc định của Notes), `notes.showsPage`.
+- Notes là nguồn duy nhất. AraNotch lưu trong UserDefaults: `notes.recentIDs` (id ghi chú mở gần đây), `notes.selectedFolderID`, `notes.defaultFolderID` (thư mục cho ghi chú mới; mặc định là thư mục mặc định của Notes). (Sửa 2026-10-27: không có khoá `notes.showsPage`; trang Ghi chú bật tắt như các trang khác.)
 - Ảnh (sửa 2026-10-27: lấy từ tệp media của cơ sở dữ liệu, không bằng AppleScript) được giữ trong `~/Library/Caches/<bundle id>/Notes/<id ghi chú>/`, xoá khi ghi chú bị xoá hay khi cache quá 200 MB (xoá cái cũ nhất trước).
 - Danh sách chỉ đọc tên, dòng đầu, ngày sửa, có ảnh không, khoá không; nội dung đọc khi mở ghi chú.
 - Lưu: đọc ngày sửa hiện tại; trùng ngày sửa lúc mở thì `set body`, rồi đọc lại ngày sửa mới làm mốc. Khác thì báo "Ghi chú đã đổi ở nơi khác" với nút Tải lại và Chép phần của tôi; không ghi.

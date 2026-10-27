@@ -44,7 +44,6 @@ Ghi chú định dạng chữ kiểu Telegram (bôi chữ là có menu nổi, c�
 - Notes được mở ở nền (không kích hoạt, ẩn) khi trang Ghi chú hay cửa sổ hiện, hoặc khi bấm Cho phép, nếu Notes chưa chạy. Kiểm tra thụ động không bao giờ hiện hộp hỏi quyền. Người đã thoát Notes sẽ thấy nó mở lại ở nền mỗi lần mở trang.
 - Thư mục "Đã xoá gần đây" bị ẩn theo tên (`NotesScripts.trashFolderNames`: tiếng Anh và hai cách viết tiếng Việt), vì Notes không có thuộc tính đánh dấu nó.
 - Kịch bản AppleScript nằm cả ở `NotesScripts` (chuỗi thuần, có test không cần Notes). `listNotes` phải dùng dạng `repeat with` đã kiểm trên Notes thật; dạng khác báo -1700.
-- Sổ tay của quá trình làm (các phán quyết, ghi chú thử tay) nằm ở `.superpowers/sdd/PLAN/progress.md` trong nhánh làm việc; ý chính đã chép vào mục dưới.
 
 ## Dữ liệu lưu
 
