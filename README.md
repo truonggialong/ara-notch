@@ -4,23 +4,23 @@
 
 A macOS app that turns the MacBook notch into a small control panel: clipboard, now playing, timers, calendar and reminders, notes, a file shelf, screen capture, quick translate and the state of coding agents.
 
-## Mới trong bản 0.28.0 · New in 0.28.0
+## Mới trong bản 0.29.0 · New in 0.29.0
 
-- **Ghi chú gọn trên notch:** không còn cửa sổ Ghi chú riêng. Mọi thứ của nó giờ nằm ngay trên trang Ghi chú, và notch mở cao hơn để có chỗ viết.
-- **Thư mục và danh sách:** bấm nút thư mục để chọn thư mục hay tạo thư mục mới. Ghi chú xếp theo ngày như trong Apple Notes, mỗi dòng có vài chữ đầu của nội dung.
-- **Thanh định dạng và ảnh lớn:** thanh định dạng luôn nằm trên ghi chú (kiểu chữ, đề mục, danh sách, khối mã, chèn ảnh). Ảnh hiện rộng bằng khung viết.
-- **Chuột phải để mở hay xoá:** chuột phải vào một ghi chú để mở trong Notes hay xoá; app hỏi lại trước khi xoá.
-- **"Ghi chú mới" mở ngay trên notch:** phím tắt và mục "Ghi chú mới" mở notch với ghi chú mới, gõ được ngay. Notch không tự đóng khi bạn đang viết hay đang chọn thư mục.
+- **Biết ngay ghi chú đã lưu chưa:** trên đầu ghi chú có tên thư mục, giờ sửa và trạng thái: "Đã lưu", "Đang lưu…" hay "Chỉ xem".
+- **Nút bấm cho mọi việc:** nút "Mở trong Notes" và "Xoá" nằm ngay trên đầu ghi chú. Rê chuột lên một dòng trong danh sách là có nút xoá, không cần chuột phải.
+- **Thanh định dạng gọn hơn:** thanh định dạng nằm trong khung viết, không còn là dải trắng nổi bật. Kiểu đang dùng sáng màu cam. Ghi chú chỉ xem thì thanh này ẩn đi.
+- **Dễ đọc hơn:** dòng đầu của ghi chú to hơn như một cái tên, chữ có lề và giãn dòng thoáng hơn, khung viết rộng hơn.
+- **Thư mục ngay trên danh sách:** tên thư mục đang xem và số ghi chú nằm ngay trên danh sách; bấm vào để đổi thư mục. Nút "+" tạo ghi chú mới to và dễ thấy hơn.
 
 Ghi chú dùng chính Apple Notes. Lần đầu, AraNotch xin quyền điều khiển Notes; để sửa ghi chú, cấp thêm **Full Disk Access** trong System Settings › Privacy & Security.
 
 ---
 
-- **Notes, all on the notch:** the separate Notes window is gone. Everything it had is now on the Notes page, and the notch opens taller to give you room to write.
-- **Folders and the list:** click the folder button to pick a folder or make a new one. Notes are listed by date as in Apple Notes, each with the first words of its text.
-- **Format toolbar and large pictures:** a format toolbar sits above the note (text styles, headings, lists, code blocks, pictures). Pictures fill the width of the note.
-- **Right-click to open or delete:** right-click a note to open it in Notes or delete it; the app asks before deleting.
-- **"New note" opens right on the notch:** the shortcut and the "New note" item open the notch on a new note, ready to type. The notch stays open while you write or pick a folder.
+- **See at once whether a note is saved:** the top of the note shows its folder, when it was edited and its state: "Saved", "Saving…" or "View only".
+- **A button for everything:** "Open in Notes" and "Delete" sit right at the top of the note. Hover over a note in the list for a delete button, no right-click needed.
+- **A calmer format toolbar:** the toolbar now sits inside the writing area instead of a bright white strip. Styles in use light up in orange. Notes you can only view hide it.
+- **Easier to read:** a note's first line is larger, like a name; the text has more margin and line spacing, and the writing area is wider.
+- **Folder right above the list:** the folder you are viewing and how many notes it has sit right above the list; click to switch folders. The "+" button for a new note is bigger and easier to spot.
 
 Notes are your Apple Notes. The first time, AraNotch asks to control Notes; to edit notes, also give it **Full Disk Access** in System Settings › Privacy & Security.
 
