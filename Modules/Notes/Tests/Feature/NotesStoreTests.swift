@@ -312,6 +312,37 @@ private struct Harness {
         #expect(try await h.fake.content(of: a).html.contains("A typed"))
     }
 
+    @Test func reloadWritesTheOldEditorsWaitingEditFirst() async throws {
+        let dir = temporaryDirectory()
+        let file = dir.appendingPathComponent("photo.png")
+        try pngBytes.write(to: file)
+        let db = FakeDatabase()
+        db.files[1] = file
+        let h = try await Harness(database: db, debounce: .seconds(10))  // the edit stays waiting
+        let a = h.fake.addNote("A", in: h.folderID, html: "<div>A</div><div><br></div>", plainText: "A\n\u{FFFC}",
+                               attachments: [attachmentID(1)])
+        let key = NotesIDs.databaseKey(of: a, entity: "ICNote")!
+        db.documents[key] = NoteDocument(blocks: [p("A"), .image(attachmentIndex: 0)])
+        await h.store.openNote(a)
+        let old = try #require(h.store.open?.generation)
+        h.cache.remove(key: attachmentID(1))
+        db.fileDelay = 0.15
+        let reloading = Task { await h.store.reloadOpenNote() }
+        try await Task.sleep(for: .milliseconds(50))  // the reload is loading images
+        h.store.edit(generation: old, NoteDocument(blocks: [p("A & <typed>")]))
+        await reloading.value
+        #expect(h.store.saveState == .conflict)
+        #expect(h.fake.setBodyCalls == 0)
+        db.fileDelay = 0
+        db.documents[key] = NoteDocument(blocks: [p("A & <typed>")])  // what Notes' database holds once written
+        await h.store.reloadOpenNote()  // straight away, before the edit's debounce
+        #expect(h.fake.setBodyCalls == 1)
+        #expect(try await h.fake.content(of: a).html.contains("A &amp; &lt;typed&gt;"))
+        #expect(h.store.open?.document.blocks == [p("A & <typed>")])
+        #expect(h.store.open?.safety == .editable)
+        #expect(h.store.saveState == .saved)
+    }
+
     @Test func reloadThatNeverSettlesOpensAsConflict() async throws {
         let h = try await Harness(debounce: .milliseconds(1))
         let a = h.plainNote("A")

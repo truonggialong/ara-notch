@@ -138,11 +138,14 @@ final class NotesStore: ObservableObject {
         await load(id, generation: generation)
     }
 
-    /// After a conflict: drops the unsaved edit of this note and reads it again.
+    /// After a conflict: drops the unsaved edit of the open load and reads the note again.
+    /// An edit waiting from an older load of the note is not dropped: `load` writes it first (under its own
+    /// SaveGuard base and write count) and reads after it.
     func reloadOpenNote() async {
-        guard let id = open?.id else { return }
+        guard let current = open else { return }
+        let id = current.id
         let generation = requestLoad()
-        if pending?.note.id == id {
+        if pending?.note.generation == current.generation {
             debounceTask?.cancel()
             debounceTask = nil
             pending = nil

@@ -150,6 +150,9 @@ final class FakeNotesService: NotesService, @unchecked Sendable {
                 contentByID[noteID]?.plainText = html.replacingOccurrences(of: "</div>", with: "\n")
                     .replacingOccurrences(of: "<br>", with: "")
                     .replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
+                    .replacingOccurrences(of: "&lt;", with: "<").replacingOccurrences(of: "&gt;", with: ">")
+                    .replacingOccurrences(of: "&quot;", with: "\"").replacingOccurrences(of: "&#39;", with: "'")
+                    .replacingOccurrences(of: "&amp;", with: "&")
             }
             contentByID[noteID]?.modified = now
             notesByID[noteID]?.modified = now
