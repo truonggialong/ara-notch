@@ -30,7 +30,7 @@ The first time you use Notes, AraNotch asks to control Notes. To edit notes, als
 - **Hẹn giờ:** nhiều bộ hẹn giờ cùng lúc, có mức sẵn và nhãn.
 - **Lịch và lời nhắc:** ngày của bạn theo giờ, ba ngày tới, thêm sự kiện và lời nhắc, ước tính thời gian làm.
 - **Tệp:** thả tệp lên notch để giữ tạm, nén, đổi định dạng hay đổi cỡ ảnh.
-- **Ghi chú:** viết và định dạng chữ ngay trên notch (bôi chữ là có menu đậm, nghiêng, gạch chân…), dùng chính ghi chú của Apple Notes nên đồng bộ qua iCloud; cửa sổ Ghi chú riêng hiện đủ ảnh và danh sách việc.
+- **Ghi chú:** viết và định dạng chữ ngay trên notch (bôi chữ là có menu đậm, nghiêng, gạch chân…), dùng chính ghi chú của Apple Notes nên đồng bộ qua iCloud; thư mục, danh sách theo ngày, thanh định dạng và ảnh đều ngay trên notch.
 - **Chụp màn hình:** chụp một vùng, chụp cả trang dài bằng cách cuộn, ghi chú lên ảnh.
 - **Dịch nhanh:** chọn chữ trong bất kỳ app nào rồi dịch ngay.
 - **Agent lập trình:** xem Claude Code và Codex đang làm gì, khi nào cần bạn, khi nào xong, và còn bao nhiêu giới hạn sử dụng.
@@ -46,7 +46,7 @@ The first time you use Notes, AraNotch asks to control Notes. To edit notes, als
 - **Timers:** several at once, with presets and labels.
 - **Calendar and reminders:** your day hour by hour, the next three days, adding events and reminders, time estimates.
 - **Files:** drop files on the notch to keep them at hand, compress them, convert them or resize pictures.
-- **Notes:** write and format text right on the notch (select text for a menu of bold, italic, underline…), using your Apple Notes notes themselves so they sync through iCloud; a separate Notes window shows everything, pictures and checklists too.
+- **Notes:** write and format text right on the notch (select text for a menu of bold, italic, underline…), using your Apple Notes notes themselves so they sync through iCloud; folders, notes by date, a format toolbar and pictures, all on the notch.
 - **Screen capture:** capture an area, capture a long page by scrolling, and mark up the picture.
 - **Quick translate:** select text in any app and translate it at once.
 - **Coding agents:** see what Claude Code and Codex are doing, when they need you, when they are done, and how much of their usage limits is left.

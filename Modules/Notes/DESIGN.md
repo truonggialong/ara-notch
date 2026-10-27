@@ -2,6 +2,8 @@
 
 Ngày 2026-10-27. Chủ dự án duyệt từng phần trong phiên thiết kế; tệp này là bản viết lại để duyệt lần cuối trước khi lập kế hoạch.
 
+> **Sửa 2026-10-27 (sau khi làm):** chủ dự án bỏ cửa sổ Ghi chú; mọi thứ của nó (thư mục, danh sách theo ngày, menu chuột phải, xoá, thanh định dạng, ảnh rộng) nằm trên trang Ghi chú của notch, notch cao 420 pt. Xem `docs/superpowers/specs/2026-10-27-notes-in-notch-design.md`. Các đoạn nói về cửa sổ dưới đây là thiết kế gốc.
+
 ## Mục tiêu
 
 - Ghi chú trong AraNotch, định dạng chữ kiểu Telegram (bôi chữ là có menu, có phím tắt).

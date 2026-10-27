@@ -4,7 +4,7 @@ Sổ của module **Notes**. Đọc `Modules/README.md` trước: luật ranh gi
 
 ## Vai trò
 
-Ghi chú định dạng chữ kiểu Telegram (bôi chữ là có menu nổi, có phím tắt), và dữ liệu là chính Apple Notes: ghi chú của AraNotch là ghi chú trong Notes, iCloud lo việc đồng bộ. Gồm trang Ghi chú trên notch (trái: tìm và danh sách gần đây; phải: trình soạn), cửa sổ Ghi chú ba cột (thư mục, danh sách theo ngày, nội dung kèm thanh định dạng) hiện đủ ảnh, bảng và danh sách việc, tạo ghi chú mới (menu, công cụ, phím tắt, `--new-note`), và mục Ghi chú trong Cài đặt. Module thay "Ghi chú mới" cũ của Clipboard.
+Ghi chú định dạng chữ kiểu Telegram (bôi chữ là có menu nổi, có phím tắt), và dữ liệu là chính Apple Notes: ghi chú của AraNotch là ghi chú trong Notes, iCloud lo việc đồng bộ. Gồm trang Ghi chú trên notch (trái: nút chọn thư mục, ô tìm, nút + và danh sách nhóm theo ngày, chuột phải để mở trong Notes hay xoá; phải: thanh định dạng và trình soạn, ảnh rộng bằng khung), tạo ghi chú mới (menu, công cụ, phím tắt, `--new-note`, đều mở notch ở trang Ghi chú), và mục Ghi chú trong Cài đặt. Từ 2026-10-27 không còn cửa sổ Ghi chú riêng: mọi thứ của nó nằm trên trang. Module thay "Ghi chú mới" cũ của Clipboard.
 
 ## Target và thư mục
 
@@ -15,7 +15,7 @@ Ghi chú định dạng chữ kiểu Telegram (bôi chữ là có menu nổi, c�
 ## Phụ thuộc và ai dùng
 
 - Dùng: `NotesCore` dùng `NotchCore`. `NotesFeature` dùng `NotesCore`, `NotchCore`, `NotchShell`. Trong ruột có SQLite của hệ thống, `Compression`, `NSAppleScript`; không thêm thư viện.
-- Được dùng bởi: App (`AppDelegate` tạo `NotesController`). App nối: trang Ghi chú đăng ký sau trang Lịch, `makePageSettings()` ở Cài đặt › Trang notch, `makeToolSettings()` ở Cài đặt › Công cụ, công cụ `note`, mục menu "Ghi chú mới", phím `.newNote` (`start()` giữ trình xử lý), các tham số dòng lệnh `--new-note`, `--show-notes`, `--dump-note-data` (xem `App/README.md`).
+- Được dùng bởi: App (`AppDelegate` tạo `NotesController`). App nối: trang Ghi chú đăng ký sau trang Lịch, `makePageSettings()` ở Cài đặt › Trang notch, `makeToolSettings()` ở Cài đặt › Công cụ, công cụ `note`, mục menu "Ghi chú mới", phím `.newNote` (`start()` giữ trình xử lý), các tham số dòng lệnh `--new-note`, `--show-notes` (gọi `showPage()`), `--dump-note-data`, `--self-test-notes` (xem `App/README.md`).
 
 ## Giao diện công khai
 
@@ -25,7 +25,7 @@ Ghi chú định dạng chữ kiểu Telegram (bôi chữ là có menu nổi, c�
 - `NotesController.makePageSettings() -> AnyView`
 - `NotesController.makeToolSettings() -> AnyView`
 - `NotesController.newNote()`
-- `NotesController.showWindow(noteID: String? = nil)`
+- `NotesController.showPage()` (mở notch ở trang Ghi chú; thay `showWindow(noteID:)` đã bỏ ngày 2026-10-27)
 - `NotesController.dumpNoteData(noteID: String, to file: URL) -> Bool`
 - `NotesController.saveBeforeQuitting(limit: Duration = .seconds(5)) async -> Bool` (App gọi trong `applicationShouldTerminate`)
 - `NotesSettings(store:)` (Feature) và `NotesSettingsStore(defaults:)` với `recentIDs`, `selectedFolderID`, `defaultFolderID` (Core)
@@ -43,24 +43,26 @@ Ghi chú định dạng chữ kiểu Telegram (bôi chữ là có menu nổi, c�
 - `SaveGuard` chỉ cho ghi khi ngày sửa đúng bằng ngày đã đọc (cả hai qua AppleScript, làm tròn như nhau); khác một giây cũng là xung đột. Notes không tự dời ngày sau `set body` (đã đo).
 - Bộ ghi viết mọi span chữ với `white-space: pre-wrap`; thiếu nó Notes gộp dấu cách và bỏ tab, cách đầu dòng.
 - Với cơ sở dữ liệu: ngày `ZMODIFICATIONDATE1` của dòng phải trùng giây với ngày AppleScript (lệch thì đọc lại sau 300 ms, vẫn lệch thì `unreadable`); id tệp đính kèm của AppleScript được xếp theo thứ tự trong dữ liệu ghi chú (ZIDENTIFIER → Z_PK), không khớp thì ảnh không có sẵn.
-- `NotesStore` giữ máy trạng thái lưu (mở, sửa, lưu, xung đột, xoá). Mỗi lần tải có một số thế hệ (`generation`); `edit(_:generation:)` bỏ sửa của thế hệ cũ. Mỗi ghi chú có `writeCount`: lưu sau khi thế hệ khác đã ghi là xung đột, không phụ thuộc ngày giờ. Hai trình soạn (notch và cửa sổ) không bao giờ gửi một sửa có nền khác tài liệu hiện tại của store; chúng bắt kịp trước và hiện "Đã cập nhật từ cửa sổ kia" trong 2 giây. Trình soạn không được gõ bắt kịp sau khi bên kia ngừng gõ 0,5 giây. Trong lúc ghi chú đang mở được đọc lại (`isReloading`) thì không sửa được. Một lần tải thay ghi chú đang mở mà thấy lần lưu của nó vừa thành xung đột thì giữ nguyên ghi chú đó (kèm dải xung đột); bấm sang ghi chú kia lần nữa thì rời đi.
+- Trang xin sheet cao 420 pt (`NotesController.sheetHeight`). Notch được giữ mở (`setKeepsOpen`) khi trình soạn có con trỏ, bảng chọn thư mục mở, đang gõ tên thư mục, đang hỏi xoá, hay đang chọn ảnh (`NotesPageModel.keepsNotchOpen`); rời trang thì mọi thứ đó đóng. Bảng chọn thư mục vẽ ngay trong notch, không dùng `NSPopover`: popover là cửa sổ riêng, con trỏ vào đó thì notch tưởng đã rời và đóng. Bảng chọn ảnh là `NSOpenPanel` riêng (`panel.begin`), không phải sheet trên panel của notch. Esc đóng ô tên thư mục, rồi bảng chọn, rồi thẻ hỏi xoá, trước khi đóng notch.
+- `newNote()` mở trang ngay, trước khi Notes tạo xong. Trong lúc tạo (`isMakingNote`), trang không tự mở ghi chú gần nhất: việc đọc nó qua AppleScript sẽ xếp trước lệnh tạo và làm ghi chú mới chậm thêm hàng chục giây. Trang Ghi chú bị ẩn thì ghi chú mới mở trong Apple Notes. Không có Full Disk Access thì làm mới mỗi 30 giây khi trang đang hiện.
+- `NotesStore` giữ máy trạng thái lưu (mở, sửa, lưu, xung đột, xoá). Mỗi lần tải có một số thế hệ (`generation`); `edit(_:generation:)` bỏ sửa của thế hệ cũ. Mỗi ghi chú có `writeCount`: lưu sau khi thế hệ khác đã ghi là xung đột, không phụ thuộc ngày giờ. Hai trình soạn (từ khi bỏ cửa sổ thì chỉ còn một trên trang, nhưng store vẫn giữ luật này) không bao giờ gửi một sửa có nền khác tài liệu hiện tại của store; chúng bắt kịp trước và hiện "Đã cập nhật từ cửa sổ kia" trong 2 giây. Trình soạn không được gõ bắt kịp sau khi bên kia ngừng gõ 0,5 giây. Trong lúc ghi chú đang mở được đọc lại (`isReloading`) thì không sửa được. Một lần tải thay ghi chú đang mở mà thấy lần lưu của nó vừa thành xung đột thì giữ nguyên ghi chú đó (kèm dải xung đột); bấm sang ghi chú kia lần nữa thì rời đi.
 - Ảnh ghi vào Notes bằng `<img src="file://…">` trỏ tới tệp đặt tạm trong `~/Library/Group Containers/group.com.apple.notes/AraNotch/` (`NoteImageStaging`), xoá ngay sau khi ghi: Notes chép tệp vào thành ảnh thật, đúng chỗ. Ảnh dạng `data:` thì Notes trên macOS 27 giữ thành ô "File" (`public.data`), nên chỉ dùng trong test của bộ ghi. Ảnh Notes nhận qua HTML trước đây nằm ở loại `public.data` trong tệp không đuôi; bộ đọc nhận ra ảnh qua byte đầu (`NoteImageFormat`).
-- Lưu sau 1,5 giây ngừng gõ; ghi chú có ảnh sau 5 giây (mỗi lần ghi gửi lại mọi ảnh lên iCloud). Rời trang, đóng cửa sổ hay notch, thoát app thì lưu ngay. Đọc ảnh và dựng HTML chạy ngoài main actor; cache giữ ảnh đã ghi dưới id mới bằng liên kết cứng, không ghi lại byte.
-- Cửa sổ và trang cùng dùng `NoteEditorView`. Dán hay thả ảnh phải thành tệp đính kèm có chỉ số trước khi vào văn bản, để không bao giờ có U+FFFC trần được lưu. Ô con trỏ không được đứng trong phần tiền tố danh sách (• , ☐ , 1. ).
-- Notes được mở ở nền (không kích hoạt, ẩn) khi trang Ghi chú hay cửa sổ hiện, hoặc khi bấm Cho phép, nếu Notes chưa chạy. Kiểm tra thụ động không bao giờ hiện hộp hỏi quyền. Người đã thoát Notes sẽ thấy nó mở lại ở nền mỗi lần mở trang.
+- Lưu sau 1,5 giây ngừng gõ; ghi chú có ảnh sau 5 giây (mỗi lần ghi gửi lại mọi ảnh lên iCloud). Rời trang, đóng notch, thoát app thì lưu ngay. Đọc ảnh và dựng HTML chạy ngoài main actor; cache giữ ảnh đã ghi dưới id mới bằng liên kết cứng, không ghi lại byte.
+- Trang dùng `NoteEditorView` gắn với `NotesPageModel.editor` (`NoteEditorHandle`): thanh định dạng, việc đặt con trỏ khi tạo ghi chú mới (`focus()`, không dùng `focusTextField` của notch vì nó chọn ô tìm) và tự thử đều đi qua đó. Dán hay thả ảnh phải thành tệp đính kèm có chỉ số trước khi vào văn bản, để không bao giờ có U+FFFC trần được lưu. Ô con trỏ không được đứng trong phần tiền tố danh sách (• , ☐ , 1. ).
+- Notes được mở ở nền (không kích hoạt, ẩn) khi trang Ghi chú hiện, hoặc khi bấm Cho phép, nếu Notes chưa chạy. Kiểm tra thụ động không bao giờ hiện hộp hỏi quyền. Người đã thoát Notes sẽ thấy nó mở lại ở nền mỗi lần mở trang.
 - Thư mục "Đã xoá gần đây" bị ẩn theo tên (`NotesScripts.trashFolderNames`: tiếng Anh và hai cách viết tiếng Việt), vì Notes không có thuộc tính đánh dấu nó.
 - Kịch bản AppleScript nằm cả ở `NotesScripts` (chuỗi thuần, có test không cần Notes). `listNotes` phải dùng dạng `repeat with` đã kiểm trên Notes thật; dạng khác báo -1700.
 
 ## Dữ liệu lưu
 
 - Không có kho riêng: ghi chú sống trong Notes.
-- UserDefaults (`NotesSettingsStore`): `notes.recentIDs` (id ghi chú mở gần đây, tối đa 20), `notes.selectedFolderID` (thư mục đang chọn; notch và cửa sổ dùng chung), `notes.defaultFolderID` (thư mục cho ghi chú mới; không đặt thì dùng thư mục mặc định của Notes). Không có khoá nào khác trong mã. (DESIGN.md nhắc `notes.showsPage`: không có trong mã.)
+- UserDefaults (`NotesSettingsStore`): `notes.recentIDs` (id ghi chú mở gần đây, tối đa 20), `notes.selectedFolderID` (thư mục đang chọn), `notes.defaultFolderID` (thư mục cho ghi chú mới; không đặt thì dùng thư mục mặc định của Notes). Không có khoá nào khác trong mã. (DESIGN.md nhắc `notes.showsPage`: không có trong mã.)
 - Cache ảnh: `~/Library/Caches/<bundle id>/Notes/` (`NoteImageCache`), xoá cái dùng lâu nhất khi vượt 200 MB.
 - Đã thêm khoá `NSAppleEventsUsageDescription` (chỉ tiếng Anh: "AraNotch reads and writes your notes in Notes.") vào `App/Resources/Info.plist`.
 
 ## Quyền hệ thống
 
-- Automation (điều khiển Notes): chỉ hỏi khi người dùng bấm Cho phép trên trang hay trong cửa sổ. Đã từ chối thì nút mở Cài đặt hệ thống › Quyền riêng tư › Automation. Không có quyền này thì trang chỉ hiện thẻ giải thích.
+- Automation (điều khiển Notes): chỉ hỏi khi người dùng bấm Cho phép trên trang. Đã từ chối thì nút mở Cài đặt hệ thống › Quyền riêng tư › Automation. Không có quyền này thì trang chỉ hiện thẻ giải thích.
 - Full Disk Access: không tự hỏi; thẻ mời cấp có nút mở đúng trang Cài đặt hệ thống. Không có thì dùng chế độ chỉ AppleScript (xem giới hạn).
 - Cơ sở dữ liệu `~/Library/Group Containers/group.com.apple.notes/NoteStore.sqlite` mở chỉ đọc (không dùng `immutable=1`, vì Notes vẫn ghi vào nó).
 
@@ -69,6 +71,7 @@ Ghi chú định dạng chữ kiểu Telegram (bôi chữ là có menu nổi, c�
 - Chạy: `Scripts/test-module.sh Notes`, rồi `Scripts/test.sh`.
 - Bộ test: `Modules/Notes/Tests/Core/`, `Modules/Notes/Tests/Feature/`. Feature test dùng Notes giả (`FakeNotesService`) và cơ sở dữ liệu giả; không chạm Notes thật.
 - Test bộ giải mã trên ghi chú thật làm ở Notes trên macOS 27: `decodesRealNoteFromMacOS27`.
+- Tự thử bằng `--self-test-notes` chạy trên trang Ghi chú của notch từ 2026-10-27 (bỏ cửa sổ): qua hết, notch 800×525 trên màn hình ở cỡ mặc định, ghi chú mới mở sau 14–17 giây (bản 0.27.0 trên cùng Notes hôm đó: 13 và 44 giây; Notes chậm với lệnh tạo). Chụp notch: danh sách nhóm theo ngày, thanh định dạng, ảnh rộng, bảng chọn thư mục trong notch với ghim sáng. Chưa thử bằng con trỏ thật: mở menu kiểu đoạn, bảng chọn ảnh, menu chuột phải và thẻ hỏi xoá, Esc (chỉ có test tự động).
 - Tự thử bằng `--self-test-notes` (2026-10-27, sự kiện phím và chuột gửi qua app, không phải chuột và bàn phím thật): ⌘B, ⌘I, ⌘U, ⌘⇧X, ⌘⇧M đúng; menu nổi hiện trên vùng chọn (cách 6 pt) và cú bấm đầu tiên ăn; ⌘K thêm liên kết; đề mục và danh sách từ thanh công cụ; ⌘V dán ảnh thành ảnh thật trong Notes; gõ trong ghi chú 1500 dòng tốn tối đa khoảng 6 ms mỗi phím; chữ gõ ngay trước ⌘Q được lưu. Kết quả đã đối chiếu trong Notes. Chưa thử: kéo chuột để chọn chữ, kéo thả ảnh, cuộn bằng con lăn, trang Ghi chú trên notch (đóng notch giữa lúc lưu).
 
 ## Tệp
@@ -83,14 +86,16 @@ Ghi chú định dạng chữ kiểu Telegram (bôi chữ là có menu nổi, c�
 - `Modules/Notes/Core/ProtobufReader.swift` — Reads the fields of one protobuf message in order. Every length is bounds-checked, so hostile
 - `Modules/Notes/Core/SaveGuard.swift` — Detects a note that changed elsewhere since it was opened.
 - `Modules/Notes/Feature/FormatPopover.swift` — What the format menu shows: which styles the selection has, and the link being typed.
-- `Modules/Notes/Feature/FormatToolbar.swift` — What the Notes window's toolbar acts on: the window's editor, through the same calls as the floating menu
+- `Modules/Notes/Feature/FormatToolbar.swift` — What the page's toolbar acts on: the page's editor, through the same calls as the floating menu
 - `Modules/Notes/Feature/NoteAttachmentCells.swift` — A read-only preview drawn in place of a table, a file or a drawing inside the editor text.
 - `Modules/Notes/Feature/NoteAttributedText.swift` — How wide or tall pictures are drawn in the text.
-- `Modules/Notes/Feature/NoteEditorView.swift` — The editor of the open note, shared by the notch page and the Notes window.
+- `Modules/Notes/Feature/NoteEditorView.swift` — The editor of the open note, on the notch page.
 - `Modules/Notes/Feature/NoteFormatting.swift` — The Telegram-style commands of the editor: a style is removed when the whole selection has it, otherwise added to all of it.
 - `Modules/Notes/Feature/NoteImageCache.swift` — AraNotch's own copy of note images, so a note's images can be written back without Full Disk Access
-- `Modules/Notes/Feature/NoteListGrouping.swift` — The date groups of the Notes window's list, as Notes shows them: Today, Yesterday, Previous 7 Days,
-- `Modules/Notes/Feature/NoteStatusBanner.swift` — The strip above the editor (notch page and window alike) that says why the note cannot be edited
+- `Modules/Notes/Feature/NoteFolderPicker.swift` — The button over the page's list that names the folder shown and opens the folder list; the folder list, drawn inside the notch.
+- `Modules/Notes/Feature/NoteListColumn.swift` — The page's list by date, with Show in Notes and Delete on a right click and the delete question in a card.
+- `Modules/Notes/Feature/NoteListGrouping.swift` — The date groups of the page's list, as Notes shows them: Today, Yesterday, Previous 7 Days,
+- `Modules/Notes/Feature/NoteStatusBanner.swift` — The strip above the editor that says why the note cannot be edited
 - `Modules/Notes/Feature/NoteStoreReader.swift` — What `NotesStore` reads from Notes' database; `NoteStoreReader` is the real one, tests use a fake.
 - `Modules/Notes/Feature/NoteStoreWatcher.swift` — Tells when Notes writes to its database: watches NoteStore.sqlite and its -wal file, and calls `onChange` on the
 - `Modules/Notes/Feature/NoteTextView.swift` — What the text view asks of the editor that owns it.
@@ -103,9 +108,8 @@ Ghi chú định dạng chữ kiểu Telegram (bôi chữ là có menu nổi, c�
 - `Modules/Notes/Feature/NotesService.swift` — Notes ids look like "x-coredata://UUID/ICNote/p96"; the number is the row key in its database.
 - `Modules/Notes/Feature/NotesSettings.swift` — Observable Notes settings; every change is written through to the store.
 - `Modules/Notes/Feature/NotesStore.swift` — The note shown in the editor. `images` maps an `.image` block's attachmentIndex to a file holding its bytes.
-- `Modules/Notes/Feature/NotesWindowController.swift` — The Notes window, made once and shown again. Says when it closes, so the controller can stop refreshing and save.
-- `Modules/Notes/Feature/NotesWindowView.swift` — What the Notes window keeps beside the store: its own search, the folder being named, the note waiting for
 - `Modules/Notes/DESIGN.md` — thiết kế (có phần sửa ngày 2026-10-27).
+- `docs/superpowers/specs/2026-10-27-notes-in-notch-design.md`, `docs/superpowers/plans/2026-10-27-notes-in-notch.md` — thiết kế và kế hoạch bỏ cửa sổ Ghi chú.
 - `Modules/Notes/PLAN.md` — kế hoạch làm (có phần sửa ngày 2026-10-27).
 
 ## Lỗi và giới hạn đã biết
@@ -121,11 +125,11 @@ Ghi chú định dạng chữ kiểu Telegram (bôi chữ là có menu nổi, c�
 - **Ghi ảnh cần Full Disk Access**: AraNotch đặt tạm tệp ảnh trong thư mục `AraNotch` của nó bên trong thư mục chứa của Notes (thư mục rỗng còn lại sau khi ghi; tệp bị bỏ lại khi app thoát giữa lúc lưu được dọn sau một giờ). Không đặt được thì ghi chú có ảnh là chỉ xem ("ảnh không có sẵn") và không dán được ảnh, vì ghi ảnh kiểu `data:` sẽ biến ảnh thành ô "File" trong Notes.
 - **Cỡ chữ riêng không giữ được**: cỡ chữ người dùng chọn trong Notes (khác cỡ AraNotch ghi) về cỡ thân bài sau một lần lưu từ AraNotch.
 - **Lưu ghi chú có ảnh chậm hơn**: 5 giây sau khi ngừng gõ (thay vì 1,5), để mỗi lần ghi không gửi lại mọi ảnh lên iCloud quá thường.
-- **Notes được mở ở nền** khi trang hay cửa sổ hiện, nếu nó chưa chạy.
+- **Notes được mở ở nền** khi trang hiện, nếu nó chưa chạy.
 - **Xung đột.** Ghi chú bị app khác (Notes, máy khác) sửa sau lúc mở thì lần lưu kế là xung đột: không ghi, hiện nút Tải lại và Chép phần của tôi. Đọc lúc chưa ổn định quá giới hạn cũng mở ở trạng thái xung đột, nên đôi khi có dải xung đột thừa khi vừa gõ vừa tải lại.
 - **Cơ sở dữ liệu của Notes không có tài liệu.** Bộ giải mã dựng theo thực nghiệm, thử trên ghi chú thật của macOS 27; bản macOS khác có thể đổi. Giải mã hỏng thì lùi về chế độ chỉ AppleScript và ghi log.
 - **Chưa có màu riêng cho trang Ghi chú** trên notch: sáu màu của `AraHue` đã dùng hết, nên trang trung tính như Công cụ và Tổng quan. Thêm màu là đổi `NotchCore`, việc của chủ dự án.
-- **Nhỏ, còn để lại:** bộ đọc HTML bỏ chữ nằm ngoài khối (chặn ghi bằng `unreadable`); thụt lề sâu hơn danh sách đang mở thì bị làm phẳng; thụt lề danh sách quá 10 cấp (chỉ có ở dữ liệu hỏng) bị coi là 10; hai khối mã liền nhau gộp một; mỗi lần gõ vẫn dựng lại tài liệu từ văn bản và đăng lại ghi chú mở, nên danh sách ghi chú cũng vẽ lại (xem độ trễ với ghi chú dài); menu đoạn của cửa sổ có nhãn cố định; "+ Ghi chú" dùng thư mục đang hiện; thư mục mới tạo trong tài khoản mặc định; bắt kịp trình soạn kia thì mất lịch sử hoàn tác và vùng chọn.
+- **Nhỏ, còn để lại:** bộ đọc HTML bỏ chữ nằm ngoài khối (chặn ghi bằng `unreadable`); thụt lề sâu hơn danh sách đang mở thì bị làm phẳng; thụt lề danh sách quá 10 cấp (chỉ có ở dữ liệu hỏng) bị coi là 10; hai khối mã liền nhau gộp một; mỗi lần gõ vẫn dựng lại tài liệu từ văn bản và đăng lại ghi chú mở, nên danh sách ghi chú cũng vẽ lại (xem độ trễ với ghi chú dài); menu kiểu đoạn trên thanh định dạng chỉ có biểu tượng (cho vừa cột soạn); "+" dùng thư mục đang hiện (Tất cả: thư mục mặc định); thư mục mới tạo trong tài khoản mặc định; bắt kịp trình soạn kia thì mất lịch sử hoàn tác và vùng chọn.
 - **Chưa thử tay** (xem mục Test): phím định dạng, menu nổi, ⌘K, dán ảnh, cắt và dán ảnh trong ghi chú, đóng notch giữa lúc lưu, thoát app ngay sau khi gõ, xung đột khi sửa ở Notes, độ trễ khi gõ. Đã kiểm trên Notes thật (2026-10-27): `ZMODIFICATIONDATE1` khớp ngày AppleScript (ghi chú thường sửa được); hai ảnh hiện đúng thứ tự; chữ màu (trường 10) bị khoá đúng; đoạn kiểm "Recently Deleted"; một lần lưu thật qua `--append-note` giữ khoảng trắng, tab và ảnh thật. Chưa kiểm: tô sáng (trường 14), chữ trên (8), căn lề (2) trên ghi chú thật.
 
 ## Nhật ký sửa lỗi
@@ -154,3 +158,4 @@ Ghi chú định dạng chữ kiểu Telegram (bôi chữ là có menu nổi, c�
 - 2026-10-27 (rà lại N2–N6): thiếu chỗ đặt tạm ảnh thì ghi chú có ảnh là chỉ xem và không dán được ảnh (trước đó mọi lần lưu thất bại); chỉ tệp media không tên của Notes mới được dò byte (tệp RAW thật vẫn là tệp); GIF, TIFF là ảnh; tệp tạm bị bỏ lại quá một giờ được dọn; đặt tạm ảnh trước khi kiểm ngày. Test `picturesThatCannotBeStagedMakeTheNoteViewOnly`, `stagingRemovesOldLeftovers`, `publicDataWhoseFileIsAPictureIsAPicture` (commit 94851b4).
 - 2026-10-27 (M6): cắt rồi dán ảnh trong ghi chú làm mất ảnh. Sửa: chép và cắt ghi thêm kiểu riêng `com.aranotch.notes.fragment` (chữ và byte ảnh theo thứ tự); dán dùng nó trước. Test `cutAndPasteKeepsPictures` (commit 19a9408).
 - 2026-10-27 (M7, một phần): trình soạn không được gõ dựng lại cả ghi chú sau mỗi phím gõ ở trình soạn kia. Sửa: bắt kịp sau 0,5 giây ngừng gõ. Test `secondEditorFollowsEditsOfTheFirst` (sửa: ba lần sửa, một lần dựng lại) (commit c4997cc). Chưa làm: đưa tài liệu đang sửa ra khỏi thứ danh sách ghi chú quan sát.
+- 2026-10-27 (bỏ cửa sổ): tự thử trên notch thấy ghi chú mới mất 33 giây: trang hiện ra tự mở ghi chú gần nhất, việc đọc nó xếp trước lệnh tạo trong hàng AppleScript. Sửa: không tự mở trong lúc đang tạo (`isMakingNote`). Test `newNoteDoesNotReadAnotherNoteFirst`. Cũng trong vòng này: hai test dựa vào thời gian (`coalescesChangesWithinTheInterval`, `twoEditsOfANoteLeftBehindBothReachNotes`) hỏng khi một test khác giữ main actor gần một giây; sửa test cho không phụ thuộc vào việc main actor trả lời trong 60–100 ms.
