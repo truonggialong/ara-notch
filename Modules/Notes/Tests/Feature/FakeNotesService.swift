@@ -15,6 +15,17 @@ final class FakeNotesService: NotesService, @unchecked Sendable {
     private var attachments: [String: [String]] = [:]
     private var bodyDelay: Duration = .zero
     private var readDelay: Duration = .zero
+    private var readDelays: [String: Duration] = [:]
+    private var bodyDateOffset: TimeInterval = 0
+
+    /// How long `content` of one note takes (overrides `contentDelay`).
+    func setContentDelay(_ delay: Duration, for noteID: String) { lock.withLock { readDelays[noteID] = delay } }
+
+    /// Added to the date `setBody` returns, so two writes are more than SaveGuard's second apart.
+    var setBodyDateOffset: TimeInterval {
+        get { lock.withLock { bodyDateOffset } }
+        set { lock.withLock { bodyDateOffset = newValue } }
+    }
 
     /// How long `content` takes, to test edits made while another note opens.
     var contentDelay: Duration {
@@ -83,7 +94,8 @@ final class FakeNotesService: NotesService, @unchecked Sendable {
     }
 
     func content(of noteID: String) async throws -> NoteContent {
-        if contentDelay > .zero { try await Task.sleep(for: contentDelay) }
+        let delay = lock.withLock { readDelays[noteID] ?? readDelay }
+        if delay > .zero { try await Task.sleep(for: delay) }
         return try lock.withLock {
             guard let c = contentByID[noteID] else { throw NotesServiceError.notFound }
             return c
@@ -117,7 +129,7 @@ final class FakeNotesService: NotesService, @unchecked Sendable {
             guard contentByID[noteID] != nil else { throw NotesServiceError.notFound }
             setBodyCount += 1
             lastBody = html
-            let now = Date()
+            let now = Date().addingTimeInterval(bodyDateOffset)
             contentByID[noteID]?.html = html
             contentByID[noteID]?.modified = now
             notesByID[noteID]?.modified = now

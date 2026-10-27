@@ -22,6 +22,11 @@ private func temporaryDirectory() -> URL {
     return url
 }
 
+extension NotesStore {
+    /// An edit as the editor of the given load would send it.
+    func edit(generation: Int?, _ document: NoteDocument) { edit(document, generation: generation ?? -1) }
+}
+
 private func p(_ text: String) -> NoteBlock { .paragraph([TextRun(text)]) }
 private func imageCount(_ html: String?) -> Int { (html ?? "").components(separatedBy: "<img").count - 1 }
 private let pngBytes = Data([0x89, 0x50, 0x4E, 0x47, 1, 2, 3])
@@ -63,8 +68,8 @@ private struct Harness {
         let id = h.plainNote()
         await h.store.openNote(id)
         #expect(h.store.open?.safety == .editable)
-        h.store.edit(NoteDocument(blocks: [p("Title"), p("b")]))
-        h.store.edit(NoteDocument(blocks: [p("Title"), p("bo")]))
+        h.store.edit(generation: h.store.open?.generation, NoteDocument(blocks: [p("Title"), p("b")]))
+        h.store.edit(generation: h.store.open?.generation, NoteDocument(blocks: [p("Title"), p("bo")]))
         #expect(h.store.saveState == .pending)
         try await Task.sleep(for: .milliseconds(150))
         #expect(h.fake.setBodyCalls == 1)
@@ -76,7 +81,7 @@ private struct Harness {
         let h = try await Harness(debounce: .seconds(60))
         let id = h.plainNote()
         await h.store.openNote(id)
-        h.store.edit(NoteDocument(blocks: [p("Title"), p("now")]))
+        h.store.edit(generation: h.store.open?.generation, NoteDocument(blocks: [p("Title"), p("now")]))
         await h.store.flush()
         #expect(h.fake.setBodyCalls == 1)
         #expect(h.store.saveState == .saved)
@@ -88,7 +93,7 @@ private struct Harness {
         await h.store.openNote(id)
         #expect(h.store.open?.safety == .editable)
         #expect(h.store.open?.images.count == 2)
-        h.store.edit(NoteDocument(blocks: [p("a changed"), .image(attachmentIndex: 0), .image(attachmentIndex: 1)]))
+        h.store.edit(generation: h.store.open?.generation, NoteDocument(blocks: [p("a changed"), .image(attachmentIndex: 0), .image(attachmentIndex: 1)]))
         await h.store.flush()
         #expect(h.fake.setBodyCalls == 1)
         #expect(imageCount(h.fake.lastHTML) == 2)
@@ -99,7 +104,7 @@ private struct Harness {
         let id = h.fake.addNote("a", in: h.folderID, html: "<ul><li>a</li></ul>", plainText: "a")
         await h.store.openNote(id)
         #expect(h.store.open?.safety == .readOnly([.listsUnknown]))
-        h.store.edit(NoteDocument(blocks: [p("changed")]))
+        h.store.edit(generation: h.store.open?.generation, NoteDocument(blocks: [p("changed")]))
         await h.store.flush()
         try await Task.sleep(for: .milliseconds(50))
         #expect(h.fake.setBodyCalls == 0)
@@ -110,7 +115,7 @@ private struct Harness {
         let id = h.plainNote()
         await h.store.openNote(id)
         h.fake.touch(id, to: Date().addingTimeInterval(60))
-        h.store.edit(NoteDocument(blocks: [p("Title"), p("mine")]))
+        h.store.edit(generation: h.store.open?.generation, NoteDocument(blocks: [p("Title"), p("mine")]))
         await h.store.flush()
         #expect(h.store.saveState == .conflict)
         #expect(h.fake.setBodyCalls == 0)
@@ -121,7 +126,7 @@ private struct Harness {
         let id = h.plainNote()
         await h.store.openNote(id)
         try await h.fake.delete(id)
-        h.store.edit(NoteDocument(blocks: [p("Title"), p("mine")]))
+        h.store.edit(generation: h.store.open?.generation, NoteDocument(blocks: [p("Title"), p("mine")]))
         await h.store.flush()
         #expect(h.store.saveState == .deleted)
         #expect(h.fake.setBodyCalls == 0)
@@ -132,10 +137,10 @@ private struct Harness {
         let id = h.plainNote()
         await h.store.openNote(id)
         h.fake.setBodyDelay = .milliseconds(150)
-        h.store.edit(NoteDocument(blocks: [p("Title"), p("first")]))
+        h.store.edit(generation: h.store.open?.generation, NoteDocument(blocks: [p("Title"), p("first")]))
         try await Task.sleep(for: .milliseconds(60))
         #expect(h.store.saveState == .saving)
-        h.store.edit(NoteDocument(blocks: [p("Title"), p("second")]))
+        h.store.edit(generation: h.store.open?.generation, NoteDocument(blocks: [p("Title"), p("second")]))
         #expect(h.store.saveState == .pending)
         await h.store.flush()
         #expect(h.fake.setBodyCalls == 2)
@@ -152,7 +157,7 @@ private struct Harness {
         let opening = Task { await h.store.openNote(b) }
         try await Task.sleep(for: .milliseconds(30))
         #expect(h.store.open?.id == a)  // B is still loading
-        h.store.edit(NoteDocument(blocks: [p("A"), p("late keystroke")]))
+        h.store.edit(generation: h.store.open?.generation, NoteDocument(blocks: [p("A"), p("late keystroke")]))
         await opening.value
         #expect(h.store.open?.id == b)
         await h.store.flush()
@@ -162,7 +167,7 @@ private struct Harness {
         #expect(h.store.saveState == .saved)
     }
 
-    @Test func editMadeWhileTheSameNoteReloadsIsDropped() async throws {
+    @Test func editOnTheOldVersionDuringAReloadNeverOverwritesAChange() async throws {
         let h = try await Harness(debounce: .milliseconds(200))
         let a = h.plainNote("A")
         await h.store.openNote(a)
@@ -170,12 +175,103 @@ private struct Harness {
         h.fake.contentDelay = .milliseconds(80)
         let reloading = Task { await h.store.reloadOpenNote() }
         try await Task.sleep(for: .milliseconds(30))
-        h.store.edit(NoteDocument(blocks: [p("A"), p("stale")]))
+        h.store.edit(generation: h.store.open?.generation, NoteDocument(blocks: [p("A"), p("stale")]))
         await reloading.value
         #expect(h.store.open?.safety == .editable)
         await h.store.flush()
         #expect(h.fake.setBodyCalls == 0)
         #expect(h.store.saveState == .saved)
+    }
+
+    @Test func editDuringAReloadOfTheSameNoteIsKept() async throws {
+        let h = try await Harness()
+        let a = h.plainNote("A")
+        await h.store.openNote(a)
+        let old = h.store.open?.generation
+        h.fake.contentDelay = .milliseconds(100)
+        h.fake.setBodyDelay = .milliseconds(100)
+        let reopening = Task { await h.store.openNote(a) }
+        try await Task.sleep(for: .milliseconds(20))
+        h.store.edit(generation: old, NoteDocument(blocks: [p("A"), p("x")]))
+        await reopening.value
+        await h.store.flush()
+        #expect(h.fake.lastHTML?.contains("x") == true)
+        #expect(try await h.fake.content(of: a).html.contains("<div>x</div>"))
+        #expect(h.store.open?.document.blocks.contains(p("x")) == true)
+        #expect(h.store.open?.generation != old)
+        #expect(h.fake.setBodyCalls == 1)
+    }
+
+    @Test func reloadWhileImagesAreKeptGetsItsOwnImages() async throws {
+        let h = try await Harness()
+        let id = try h.twoImageNote()
+        _ = try h.cache.store(Data([2, 2, 2]), forAttachmentID: attachmentID(2), fileExtension: "png")  // two different images
+        await h.store.openNote(id)
+        h.fake.setBodyDelay = .milliseconds(80)
+        h.store.edit(generation: h.store.open?.generation,
+                     NoteDocument(blocks: [p("a"), .image(attachmentIndex: 1), .image(attachmentIndex: 0)]))
+        try await Task.sleep(for: .milliseconds(40))  // the save is writing
+        await h.store.reloadOpenNote()
+        await h.store.flush()
+        let open = try #require(h.store.open)
+        let indexes = Set(open.document.blocks.compactMap { b -> Int? in if case .image(let i) = b { i } else { nil } })
+        #expect(Set(open.images.keys) == indexes)
+        // The k-th image shown has the bytes Notes now holds as its k-th image.
+        let inNotes = try await h.fake.content(of: id).html.components(separatedBy: "base64,").dropFirst()
+            .map { Data(base64Encoded: String($0.prefix { $0 != "\"" }))! }
+        let shown = try open.document.blocks.compactMap { b -> Int? in if case .image(let i) = b { i } else { nil } }
+            .map { try Data(contentsOf: try #require(open.images[$0])) }
+        #expect(shown == Array(inNotes))
+        #expect(inNotes.first == Data([2, 2, 2]))
+    }
+
+    @Test func editFromAnEarlierLoadIsIgnored() async throws {
+        let h = try await Harness()
+        let a = h.plainNote("A")
+        let b = h.plainNote("B")
+        await h.store.openNote(a)
+        let old = h.store.open?.generation
+        await h.store.openNote(b)
+        h.store.edit(generation: old, NoteDocument(blocks: [p("A"), p("late")]))
+        try await Task.sleep(for: .milliseconds(50))
+        await h.store.flush()
+        #expect(h.fake.setBodyCalls == 0)
+        #expect(try await h.fake.content(of: b).html == "<div>B</div><div>body</div>")
+        #expect(h.store.open?.document.blocks.contains(p("late")) == false)
+    }
+
+    @Test func twoEditsOfANoteLeftBehindBothReachNotes() async throws {
+        let h = try await Harness()
+        let a = h.plainNote("A")
+        let b = h.plainNote("B")
+        await h.store.openNote(a)
+        let gen = h.store.open?.generation
+        h.fake.setBodyDelay = .milliseconds(100)
+        h.fake.setBodyDateOffset = 60  // each write moves the date far past SaveGuard's second
+        h.fake.setContentDelay(.milliseconds(60), for: b)
+        let opening = Task { await h.store.openNote(b) }
+        try await Task.sleep(for: .milliseconds(20))
+        h.store.edit(generation: gen, NoteDocument(blocks: [p("A"), p("one")]))
+        try await Task.sleep(for: .milliseconds(20))
+        h.store.edit(generation: gen, NoteDocument(blocks: [p("A"), p("one two")]))
+        await opening.value
+        await h.store.flush()
+        #expect(h.store.open?.id == b)
+        #expect(h.fake.setBodyCalls == 2)
+        #expect(try await h.fake.content(of: a).html.contains("one two"))
+        #expect(h.store.saveState == .saved)
+    }
+
+    @Test func theLastNoteAskedForIsTheOneOpen() async throws {
+        let h = try await Harness()
+        let a = h.plainNote("A")
+        let b = h.plainNote("B")
+        h.fake.setContentDelay(.milliseconds(120), for: a)
+        let first = Task { await h.store.openNote(a) }
+        try await Task.sleep(for: .milliseconds(20))
+        await h.store.openNote(b)
+        await first.value
+        #expect(h.store.open?.id == b)
     }
 
     @Test func newImageIsEmbeddedOnSave() async throws {
@@ -185,7 +281,7 @@ private struct Harness {
         await h.store.openNote(id)
         let index = try #require(h.store.addImage(Data([9, 9, 9]), fileExtension: "jpg"))
         #expect(index == 1)
-        h.store.edit(NoteDocument(blocks: [p("a"), .image(attachmentIndex: 0), .image(attachmentIndex: index)]))
+        h.store.edit(generation: h.store.open?.generation, NoteDocument(blocks: [p("a"), .image(attachmentIndex: 0), .image(attachmentIndex: index)]))
         await h.store.flush()
         #expect(h.fake.setBodyCalls == 1)
         #expect(imageCount(h.fake.lastHTML) == 2)
@@ -199,7 +295,7 @@ private struct Harness {
         await h.store.openNote(id)
         let added = try #require(h.store.addImage(Data([9, 9, 9]), fileExtension: "png"))
         h.fake.setAttachments([attachmentID(7), attachmentID(8)], of: id)  // as Notes would after the write
-        h.store.edit(NoteDocument(blocks: [p("a"), .image(attachmentIndex: added), .image(attachmentIndex: 0)]))
+        h.store.edit(generation: h.store.open?.generation, NoteDocument(blocks: [p("a"), .image(attachmentIndex: added), .image(attachmentIndex: 0)]))
         await h.store.flush()
         #expect(h.store.saveState == .saved)
         let first = try #require(h.cache.url(forAttachmentID: attachmentID(7)))
@@ -215,7 +311,7 @@ private struct Harness {
         let h = try await Harness()
         let id = h.plainNote()
         await h.store.openNote(id)
-        h.store.edit(NoteDocument(blocks: [p("Title"), .image(attachmentIndex: 5)]))
+        h.store.edit(generation: h.store.open?.generation, NoteDocument(blocks: [p("Title"), .image(attachmentIndex: 5)]))
         await h.store.flush()
         #expect(h.fake.setBodyCalls == 0)
         guard case .failed = h.store.saveState else { Issue.record("expected failed, got \(h.store.saveState)"); return }
@@ -226,7 +322,7 @@ private struct Harness {
         let id = fakeOneImageNote(h)
         await h.store.openNote(id)
         #expect(h.store.open?.safety == .readOnly([.imagesUnavailable]))
-        h.store.edit(NoteDocument(blocks: [p("b"), .image(attachmentIndex: 0)]))
+        h.store.edit(generation: h.store.open?.generation, NoteDocument(blocks: [p("b"), .image(attachmentIndex: 0)]))
         await h.store.flush()
         #expect(h.fake.setBodyCalls == 0)
     }
@@ -380,7 +476,7 @@ private struct Harness {
         await h.store.openNote(id)
         _ = try await h.fake.setBody("<div>Title</div><div>theirs</div>", of: id)
         h.fake.touch(id, to: Date().addingTimeInterval(60))
-        h.store.edit(NoteDocument(blocks: [p("Title"), p("mine")]))
+        h.store.edit(generation: h.store.open?.generation, NoteDocument(blocks: [p("Title"), p("mine")]))
         await h.store.flush()
         #expect(h.store.saveState == .conflict)
         await h.store.reloadOpenNote()
@@ -419,14 +515,20 @@ private struct Harness {
         #expect(!url.lastPathComponent.contains(":"))
     }
 
-    @Test func newKeysRekey() throws {
+    @Test func newKeysAreFound() throws {
         let cache = NoteImageCache(root: temporaryDirectory())
         let key = try cache.storeNew(pngBytes, fileExtension: "jpg")
         #expect(key.hasPrefix("new-"))
-        #expect(cache.url(forKey: key) != nil)
-        cache.rekey(key, to: attachmentID(3))
-        #expect(cache.url(forKey: key) == nil)
-        #expect(try Data(contentsOf: try #require(cache.url(forAttachmentID: attachmentID(3)))) == pngBytes)
+        #expect(try Data(contentsOf: try #require(cache.url(forKey: key))) == pngBytes)
+    }
+
+    @Test func trimKeepsFilesInUse() throws {
+        let cache = NoteImageCache(root: temporaryDirectory(), limitBytes: 5)
+        let used = try cache.store(Data(count: 10), forAttachmentID: attachmentID(1), fileExtension: "png")
+        _ = try cache.store(Data(count: 10), forAttachmentID: attachmentID(2), fileExtension: "png")
+        cache.trim(keeping: [used])
+        #expect(cache.url(forAttachmentID: attachmentID(1)) != nil)
+        #expect(cache.url(forAttachmentID: attachmentID(2)) == nil)
     }
 
     @Test func trimRemovesOldestFirst() throws {

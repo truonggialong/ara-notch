@@ -11,6 +11,9 @@ public struct OpenNote: Equatable {
     /// The note's modification date when it was read or last written by AraNotch; SaveGuard compares against it.
     public var openedAt: Date
     public var images: [Int: URL]
+    /// Which load this is. An editor passes it back with each edit, so an edit made on an earlier load of a note
+    /// (or on another note) is never taken as this one's.
+    public let generation: Int
 }
 
 public enum NoteSaveState: Equatable { case saved, pending, saving, conflict, failed(String), deleted }
@@ -47,11 +50,20 @@ final class NotesStore: ObservableObject {
     @Published private(set) var open: OpenNote?
     @Published private(set) var saveState: NoteSaveState = .saved
 
-    /// The latest edit not written yet, with the note it was made in: an edit that arrives while another
-    /// note is loading belongs to the note it was made in, never to the one opened next.
+    /// The latest edit not written yet, with the load it was made on: an edit belongs to that load and is
+    /// saved against its state, never against a note or a load opened later.
     private var pending: (note: OpenNote, document: NoteDocument)?
     private var debounceTask: Task<Void, Never>?
     private var saveTask: Task<Void, Never>?
+    /// The note a save is writing now, if any.
+    private var savingID: String?
+    /// Successful writes per note, to tell whether a note changed while it was being read.
+    private var writeCount: [String: Int] = [:]
+    /// The modification date of the last write made from each load: the base for its next save.
+    private var lastWritten: [Int: Date] = [:]
+    private var generationCounter = 0
+    /// Only the latest requested load may become `open`.
+    private var latestRequest = 0
     /// Whether each note seen in a listing is locked.
     private var lockedByID: [String: Bool] = [:]
 
@@ -115,44 +127,93 @@ final class NotesStore: ObservableObject {
     // MARK: Opening
 
     func openNote(_ id: String) async {
+        let generation = requestLoad()
         await flush()
-        await load(id)
+        await load(id, generation: generation)
     }
 
-    /// After a conflict: drops the unsaved edit and reads the note again.
+    /// After a conflict: drops the unsaved edit of this note and reads it again.
     func reloadOpenNote() async {
         guard let id = open?.id else { return }
-        await dropPendingEdit()
-        await load(id)
+        let generation = requestLoad()
+        if pending?.note.id == id {
+            debounceTask?.cancel()
+            debounceTask = nil
+            pending = nil
+        }
+        await load(id, generation: generation)
     }
 
-    private func load(_ id: String) async {
+    private func requestLoad() -> Int {
+        generationCounter += 1
+        latestRequest = generationCounter
+        return generationCounter
+    }
+
+    private struct ReadNote {
+        var content: NoteContent
+        var ids: [String]
+        var readable: Bool
+        var full: NoteDocument?
+    }
+
+    private func load(_ id: String, generation: Int) async {
         do {
             guard let isLocked = try await lockedState(of: id) else { throw NotesServiceError.notFound }
-            let content = try await service.content(of: id)
-            let ids = try await service.attachmentIDs(of: id)
-            let (readable, full) = await readFull(id)
-            fullView = readable
-            let html = NotesHTMLReader.read(html: content.html, plainText: content.plainText)
-            let (document, composed) = Self.compose(full: full, html: html, isLocked: isLocked, plainText: content.plainText)
-            var safety = composed
-            let (images, complete) = await loadImages(of: document, ids: ids, readable: readable)
-            if !complete { safety = safety.adding(.imagesUnavailable) }
-            if safety != .editable { Self.log.info("Note opened read only: \(String(describing: safety), privacy: .public)") }
-            // An edit made in this note while it was reloading was made on the old version: writing it with the
-            // fresh modification date would pass SaveGuard and overwrite what changed elsewhere.
-            if pending?.note.id == id {
-                Self.log.error("Dropped an edit made while the note reloaded")
-                pending = nil
+            // A save of this note (an edit made on an earlier load) is written first, so the note read includes it;
+            // when one lands while reading, the note is read again.
+            var (writes, read) = try await settledRead(id)
+            var attempts = 1
+            while attempts < 3, savingID == id || pending?.note.id == id || writeCount[id, default: 0] != writes {
+                (writes, read) = try await settledRead(id)
+                attempts += 1
             }
-            open = OpenNote(id: id, document: document, safety: safety, openedAt: content.modified, images: images)
+            fullView = read.readable
+            let html = NotesHTMLReader.read(html: read.content.html, plainText: read.content.plainText)
+            let (document, composed) = Self.compose(full: read.full, html: html, isLocked: isLocked,
+                                                    plainText: read.content.plainText)
+            var safety = composed
+            let (images, complete) = await loadImages(of: document, ids: read.ids, readable: read.readable)
+            if !complete { safety = safety.adding(.imagesUnavailable) }
+            guard generation == latestRequest else {
+                Self.log.info("A later open replaced this one")
+                return
+            }
+            if safety != .editable { Self.log.info("Note opened read only: \(String(describing: safety), privacy: .public)") }
+            open = OpenNote(id: id, document: document, safety: safety, openedAt: read.content.modified, images: images,
+                            generation: generation)
             saveState = .saved
             addRecent(id)
         } catch {
-            open = nil
-            saveState = .saved
             if case NotesServiceError.notFound = error { forget(id) }
             handle(error, "open")
+            guard generation == latestRequest else { return }
+            open = nil
+            saveState = .saved
+        }
+    }
+
+    /// Reads the note once no save of it is waiting or running; returns the write count seen before reading.
+    private func settledRead(_ id: String) async throws -> (Int, ReadNote) {
+        await settleSaves(of: id)
+        let writes = writeCount[id, default: 0]
+        let content = try await service.content(of: id)
+        let ids = try await service.attachmentIDs(of: id)
+        let (readable, full) = await readFull(id)
+        return (writes, ReadNote(content: content, ids: ids, readable: readable, full: full))
+    }
+
+    private func settleSaves(of id: String) async {
+        var rounds = 0
+        while rounds < 5, savingID == id || pending?.note.id == id {
+            rounds += 1
+            if pending?.note.id == id {
+                debounceTask?.cancel()
+                debounceTask = nil
+                startSaving()
+            }
+            guard let task = saveTask else { return }
+            await task.value
         }
     }
 
@@ -225,7 +286,7 @@ final class NotesStore: ObservableObject {
             Self.log.error("Attachment ids do not line up with the note: \(ids.count) ids, \(slots.count) attachments")
             return ([:], false)
         }
-        cache.trim()
+        cache.trim(keeping: Set((open?.images.values.map { $0 } ?? []) + (pending?.note.images.values.map { $0 } ?? [])))
         var images: [Int: URL] = [:]
         var complete = true
         for (_, index) in imageSlots where images[index] == nil {
@@ -276,7 +337,8 @@ final class NotesStore: ObservableObject {
     /// Adds an image the user put in the open note and returns the attachmentIndex for its `.image` block,
     /// or nil when the note is not editable or the bytes could not be kept.
     func addImage(_ data: Data, fileExtension: String) -> Int? {
-        guard var note = open, note.safety == .editable, !data.isEmpty else { return nil }
+        guard var note = open, note.safety == .editable, !data.isEmpty,
+              Self.mimeTypes[fileExtension.lowercased()] != nil else { return nil }
         do {
             let key = try cache.storeNew(data, fileExtension: fileExtension)
             guard let url = cache.url(forKey: key) else { return nil }
@@ -296,9 +358,14 @@ final class NotesStore: ObservableObject {
         }
     }
 
-    /// Takes the editor's document and saves it once typing stops. Ignored for a note that may not be written.
-    func edit(_ document: NoteDocument) {
-        guard var note = open, note.safety == .editable else { return }
+    /// Takes the editor's document and saves it once typing stops. `generation` is the one of the `OpenNote` the
+    /// editor was built from; an edit from another load, or for a note that may not be written, is ignored.
+    func edit(_ document: NoteDocument, generation: Int) {
+        guard var note = open, note.generation == generation else {
+            Self.log.error("Ignored an edit made on another load")
+            return
+        }
+        guard note.safety == .editable else { return }
         note.document = document
         open = note
         // After a conflict or deletion nothing is written again; the user reloads or makes a new note.
@@ -321,13 +388,6 @@ final class NotesStore: ObservableObject {
         while let task = saveTask { await task.value }
     }
 
-    private func dropPendingEdit() async {
-        debounceTask?.cancel()
-        debounceTask = nil
-        pending = nil
-        while let task = saveTask { await task.value }
-    }
-
     private func startSaving() {
         guard saveTask == nil, pending != nil else { return }
         saveTask = Task { [weak self] in
@@ -337,40 +397,47 @@ final class NotesStore: ObservableObject {
     }
 
     /// Writes the pending edit, then any edit made meanwhile, one at a time.
-    /// The save state is shown only for the open note; a late save of a note left behind is only logged.
+    /// The save state belongs to the open load; the save of an edit from an earlier load is only logged.
     private func saveLoop() async {
         while let (note, document) = pending {
             pending = nil
-            if open?.id == note.id { saveState = .saving }
+            let isOpen = { [weak self] in self?.open?.generation == note.generation }
+            if isOpen() { saveState = .saving }
             let result = await save(document, of: note)
             if result != .saved { Self.log.error("Note not saved: \(String(describing: result), privacy: .public)") }
-            guard open?.id == note.id else { continue }
+            guard isOpen() else { continue }
             if result == .saved {
                 saveState = pending == nil ? .saved : .pending
             } else {
                 saveState = result
-                pending = nil
+                if pending?.note.generation == note.generation { pending = nil }
                 return
             }
         }
     }
 
-    /// The only place a note is written.
-    /// `edited` is the note as it was when the edit was made; while it is still open its current state
-    /// (newer `openedAt` after an earlier save) is used instead.
+    /// The only place a note is written. `edited` is the load the edit was made on, as it was then. While that load
+    /// is still open its current state (images moved by an earlier save) is used; the SaveGuard base is the last
+    /// write made from that load, or the date it was read. Nothing of a newer load is touched.
     private func save(_ document: NoteDocument, of edited: OpenNote) async -> NoteSaveState {
         let id = edited.id
+        let generation = edited.generation
+        savingID = id
+        defer { savingID = nil }
         do {
             let current = try await service.modification(of: id)
-            let note = open?.id == id ? open ?? edited : edited
+            let note = open?.generation == generation ? open ?? edited : edited
             guard note.safety == .editable else { return .failed("The note may not be written") }
-            if SaveGuard.decide(openedAt: note.openedAt, currentModification: current) == .conflict { return .conflict }
+            let base = lastWritten[generation] ?? edited.openedAt
+            if SaveGuard.decide(openedAt: base, currentModification: current) == .conflict { return .conflict }
             let images = imageData(for: document, from: note.images)
             let html = try NotesHTMLWriter.write(document, images: images)
             let modified = try await service.setBody(html, of: id)
-            guard open?.id == id else { return .saved }  // a note left behind: nothing of it is kept here
+            lastWritten[generation] = modified
+            writeCount[id, default: 0] += 1
+            guard open?.generation == generation else { return .saved }
             open?.openedAt = modified
-            await keepImages(of: document, images: images, noteID: id)
+            await keepImages(of: document, images: images, noteID: id, generation: generation)
             return .saved
         } catch NotesServiceError.notFound {
             return .deleted
@@ -397,7 +464,7 @@ final class NotesStore: ObservableObject {
     /// Notes gives written images new attachment ids: the cache keeps their bytes under those ids, so the note
     /// can be written again without Full Disk Access. The open document keeps its own indexes (an editor holding
     /// them stays right); only the files behind them move. Skipped when the ids do not line up.
-    private func keepImages(of document: NoteDocument, images: [Int: NoteImageData], noteID: String) async {
+    private func keepImages(of document: NoteDocument, images: [Int: NoteImageData], noteID: String, generation: Int) async {
         guard !images.isEmpty else { return }
         let ids: [String]
         do { ids = try await service.attachmentIDs(of: noteID) } catch {
@@ -415,11 +482,9 @@ final class NotesStore: ObservableObject {
             let ext = Self.mimeTypes.first(where: { $0.value == image.mimeType })?.key ?? "png"
             if let url = try? cache.store(image.data, forAttachmentID: ids[slot], fileExtension: ext) { moved[index] = url }
         }
-        guard var note = open, note.id == noteID else { return }
-        for (index, url) in moved {
-            if let old = note.images[index], old.lastPathComponent.hasPrefix("new-") { try? FileManager.default.removeItem(at: old) }
-            note.images[index] = url
-        }
+        // A reload while the ids were read has its own indexes: these files must not be put behind them.
+        guard var note = open, note.generation == generation else { return }
+        for (index, url) in moved { note.images[index] = url }  // "new-" files left behind go with trim
         open = note
     }
 
@@ -438,15 +503,21 @@ final class NotesStore: ObservableObject {
         do {
             let html = try NotesHTMLWriter.write(document, images: imageData(for: document, from: open?.images ?? [:]))
             let id = try await service.create(in: folder.id, html: html)
+            let generation = requestLoad()
             await refresh()
-            await load(id)
+            await load(id, generation: generation)
         } catch {
             handle(error, "create")
         }
     }
 
     func delete(_ id: String) async {
-        if open?.id == id { await dropPendingEdit() }
+        if pending?.note.id == id {
+            debounceTask?.cancel()
+            debounceTask = nil
+            pending = nil
+        }
+        while let task = saveTask { await task.value }
         do {
             try await service.delete(id)
         } catch NotesServiceError.notFound {

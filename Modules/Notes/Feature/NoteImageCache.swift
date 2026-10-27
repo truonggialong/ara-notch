@@ -40,27 +40,21 @@ public final class NoteImageCache: @unchecked Sendable {
         return key
     }
 
-    /// Moves a cached file to another key (a saved image's new attachment id).
-    public func rekey(_ from: String, to: String) {
-        guard let source = url(forKey: from) else { return }
-        remove(key: to)
-        let target = root.appendingPathComponent(Self.fileBase(to) + "." + source.pathExtension)
-        try? fileManager.moveItem(at: source, to: target)
-    }
-
     public func remove(key: String) {
         while let url = url(forKey: key) { try? fileManager.removeItem(at: url) }
     }
 
-    /// Deletes the least recently used files until the cache is under its limit.
-    public func trim() {
+    /// Deletes the least recently used files until the cache is under its limit, never one in `keeping`
+    /// (the files of the open note and of an edit not saved yet).
+    public func trim(keeping: Set<URL> = []) {
+        let kept = Set(keeping.map(\.standardizedFileURL.path))
         let keys: [URLResourceKey] = [.contentModificationDateKey, .fileSizeKey]
         let files = ((try? fileManager.contentsOfDirectory(at: root, includingPropertiesForKeys: keys)) ?? []).map { url in
             let values = try? url.resourceValues(forKeys: Set(keys))
             return (url: url, date: values?.contentModificationDate ?? .distantPast, size: values?.fileSize ?? 0)
         }
         var total = files.reduce(0) { $0 + $1.size }
-        for file in files.sorted(by: { $0.date < $1.date }) where total > limitBytes {
+        for file in files.sorted(by: { $0.date < $1.date }) where total > limitBytes && !kept.contains(file.url.standardizedFileURL.path) {
             try? fileManager.removeItem(at: file.url)
             total -= file.size
         }
