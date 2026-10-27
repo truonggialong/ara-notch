@@ -57,8 +57,14 @@ final class NotesStore: ObservableObject {
     private var saveTask: Task<Void, Never>?
     /// The note a save is writing now, if any.
     private var savingID: String?
-    /// Successful writes per note, to tell whether a note changed while it was being read.
+    /// Writes per note (a write whose outcome is unknown counts too). A load notes the count it read the note at;
+    /// a save from that load is allowed only while every write since was its own. Dates cannot tell this:
+    /// SaveGuard takes writes under a second apart as the same moment.
     private var writeCount: [String: Int] = [:]
+    private var loadStamp: [Int: Int] = [:]
+    private var ownWrites: [Int: Int] = [:]
+    /// The load whose edit is being saved now; its image files are kept by `trim`.
+    private var inFlight: OpenNote?
     /// The modification date of the last write made from each load: the base for its next save.
     private var lastWritten: [Int: Date] = [:]
     private var generationCounter = 0
@@ -180,9 +186,14 @@ final class NotesStore: ObservableObject {
                 return
             }
             if safety != .editable { Self.log.info("Note opened read only: \(String(describing: safety), privacy: .public)") }
+            // Still unsettled after the last read (reads ran out, or a write landed while images loaded): what is
+            // shown may lack a write, so it opens as a conflict and offers a reload instead of being edited.
+            let unsettled = savingID == id || pending?.note.id == id || writeCount[id, default: 0] != writes
+            loadStamp[generation] = writes
             open = OpenNote(id: id, document: document, safety: safety, openedAt: read.content.modified, images: images,
                             generation: generation)
-            saveState = .saved
+            saveState = unsettled ? .conflict : .saved
+            if unsettled { Self.log.error("Note opened while a save of it was under way; shown as a conflict") }
             addRecent(id)
         } catch {
             if case NotesServiceError.notFound = error { forget(id) }
@@ -286,7 +297,6 @@ final class NotesStore: ObservableObject {
             Self.log.error("Attachment ids do not line up with the note: \(ids.count) ids, \(slots.count) attachments")
             return ([:], false)
         }
-        cache.trim(keeping: Set((open?.images.values.map { $0 } ?? []) + (pending?.note.images.values.map { $0 } ?? [])))
         var images: [Int: URL] = [:]
         var complete = true
         for (_, index) in imageSlots where images[index] == nil {
@@ -299,6 +309,9 @@ final class NotesStore: ObservableObject {
                 complete = false
             }
         }
+        // Trimmed after the lookup, so the files this note is about to use are kept too.
+        let inUse = [open, pending?.note, inFlight].compactMap { $0 }.flatMap { Array($0.images.values) }
+        cache.trim(keeping: Set(inUse + Array(images.values)))
         return (images, complete)
     }
 
@@ -403,7 +416,9 @@ final class NotesStore: ObservableObject {
             pending = nil
             let isOpen = { [weak self] in self?.open?.generation == note.generation }
             if isOpen() { saveState = .saving }
+            inFlight = note
             let result = await save(document, of: note)
+            inFlight = nil
             if result != .saved { Self.log.error("Note not saved: \(String(describing: result), privacy: .public)") }
             guard isOpen() else { continue }
             if result == .saved {
@@ -432,9 +447,25 @@ final class NotesStore: ObservableObject {
             if SaveGuard.decide(openedAt: base, currentModification: current) == .conflict { return .conflict }
             let images = imageData(for: document, from: note.images)
             let html = try NotesHTMLWriter.write(document, images: images)
-            let modified = try await service.setBody(html, of: id)
+            // No await between this check and the write: saves run one at a time.
+            guard writeCount[id, default: 0] == (loadStamp[generation] ?? -1) + ownWrites[generation, default: 0] else {
+                Self.log.error("Note was written from another load since this one read it")
+                return .conflict
+            }
+            let modified: Date
+            do {
+                modified = try await service.setBody(html, of: id)
+            } catch NotesServiceError.notFound {
+                throw NotesServiceError.notFound
+            } catch NotesServiceError.denied {
+                throw NotesServiceError.denied
+            } catch {
+                // The write may or may not have happened: count it as someone else's, so no load writes over it.
+                noteWritten(id, by: nil)
+                throw error
+            }
             lastWritten[generation] = modified
-            writeCount[id, default: 0] += 1
+            noteWritten(id, by: generation)
             guard open?.generation == generation else { return .saved }
             open?.openedAt = modified
             await keepImages(of: document, images: images, noteID: id, generation: generation)
@@ -447,6 +478,17 @@ final class NotesStore: ObservableObject {
         } catch {
             Self.log.error("Save failed: \(String(describing: error), privacy: .public)")
             return .failed(String(describing: error))
+        }
+    }
+
+    /// Counts a write of `id`; `generation` nil when its outcome is unknown. An open load of the same note other
+    /// than the writer now shows stale text, so it is marked a conflict at once.
+    private func noteWritten(_ id: String, by generation: Int?) {
+        writeCount[id, default: 0] += 1
+        if let generation { ownWrites[generation, default: 0] += 1 }
+        if let open, open.id == id, open.generation != generation {
+            saveState = .conflict
+            if pending?.note.generation == open.generation { pending = nil }
         }
     }
 
@@ -493,6 +535,7 @@ final class NotesStore: ObservableObject {
     /// Makes a note in the default folder (or the first one) and opens it. `document` re-creates a note's content,
     /// for instance after a conflict; its images come from the open note.
     func newNote(_ document: NoteDocument? = nil) async {
+        let imageFiles = open?.images ?? [:]  // the document's indexes are those of the load open now
         await flush()
         if folders.isEmpty { await refresh() }
         guard let folder = folders.first(where: { $0.id == settings.defaultFolderID }) ?? folders.first else {
@@ -501,7 +544,7 @@ final class NotesStore: ObservableObject {
         }
         let document = document ?? NoteDocument(blocks: [.paragraph([])])
         do {
-            let html = try NotesHTMLWriter.write(document, images: imageData(for: document, from: open?.images ?? [:]))
+            let html = try NotesHTMLWriter.write(document, images: imageData(for: document, from: imageFiles))
             let id = try await service.create(in: folder.id, html: html)
             let generation = requestLoad()
             await refresh()

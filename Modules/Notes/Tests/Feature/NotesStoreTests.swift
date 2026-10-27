@@ -8,12 +8,17 @@ private final class FakeDatabase: NoteDatabase, @unchecked Sendable {
     var readable = true
     var documents: [Int: NoteDocument] = [:]
     var files: [Int: URL] = [:]
+    /// Seconds an attachment lookup takes (it runs off the main actor).
+    var fileDelay: TimeInterval = 0
 
     var isReadable: Bool { readable }
     func document(forNoteKey key: Int) -> (document: NoteDocument, attachments: [NoteStoreAttachment])? {
         documents[key].map { ($0, []) }
     }
-    func attachmentFile(forAttachmentKey key: Int) -> URL? { files[key] }
+    func attachmentFile(forAttachmentKey key: Int) -> URL? {
+        if fileDelay > 0 { Thread.sleep(forTimeInterval: fileDelay) }
+        return files[key]
+    }
 }
 
 private func temporaryDirectory() -> URL {
@@ -35,12 +40,13 @@ private func attachmentID(_ n: Int) -> String { "x-coredata://FAKE/ICAttachment/
 @MainActor
 private struct Harness {
     let fake = FakeNotesService()
-    let cache = NoteImageCache(root: temporaryDirectory())
+    let cache: NoteImageCache
     let settings = NotesSettings(store: NotesSettingsStore(defaults: UserDefaults(suiteName: "notes.test.\(UUID().uuidString)")!))
     let folderID: String
     let store: NotesStore
 
-    init(database: NoteDatabase? = nil, debounce: Duration = .milliseconds(10)) async throws {
+    init(database: NoteDatabase? = nil, debounce: Duration = .milliseconds(10), cacheLimit: Int = 200_000_000) async throws {
+        cache = NoteImageCache(root: temporaryDirectory(), limitBytes: cacheLimit)
         folderID = try await fake.createFolder(named: "Notes").id
         store = NotesStore(service: fake, database: database, cache: cache, settings: settings, debounce: debounce)
     }
@@ -272,6 +278,103 @@ private struct Harness {
         await h.store.openNote(b)
         await first.value
         #expect(h.store.open?.id == b)
+    }
+
+    @Test func writeLandingWhileImagesLoadOpensAsConflict() async throws {
+        let dir = temporaryDirectory()
+        let file = dir.appendingPathComponent("photo.png")
+        try pngBytes.write(to: file)
+        let db = FakeDatabase()
+        db.files[1] = file
+        let h = try await Harness(database: db)
+        let a = h.fake.addNote("A", in: h.folderID, html: "<div>A</div><div><br></div>", plainText: "A\n\u{FFFC}",
+                               attachments: [attachmentID(1)])
+        db.documents[NotesIDs.databaseKey(of: a, entity: "ICNote")!] = NoteDocument(blocks: [p("A"), .image(attachmentIndex: 0)])
+        await h.store.openNote(a)
+        let old = try #require(h.store.open?.generation)
+        h.cache.remove(key: attachmentID(1))  // the reload has to wait for the database
+        db.fileDelay = 0.15
+        let reloading = Task { await h.store.reloadOpenNote() }
+        try await Task.sleep(for: .milliseconds(50))  // the reload is loading images; A's old editor still types
+        h.store.edit(generation: old, NoteDocument(blocks: [p("A typed")]))  // its image file was removed above
+        await reloading.value
+        await h.store.flush()
+        let reloaded = try #require(h.store.open)
+        #expect(reloaded.generation != old)
+        #expect(reloaded.safety == .editable)
+        #expect(h.store.saveState == .conflict)
+        let writes = h.fake.setBodyCalls
+        #expect(writes == 1)  // the old editor's edit, within a second of the reload's read
+        h.store.edit(generation: reloaded.generation, NoteDocument(blocks: [p("A"), .image(attachmentIndex: 0)]))
+        try await Task.sleep(for: .milliseconds(40))
+        await h.store.flush()
+        #expect(h.fake.setBodyCalls == writes)
+        #expect(try await h.fake.content(of: a).html.contains("A typed"))
+    }
+
+    @Test func reloadThatNeverSettlesOpensAsConflict() async throws {
+        let h = try await Harness(debounce: .milliseconds(1))
+        let a = h.plainNote("A")
+        await h.store.openNote(a)
+        let old = try #require(h.store.open?.generation)
+        h.fake.contentDelay = .milliseconds(60)
+        h.fake.setBodyDelay = .milliseconds(3)
+        // The old editor keeps typing all through the reload, each keystroke saved before the next one,
+        // so a write lands during every read and the reads run out.
+        let typing = Task { @MainActor in
+            for i in 0..<40 {
+                h.store.edit(generation: old, NoteDocument(blocks: [p("A"), p(String(repeating: "x", count: i + 1))]))
+                try? await Task.sleep(for: .milliseconds(20))
+            }
+        }
+        await h.store.reloadOpenNote()
+        let reloaded = try #require(h.store.open)
+        #expect(reloaded.generation != old)
+        #expect(reloaded.safety == .editable)  // only the conflict holds its edits back
+        await typing.value
+        await h.store.flush()
+        #expect(h.store.saveState == .conflict)
+        let writes = h.fake.setBodyCalls
+        h.store.edit(generation: reloaded.generation, NoteDocument(blocks: [p("A"), p("stale")]))
+        try await Task.sleep(for: .milliseconds(40))
+        await h.store.flush()
+        #expect(h.fake.setBodyCalls == writes)
+        #expect(try await h.fake.content(of: a).html.contains("stale") == false)
+    }
+
+    @Test func imagesOfASaveUnderWayAreNotTrimmed() async throws {
+        let h = try await Harness(cacheLimit: 1)  // every file not in use is trimmed
+        let a = try h.twoImageNote()
+        let b = h.fake.addNote("B", in: h.folderID, html: "<div>B</div><div><br></div>", plainText: "B\n\u{FFFC}",
+                               attachments: [attachmentID(9)])
+        await h.store.openNote(a)
+        let genA = h.store.open?.generation
+        h.fake.setContentDelay(.milliseconds(30), for: b)
+        let opening = Task { await h.store.openNote(b) }
+        try await Task.sleep(for: .milliseconds(10))
+        h.fake.modificationDelay = .milliseconds(200)
+        h.store.edit(generation: genA, NoteDocument(blocks: [p("a typed"), .image(attachmentIndex: 0), .image(attachmentIndex: 1)]))
+        await opening.value
+        #expect(h.store.open?.id == b)
+        try await Task.sleep(for: .milliseconds(30))  // A's save is waiting on modification
+        await h.store.reloadOpenNote()  // B's load trims the cache
+        await h.store.flush()
+        #expect(h.fake.setBodyCalls == 1)
+        #expect(imageCount(try await h.fake.content(of: a).html) == 2)
+    }
+
+    @Test func aWriteOfUnknownOutcomeIsNeverWrittenOver() async throws {
+        let h = try await Harness()
+        let a = h.plainNote("A")
+        await h.store.openNote(a)
+        h.fake.nextSetBodyFailsAfterWriting = true
+        h.store.edit(generation: h.store.open?.generation, NoteDocument(blocks: [p("A"), p("one")]))
+        await h.store.flush()
+        guard case .failed = h.store.saveState else { Issue.record("expected failed, got \(h.store.saveState)"); return }
+        h.store.edit(generation: h.store.open?.generation, NoteDocument(blocks: [p("A"), p("two")]))
+        await h.store.flush()
+        #expect(h.store.saveState == .conflict)
+        #expect(h.fake.setBodyCalls == 1)
     }
 
     @Test func newImageIsEmbeddedOnSave() async throws {

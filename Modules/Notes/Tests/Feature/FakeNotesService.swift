@@ -17,6 +17,20 @@ final class FakeNotesService: NotesService, @unchecked Sendable {
     private var readDelay: Duration = .zero
     private var readDelays: [String: Duration] = [:]
     private var bodyDateOffset: TimeInterval = 0
+    private var modDelay: Duration = .zero
+    private var failAfterWrite = false
+
+    /// The next `setBody` writes, then reports a script error: a write whose outcome AraNotch cannot know.
+    var nextSetBodyFailsAfterWriting: Bool {
+        get { lock.withLock { failAfterWrite } }
+        set { lock.withLock { failAfterWrite = newValue } }
+    }
+
+    /// How long `modification` takes, to hold a save between its check and its write.
+    var modificationDelay: Duration {
+        get { lock.withLock { modDelay } }
+        set { lock.withLock { modDelay = newValue } }
+    }
 
     /// How long `content` of one note takes (overrides `contentDelay`).
     func setContentDelay(_ delay: Duration, for noteID: String) { lock.withLock { readDelays[noteID] = delay } }
@@ -131,14 +145,25 @@ final class FakeNotesService: NotesService, @unchecked Sendable {
             lastBody = html
             let now = Date().addingTimeInterval(bodyDateOffset)
             contentByID[noteID]?.html = html
+            if !html.contains("<img"), !html.contains("<object") {
+                // Plain divs: their text, one line each, as Notes would report it.
+                contentByID[noteID]?.plainText = html.replacingOccurrences(of: "</div>", with: "\n")
+                    .replacingOccurrences(of: "<br>", with: "")
+                    .replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
+            }
             contentByID[noteID]?.modified = now
             notesByID[noteID]?.modified = now
+            if failAfterWrite {
+                failAfterWrite = false
+                throw NotesServiceError.script("timed out")
+            }
             return now
         }
     }
 
     func modification(of noteID: String) async throws -> Date {
-        try lock.withLock {
+        if modificationDelay > .zero { try await Task.sleep(for: modificationDelay) }
+        return try lock.withLock {
             guard let n = notesByID[noteID] else { throw NotesServiceError.notFound }
             return n.modified
         }
