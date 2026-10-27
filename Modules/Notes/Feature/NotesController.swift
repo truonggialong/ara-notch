@@ -111,9 +111,16 @@ public final class NotesController {
         }
     }
 
-    /// The `.newNote` shortcut is left to the app wiring (Task 12): ShortcutCenter keeps one handler per action,
-    /// and Clipboard holds this one until then.
+    /// Writes the raw (compressed) body of a note's database row to `file`; for automated checks. False when
+    /// the note has no row key or the database cannot be read (no Full Disk Access).
+    public func dumpNoteData(noteID: String, to file: URL) -> Bool {
+        guard let key = NotesIDs.databaseKey(of: noteID, entity: "ICNote"),
+              let data = NoteStoreReader().rawData(forNoteKey: key) else { return false }
+        return (try? data.write(to: file)) != nil
+    }
+
     public func start() {
+        notch.shortcuts.setHandler(.newNote) { [weak self] in self?.newNote() }
         notch.setSheetHeight(Self.sheetHeight, forPage: Self.pageID)
         // Leaving the page, closing the notch or leaving the app saves what was typed.
         Publishers.CombineLatest(notch.isOpenPublisher, notch.selectedPagePublisher)

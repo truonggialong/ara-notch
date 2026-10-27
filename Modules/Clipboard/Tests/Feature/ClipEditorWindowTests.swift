@@ -12,13 +12,6 @@ import Testing
             createdAt: Date(), lastUsedAt: Date(), byteSize: 10)
     }
 
-    @Test func aNewNoteStartsWithTheCursorInItsText() throws {
-        let window = ClipEditorWindows.makeWindow(model: ClipEditorModel(item: nil), title: "New Note")
-        ClipEditorWindows.focusFirstField(in: window, prefersText: true)
-        let responder = try #require(window.firstResponder as? NSTextView)
-        #expect(!responder.isFieldEditor)
-    }
-
     @Test func aClipWithoutEditableTextStartsInItsTitle() throws {
         let window = ClipEditorWindows.makeWindow(model: ClipEditorModel(item: imageClip()), title: "Edit")
         ClipEditorWindows.focusFirstField(in: window, prefersText: false)

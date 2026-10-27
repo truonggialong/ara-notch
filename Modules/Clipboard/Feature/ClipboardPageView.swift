@@ -32,7 +32,6 @@ struct ClipboardPageView: View {
                     AraIconButton(.saveFilter, size: .small) { model.onSaveFilter?() }
                 }
                 copyStackButton
-                AraIconButton(.newNote, size: .small) { model.onNewNote?() }
                 // For the seconds a deletion can be undone, the way back takes the boards' place.
                 if model.undoableDeletionCount > 0 {
                     ClipUndoToast(model: model)

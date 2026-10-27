@@ -80,14 +80,6 @@ final class ClipEditorWindows {
 
     /// - Parameter save: given the edited title and text; returns nil when saved, or the
     ///   message to show when not.
-    /// The window for a note that does not exist yet; one at a time.
-    private static let newNoteID: Int64 = -1
-
-    /// Opens an empty editor; `save` is given the title and the text of the new note.
-    func openNew(save: @escaping @MainActor (_ title: String, _ text: String) -> String?) {
-        open(id: Self.newNoteID, item: nil, windowTitleKey: "clipboard.note.window", save: save)
-    }
-
     func open(_ item: ClipItem, save: @escaping @MainActor (_ title: String, _ text: String) -> String?) {
         open(id: item.id, item: item, windowTitleKey: "clipboard.edit.window", save: save)
     }

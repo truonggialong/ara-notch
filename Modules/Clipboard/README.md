@@ -4,7 +4,7 @@ Sổ của module **Clipboard**. Đọc `Modules/README.md` trước: luật ran
 
 ## Vai trò
 
-Lịch sử clipboard và mọi thứ quanh nó: ghi lại những gì được chép (chữ, link, màu, ảnh, tệp), tìm kiếm, board và ghim, két khoá bằng mật mã, panel nổi ⌘⇧C, cửa sổ Thư viện, sửa clip và ghi chú mới, công cụ sửa chữ, copy stack, dán theo số, sao lưu và nhập, xem trước link, đọc chữ trong ảnh, trang Clipboard và widget Clipboard của Tổng quan, máy chủ MCP chỉ đọc cho agent.
+Lịch sử clipboard và mọi thứ quanh nó: ghi lại những gì được chép (chữ, link, màu, ảnh, tệp), tìm kiếm, board và ghim, két khoá bằng mật mã, panel nổi ⌘⇧C, cửa sổ Thư viện, sửa clip, công cụ sửa chữ, copy stack, dán theo số, sao lưu và nhập, xem trước link, đọc chữ trong ảnh, trang Clipboard và widget Clipboard của Tổng quan, máy chủ MCP chỉ đọc cho agent.
 
 ## Target và thư mục
 
@@ -62,7 +62,6 @@ Những gì app gọi (hàm `public` của controller; các kiểu `public` khá
 - `ClipboardController.clear(_ range: ClearRange)`
 - `ClipboardController.editNewestText()`
 - `ClipboardController.var recognizeText: ((_ imageData: Data, _ completion: @escaping @MainActor (String) -> Void) -> Void)?`
-- `ClipboardController.newNote()`
 - `ClipboardController.var createReminder: ((_ title: String, _ notes: String?, _ due: Date, _ completion: @escaping @MainActor (Bool) -> Void) -> Void)?`
 - `ClipboardController.var cutOutSubject: ((_ imageData: Data, _ completion: @escaping @MainActor (Data?) -> Void) -> Void)?`
 - `ClipboardController.var assistant: ((_ action: String, _ text: String, _ completion: @escaping @MainActor (String?) -> Void) -> Void)?`

@@ -128,7 +128,6 @@ final class ClipboardViewModel: ObservableObject {
     var onPaste: ((ClipItem) -> Void)?
     var onSaveFilter: (() -> Void)?
     var onRemoveFilter: ((SavedFilter) -> Void)?
-    var onNewNote: (() -> Void)?
     var onRemind: ((ClipItem, ClipReminderPreset) -> Void)?
     /// Remind of the clip at a day and a time chosen by sight.
     var onRemindAt: ((ClipItem) -> Void)?

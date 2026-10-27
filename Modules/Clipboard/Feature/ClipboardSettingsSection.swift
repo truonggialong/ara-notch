@@ -180,7 +180,6 @@ struct ClipboardToolSettings: View {
         ShortcutRow(
             center: shortcuts, action: .clipboardPanel, titleKey: "settings.clipboard.hotKey",
             noteKey: "settings.clipboard.hotKey.note", isOn: $settings.hotKeyEnabled)
-        ShortcutRow(center: shortcuts, action: .newNote, titleKey: "shortcut.newNote", noteKey: "settings.clipboard.newNote.note")
     }
 }
 

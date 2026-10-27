@@ -104,8 +104,12 @@ struct LaunchArguments {
     let removeClaudeStatusLine: Bool
     /// `--print-agents <file>`: write what the app knows about agents (sessions, rate limits) after a moment.
     let agentSummaryFile: URL?
-    /// `--new-note`: open the editor for a new note.
+    /// `--new-note`: make a new note in Notes and open it in the Notes window.
     let newNote: Bool
+    /// `--show-notes`: show the Notes window right away.
+    let showNotes: Bool
+    /// `--dump-note-data <note id> <file>`: write the note's raw database body to the file (needs Full Disk Access).
+    let dumpNoteData: (id: String, file: URL)?
     /// `--check-reminders <file>`: write whether a reminder can be made (one is made and removed at once).
     let checkRemindersFile: URL?
     /// `--cut-out <image>`: cut the picture's subject out and write the PNG to `--capture-out`.
@@ -165,6 +169,10 @@ struct LaunchArguments {
         removeClaudeStatusLine = arguments.contains("--remove-claude-statusline")
         agentSummaryFile = value(after: "--print-agents").map { URL(fileURLWithPath: $0) }
         newNote = arguments.contains("--new-note")
+        showNotes = arguments.contains("--show-notes")
+        dumpNoteData = arguments.firstIndex(of: "--dump-note-data").flatMap { index in
+            arguments.indices.contains(index + 2) ? (arguments[index + 1], URL(fileURLWithPath: arguments[index + 2])) : nil
+        }
         checkRemindersFile = value(after: "--check-reminders").map { URL(fileURLWithPath: $0) }
         cutOutFile = value(after: "--cut-out").map { URL(fileURLWithPath: $0) }
         pickColor = arguments.contains("--pick-color")

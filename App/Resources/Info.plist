@@ -35,6 +35,8 @@
     <string>AraNotch shows a notice on the notch when a Bluetooth device connects or disconnects.</string>
     <key>NSCalendarsFullAccessUsageDescription</key>
     <string>AraNotch shows today's events on the notch and announces a meeting shortly before it starts.</string>
+    <key>NSAppleEventsUsageDescription</key>
+    <string>AraNotch reads and writes your notes in Notes.</string>
     <key>NSRemindersFullAccessUsageDescription</key>
     <string>AraNotch shows your open reminders on the notch and lets you mark them as completed.</string>
     <key>UTExportedTypeDeclarations</key>

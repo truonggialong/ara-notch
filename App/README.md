@@ -19,6 +19,14 @@ Chương trình chính: tạo và nối các module (`AppDelegate`), cửa sổ 
 
 Xem các kiểu `public` trong mã của module.
 
+## Tham số dòng lệnh về Notes
+
+- `--new-note`: tạo ghi chú mới trong Notes và mở cửa sổ Notes.
+- `--show-notes`: mở cửa sổ Notes.
+- `--dump-note-data <noteID> <tệp>`: ghi dữ liệu thô của ghi chú (cần Full Disk Access) ra tệp, in kết quả ra stdout.
+
+Notes nối ở `AppDelegate`: trang đăng ký sau trang Lịch, `makePageSettings()` ở tab Trang, `makeToolSettings()` ở tab Công cụ, công cụ "note", mục menu "Ghi chú mới" và phím `.newNote` đều gọi `NotesController` (`start()` giữ trình xử lý phím). Clipboard không còn ghi chú riêng.
+
 ## Ghi chú cho người sửa
 
 - Thêm một tính năng mới: tạo `<X>Core`/`<X>Feature`, khai báo trong `Package.swift`, rồi nối ở `AppDelegate.applicationDidFinishLaunching` (tạo controller, `register(page:)`, ô Tổng quan qua `overview.setTiles`, phần Cài đặt qua `SettingsTab`).

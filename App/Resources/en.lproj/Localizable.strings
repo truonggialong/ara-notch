@@ -415,7 +415,6 @@
 "menu.pausedUntil" = "Clipboard Recording Paused until %@";
 "shortcut.newNote" = "New note";
 "clipboard.note.new" = "New note";
-"clipboard.note.window" = "New Note";
 "clipboard.filters.save" = "Save this search as a filter";
 "clipboard.filters.remove" = "Remove Filter";
 "clipboard.menu.remind" = "Remind Me";
@@ -837,7 +836,6 @@
 "settings.overview" = "Overview layout";
 "settings.clipboard.pasteOnClick.note" = "Needs Accessibility. When off, a click only copies";
 "settings.clipboard.hotKey.note" = "The list of copied items, used from the keyboard";
-"settings.clipboard.newNote.note" = "Write a text item into the clipboard";
 "settings.tools.notch" = "Notch and clipboard";
 "settings.alerts.screen" = "Shown beside the notch";
 "settings.alerts.system" = "Your Mac";

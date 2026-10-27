@@ -13,6 +13,7 @@ Trang Công cụ và widget Công cụ của Tổng quan: các nút lớn cho nh
 ## Phụ thuộc và ai dùng
 
 - Dùng: `NotchShell`.
+- Công cụ "ghi chú mới" gọi `NotesController.newNote()` (App nối), tạo ghi chú trong Notes; không còn là ghi chú clipboard.
 - Được dùng bởi: App (`ToolsController`). App quyết định có công cụ nào và mỗi công cụ gọi tính năng nào; notch đóng trước khi công cụ chạy.
 
 ## Giao diện công khai

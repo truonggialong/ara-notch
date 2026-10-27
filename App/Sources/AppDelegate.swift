@@ -13,6 +13,8 @@ import MediaCore
 import MediaFeature
 import NotchCore
 import NotchShell
+import NotesCore
+import NotesFeature
 import OverviewCore
 import OverviewFeature
 import SwiftUI
@@ -38,6 +40,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var windows: WindowsController?
     private var translate: TranslateController?
     private var calendar: CalendarController?
+    private var notes: NotesController?
     private var capture: CaptureController?
     private var statusItem: StatusItemController?
     private var settingsWindow: SettingsWindowController?
@@ -94,6 +97,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             settings: TranslateSettings(store: TranslateSettingsStore(defaults: .standard)), shortcuts: controller.shortcuts)
         let calendar = CalendarController(
             settings: CalendarSettings(store: CalendarSettingsStore(defaults: .standard)), notch: controller)
+        let notes = NotesController(
+            settings: NotesSettings(store: NotesSettingsStore(defaults: .standard)), notch: controller)
         if arguments.simulateAgenda {
             calendar.simulate()
         }
@@ -118,6 +123,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         controller.register(page: media.makePage())
         controller.register(page: timer.makePage())
         controller.register(page: calendar.makePage())
+        controller.register(page: notes.makePage())
         controller.register(page: files.makePage())
         controller.register(page: agents.makePage())
         // The tools page: what otherwise takes a shortcut or the menu bar. The notch closes
@@ -136,7 +142,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             tool("translate") { [weak translate] in translate?.translateSelection() },
             tool("panel") { [weak clipboard] in clipboard?.showPanel() },
             tool("library") { [weak clipboard] in clipboard?.showLibrary() },
-            tool("note") { [weak clipboard] in clipboard?.newNote() },
+            tool("note") { [weak notes] in notes?.newNote() },
         ]
         // The overview's quick tools are the four used most: capture, read text, pick a colour, translate.
         let toolsPage = ToolsController(tools: tools, quickToolIDs: ["capture", "text", "color", "translate"])
@@ -178,12 +184,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 content: AnyView(GeneralSettingsSection(settings: shellSettings, loginItem: LoginItem(), updater: updater))),
             SettingsTab(
                 id: "pages", titleKey: "settings.section.pages", symbolName: "square.grid.2x2",
-                searchPrefixes: ["settings.pages", "settings.overview", "settings.media.enabled", "settings.media.lyrics", "settings.calendar.lunar"],
+                searchPrefixes: ["settings.pages", "settings.overview", "settings.media.enabled", "settings.media.lyrics", "settings.calendar.lunar", "settings.notes.defaultFolder", "settings.notes.automation", "settings.notes.fullDisk", "settings.notes.permission"],
                 content: AnyView(Group {
                     PagesSettingsSection(settings: shellSettings, notch: controller, overviewRow: overview.makeSettingsRow())
                     Section(L10n.string("settings.pages.options")) {
                         media.makePageSettings()
                         calendar.makePageSettings()
+                        notes.makePageSettings()
                     }
                 })),
             SettingsTab(
@@ -211,10 +218,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 })),
             SettingsTab(
                 id: "tools", titleKey: "settings.section.tools", symbolName: "keyboard",
-                searchPrefixes: ["settings.capture", "settings.translate", "settings.selection", "settings.windows", "settings.clipboard.hotKey", "settings.clipboard.newNote", "shortcut.", "settings.shortcuts.restore"],
+                searchPrefixes: ["settings.capture", "settings.translate", "settings.selection", "settings.windows", "settings.clipboard.hotKey", "settings.notes.newNote", "shortcut.", "settings.shortcuts.restore"],
                 content: AnyView(Group {
                     Section {
                         clipboard.makeToolSettings()
+                        notes.makeToolSettings()
                         ShellToolSettings(shortcuts: controller.shortcuts)
                     } header: {
                         VStack(alignment: .leading, spacing: 2) {
@@ -265,7 +273,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         statusItem = StatusItemController(
             onOpenLibrary: { [weak clipboard] in clipboard?.showLibrary() },
-            onNewNote: { [weak clipboard] in clipboard?.newNote() },
+            onNewNote: { [weak notes] in notes?.newNote() },
             onPause: { [weak clipboard] pause in
                 if let pause {
                     clipboard?.pause(pause)
@@ -314,6 +322,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         windows.start()
         translate.start()
         calendar.start()
+        notes.start()
         capture.start()
         capture.onNotice = { [weak controller] symbol, message in
             controller?.present(NotchLiveActivity(
@@ -350,7 +359,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
         if arguments.newNote {
-            clipboard.newNote()
+            notes.newNote()
+        }
+        if arguments.showNotes {
+            notes.showWindow()
+        }
+        if let dump = arguments.dumpNoteData {
+            print(notes.dumpNoteData(noteID: dump.id, to: dump.file) ? "note data written to \(dump.file.path)" : "note data not written")
         }
         if let file = arguments.checkRemindersFile {
             try? "can write reminders: \(calendar.canWriteReminders())\n".write(to: file, atomically: true, encoding: .utf8)
@@ -411,6 +426,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self.windows = windows
         self.translate = translate
         self.calendar = calendar
+        self.notes = notes
         self.capture = capture
         self.settingsWindow = settingsWindow
 

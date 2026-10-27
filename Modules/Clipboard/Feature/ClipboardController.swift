@@ -120,7 +120,6 @@ public final class ClipboardController {
             guard let self else { return }
             self.settings.savedFilters = SavedFilter.removing(filter.query, from: self.settings.savedFilters)
         }
-        viewModel.onNewNote = { [weak self] in self?.newNote() }
         viewModel.onRemind = { [weak self] item, preset in self?.remind(item, preset) }
         viewModel.onRemindAt = { [weak self] item in self?.remindAtChosenTime(item) }
         viewModel.onRemoveBackground = { [weak self] item in self?.removeBackground(of: item) }
@@ -241,7 +240,6 @@ public final class ClipboardController {
         settings.$savedFilters
             .sink { [weak self] filters in self?.viewModel.savedFilters = filters }
             .store(in: &cancellables)
-        notch.shortcuts.setHandler(.newNote) { [weak self] in self?.newNote() }
         settings.$readsTextInImages
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in self?.readTextInImagesIfNeeded() }
@@ -1236,26 +1234,6 @@ public final class ClipboardController {
     }
 
     // MARK: - Notes, reminders, pictures, the on-device model
-
-    /// Opens an empty editor; what is written there becomes the newest clip.
-    public func newNote() {
-        hidePanel()
-        notch.close()
-        editors.openNew { [weak self] title, text in
-            guard let self else { return L10n.string("clipboard.edit.failed") }
-            guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-                return L10n.string("clipboard.edit.empty")
-            }
-            let source = ClipSource(bundleID: Bundle.main.bundleIdentifier, appName: "AraNotch")
-            guard let added = self.add(.text(text), rich: nil, source: source) else {
-                return L10n.string("clipboard.edit.failed")
-            }
-            if !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                self.perform { try $0.setTitle(id: added.id, title: title) }
-            }
-            return nil
-        }
-    }
 
     /// Makes a macOS reminder; set by the app, which has the calendar feature do it. The
     /// answer says whether the reminder was made.

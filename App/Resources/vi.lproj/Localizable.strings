@@ -415,7 +415,6 @@
 "menu.pausedUntil" = "Đang tạm dừng ghi clipboard tới %@";
 "shortcut.newNote" = "Ghi chú mới";
 "clipboard.note.new" = "Ghi chú mới";
-"clipboard.note.window" = "Ghi chú mới";
 "clipboard.filters.save" = "Lưu tìm kiếm này làm bộ lọc";
 "clipboard.filters.remove" = "Xoá bộ lọc";
 "clipboard.menu.remind" = "Nhắc tôi";
@@ -837,7 +836,6 @@
 "settings.overview" = "Bố cục Tổng quan";
 "settings.clipboard.pasteOnClick.note" = "Cần quyền Trợ năng. Tắt thì chỉ chép lại";
 "settings.clipboard.hotKey.note" = "Danh sách mục đã chép, dùng bằng bàn phím";
-"settings.clipboard.newNote.note" = "Viết một mục chữ vào clipboard";
 "settings.tools.notch" = "Notch và clipboard";
 "settings.alerts.screen" = "Hiện cạnh notch";
 "settings.alerts.system" = "Máy";
