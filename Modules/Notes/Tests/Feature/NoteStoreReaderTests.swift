@@ -96,6 +96,23 @@ private let minimalProtobuf = Data([0x12, 0x06, 0x1a, 0x04, 0x12, 0x02, 0x48, 0x
         #expect(note?.modified == nil)
     }
 
+    /// The row key of each attachment of the note, found by the identifier its data names, in document order.
+    @Test func findsTheRowKeyOfEachAttachment() throws {
+        // Protobuf by hand (fields below 16, lengths below 128): a tag byte, then a varint or a length and bytes.
+        func bytes(_ field: UInt8, _ data: Data) -> Data { Data([field << 3 | 2, UInt8(data.count)]) + data }
+        func varint(_ field: UInt8, _ value: UInt8) -> Data { Data([field << 3, value]) }
+        var note = bytes(2, Data("\u{FFFC}\n\u{FFFC}".utf8))
+        for (length, identifier) in [(UInt8(2), "SECOND-ADDED"), (1, "MISSING")] {
+            let info = bytes(1, Data(identifier.utf8)) + bytes(2, Data("public.png".utf8))
+            note += bytes(5, varint(1, length) + bytes(12, info))
+        }
+        let protobuf = bytes(2, bytes(3, note))
+        let store = try TempStore()
+        try store.insertNoteData(try gzip(protobuf), noteKey: 96, dataKey: 7)
+        try store.exec("INSERT INTO ZICCLOUDSYNCINGOBJECT (Z_PK, ZIDENTIFIER) VALUES (40, 'SECOND-ADDED')")
+        #expect(NoteStoreReader(url: store.dbURL).note(forNoteKey: 96)?.attachmentKeys == [40, nil])
+    }
+
     @Test func missingKeyIsNil() throws {
         let store = try TempStore()
         try store.insertNoteData(try gzip(minimalProtobuf), noteKey: 1, dataKey: 1)

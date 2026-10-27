@@ -9,10 +9,14 @@ import SQLite3
 public struct DatabaseNote: Sendable {
     public var decoded: DecodedNote
     public var modified: Date?
+    /// The row key (Z_PK) of each of `decoded.attachments`, in document order; nil for one not found. AppleScript's
+    /// ids hold the same key ("…/ICAttachment/pNN"), so this is what puts its ids in document order.
+    public var attachmentKeys: [Int?]
 
-    public init(decoded: DecodedNote, modified: Date? = nil) {
+    public init(decoded: DecodedNote, modified: Date? = nil, attachmentKeys: [Int?] = []) {
         self.decoded = decoded
         self.modified = modified
+        self.attachmentKeys = attachmentKeys
     }
 }
 
@@ -81,11 +85,30 @@ public final class NoteStoreReader: NoteDatabase {
     public func note(forNoteKey key: Int) -> DatabaseNote? {
         guard let row = row(forNoteKey: key) else { return nil }
         do {
-            return DatabaseNote(decoded: try NoteStoreDecoder.decode(row.data), modified: row.modified)
+            let decoded = try NoteStoreDecoder.decode(row.data)
+            return DatabaseNote(decoded: decoded, modified: row.modified,
+                                attachmentKeys: attachmentKeys(forIdentifiers: decoded.attachments.map(\.identifier)))
         } catch {
             Self.log.error("Could not decode note \(key, privacy: .public)")
             return nil
         }
+    }
+
+    /// The row key of the attachment with each identifier (ZIDENTIFIER), nil for one not found.
+    private func attachmentKeys(forIdentifiers identifiers: [String]) -> [Int?] {
+        guard !identifiers.isEmpty else { return [] }
+        return withDatabase { db in
+            var statement: OpaquePointer?
+            defer { sqlite3_finalize(statement) }
+            let sql = "SELECT Z_PK FROM ZICCLOUDSYNCINGOBJECT WHERE ZIDENTIFIER = ? LIMIT 1"
+            guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else { return identifiers.map { _ in nil } }
+            return identifiers.map { identifier -> Int? in
+                sqlite3_reset(statement)
+                sqlite3_bind_text(statement, 1, identifier, -1, Self.sqliteTransient)
+                guard sqlite3_step(statement) == SQLITE_ROW else { return nil }
+                return Int(sqlite3_column_int64(statement, 0))
+            }
+        } ?? identifiers.map { _ in nil }
     }
 
     // MARK: Attachment files

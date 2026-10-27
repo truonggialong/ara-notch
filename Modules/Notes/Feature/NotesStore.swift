@@ -192,6 +192,8 @@ final class NotesStore: ObservableObject {
         var ids: [String]
         var readable: Bool
         var full: DecodedNote?
+        /// The row keys of the full document's attachments, in document order.
+        var attachmentKeys: [Int?]
         /// The database row is not of the moment AppleScript read: the full document may lack the last edit.
         var stale: Bool
     }
@@ -217,7 +219,9 @@ final class NotesStore: ObservableObject {
                 Self.log.error("Notes' database does not hold the note's last change yet; opened read only")
                 safety = safety.adding(.unreadable)
             }
-            let (images, complete) = await loadImages(of: document, ids: read.ids, readable: read.readable)
+            // With the database, AppleScript's ids are put in document order (they may come in the order added).
+            let ids = read.full == nil ? read.ids : Self.ordered(read.ids, byKeys: read.attachmentKeys)
+            let (images, complete) = await loadImages(of: document, ids: ids ?? [], readable: read.readable)
             if !complete { safety = safety.adding(.imagesUnavailable) }
             guard generation == latestRequest else {
                 Self.log.info("A later open replaced this one")
@@ -255,7 +259,7 @@ final class NotesStore: ObservableObject {
             (readable, row) = await readFull(id)
         }
         return (writes, ReadNote(content: content, ids: ids, readable: readable, full: row?.decoded,
-                                 stale: Self.isStale(row, comparedWith: content.modified)))
+                                 attachmentKeys: row?.attachmentKeys ?? [], stale: Self.isStale(row, comparedWith: content.modified)))
     }
 
     /// Whether the row's date is another second than AppleScript's (which is rounded to the second).
@@ -322,7 +326,7 @@ final class NotesStore: ObservableObject {
     }
 
     /// The attachment blocks (image, table, file, drawing) with their position among the note's attachments.
-    static func attachmentBlocks(_ document: NoteDocument) -> [(slot: Int, block: NoteBlock)] {
+    nonisolated static func attachmentBlocks(_ document: NoteDocument) -> [(slot: Int, block: NoteBlock)] {
         document.blocks.filter(isAttachment).enumerated().map { ($0.offset, $0.element) }
     }
 
@@ -330,11 +334,24 @@ final class NotesStore: ObservableObject {
         document.blocks.indices.filter { isAttachment(document.blocks[$0]) }
     }
 
-    private static func isAttachment(_ block: NoteBlock) -> Bool {
+    nonisolated private static func isAttachment(_ block: NoteBlock) -> Bool {
         switch block {
         case .image, .table, .file, .drawing: return true
         default: return false
         }
+    }
+
+    /// AppleScript's attachment ids in the order of `keys` (the database's document order), or nil when they are not
+    /// the same attachments: then no image can be placed for sure.
+    static func ordered(_ ids: [String], byKeys keys: [Int?]) -> [String]? {
+        guard ids.count == keys.count else { return nil }
+        var byKey: [Int: String] = [:]
+        for id in ids {
+            guard let key = NotesIDs.attachmentKey(of: id), byKey[key] == nil else { return nil }
+            byKey[key] = id
+        }
+        let ordered = keys.compactMap { $0.flatMap { byKey[$0] } }
+        return ordered.count == ids.count ? ordered : nil
     }
 
     /// Each image's file, from the cache or else copied from Notes' media. `complete` is false when an image has

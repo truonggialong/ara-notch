@@ -11,6 +11,8 @@ private final class FakeDatabase: NoteDatabase, @unchecked Sendable {
     var formatted: Set<Int> = []
     /// The row's modification date of a note (none: the database has no date).
     var modified: [Int: Date] = [:]
+    /// The row keys of a note's attachments in document order; by default 1, 2… (`attachmentID(n)`).
+    var attachmentKeys: [Int: [Int?]] = [:]
     var files: [Int: URL] = [:]
     /// Seconds an attachment lookup takes (it runs off the main actor).
     var fileDelay: TimeInterval = 0
@@ -23,8 +25,9 @@ private final class FakeDatabase: NoteDatabase, @unchecked Sendable {
     var isReadable: Bool { readable }
     func note(forNoteKey key: Int) -> DatabaseNote? {
         documents[key].map {
-            DatabaseNote(decoded: DecodedNote(document: $0, attachments: [], hasUnsupportedFormatting: formatted.contains(key)),
-                         modified: modified[key])
+            let count = NotesStore.attachmentBlocks($0).count
+            return DatabaseNote(decoded: DecodedNote(document: $0, attachments: [], hasUnsupportedFormatting: formatted.contains(key)),
+                                modified: modified[key], attachmentKeys: attachmentKeys[key] ?? (0..<count).map { $0 + 1 })
         }
     }
     func attachmentFile(forAttachmentKey key: Int) -> URL? {
@@ -506,6 +509,37 @@ private struct Harness {
         #expect(h.store.fullView)
         #expect(h.store.open?.safety == .editable)
         #expect(h.cache.url(forAttachmentID: attachmentID(1)) != nil)
+    }
+
+    /// AppleScript may list a note's attachments in the order they were added; the database gives document order.
+    /// An image pasted above an older one must still show (and be written back) in its own place.
+    @Test func imagesFollowTheDatabasesDocumentOrder() async throws {
+        let db = FakeDatabase()
+        let h = try await Harness(database: db)
+        let id = try h.twoImageNote()
+        _ = try h.cache.store(Data([2, 2, 2]), forAttachmentID: attachmentID(2), fileExtension: "png")
+        let key = NotesIDs.databaseKey(of: id, entity: "ICNote")!
+        db.documents[key] = NoteDocument(blocks: [p("a"), .image(attachmentIndex: 0), .image(attachmentIndex: 1)])
+        db.attachmentKeys[key] = [2, 1]   // the second one added is the first in the note
+        await h.store.openNote(id)
+        let open = try #require(h.store.open)
+        #expect(open.safety == .editable)
+        #expect(try Data(contentsOf: try #require(open.images[0])) == Data([2, 2, 2]))
+        #expect(try Data(contentsOf: try #require(open.images[1])) == pngBytes)
+    }
+
+    @Test func attachmentsTheDatabaseCannotPlaceMakeImagesUnavailable() async throws {
+        let db = FakeDatabase()
+        let h = try await Harness(database: db)
+        let id = try h.twoImageNote()
+        let key = NotesIDs.databaseKey(of: id, entity: "ICNote")!
+        db.documents[key] = NoteDocument(blocks: [p("a"), .image(attachmentIndex: 0), .image(attachmentIndex: 1)])
+        db.attachmentKeys[key] = [1, 3]
+        await h.store.openNote(id)
+        #expect(h.store.open?.safety == .readOnly([.imagesUnavailable]))
+        db.attachmentKeys[key] = [1, nil]
+        await h.store.openNote(id)
+        #expect(h.store.open?.safety == .readOnly([.imagesUnavailable]))
     }
 
     @Test func attachmentCountMismatchMakesImagesUnavailable() async throws {
