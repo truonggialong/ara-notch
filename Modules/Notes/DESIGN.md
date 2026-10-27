@@ -36,7 +36,7 @@ Một ghi chú thử trong thư mục "AraNotch-probe" (đã xoá), tạo qua Ap
 | Danh sách số | Thành `<ul>` thường | Không (`<ol>` thành `<ul>`) |
 | Trích dẫn | Thành `<div>` thường | Không |
 | Bảng | `<object><table>…</table></object>` | Có, giữ nguyên khi ghi lại đúng HTML đã đọc |
-| Ảnh | Không có trong `body` (chỉ một `<div>` trống); `plaintext` có `U+FFFC` đúng chỗ; `save attachment … in file` lấy ra tệp gốc, không cần Full Disk Access | `<img src="data:image/png;base64,…">` thành tệp đính kèm thật, hiện trong Notes |
+| Ảnh | Không có trong `body` (chỉ một `<div>` trống); `plaintext` có `U+FFFC` đúng chỗ; `save attachment … in file` lấy ra tệp gốc, không cần Full Disk Access **(sửa 2026-10-27: sai, `save attachment` hỏng trên macOS 27 với lỗi -10000; ảnh lấy từ tệp media trong cơ sở dữ liệu, cần Full Disk Access, hoặc từ cache của app theo id tệp đính kèm)** | `<img src="data:image/png;base64,…">` thành tệp đính kèm thật, hiện trong Notes |
 
 Hệ quả:
 
@@ -63,7 +63,7 @@ Modules/Notes/
 ### NotesCore
 
 - `NoteDocument`: một ghi chú là dãy khối. Khối: đoạn, tiêu đề (cấp 1–3), mục danh sách (chấm, gạch, số, việc kèm đã tích hay chưa; có mức thụt), trích dẫn, khối đơn cách, ảnh (id tệp đính kèm), bảng (HTML gốc và lưới ô để hiển thị), tệp khác (tên, loại). Trong khối là các đoạn chữ có kiểu: đậm, nghiêng, gạch chân, gạch ngang, đơn cách, liên kết.
-- `NotesHTMLReader`: HTML của `body` cộng thứ tự ảnh từ `plaintext` thành `NoteDocument`. Bỏ qua cỡ chữ và font, trừ: Courier là đơn cách; chữ đậm `.AppleSystemUIFontBold` cỡ 21 hay 15 px đứng riêng một dòng là tiêu đề (vì chính AraNotch ghi tiêu đề ra như vậy).
+- `NotesHTMLReader`: HTML của `body` cộng thứ tự ảnh từ `plaintext` thành `NoteDocument`. Bỏ qua cỡ chữ và font, trừ: Courier là đơn cách; chữ đậm `.AppleSystemUIFontBold` cỡ 21 hay 15 px đứng riêng một dòng là tiêu đề (vì chính AraNotch ghi tiêu đề ra như vậy). **Sửa 2026-10-27:** Notes ép mọi cỡ dưới 18 px về 11 px, nên AraNotch ghi thân bài 18 px (Notes hiện 15) và tiêu đề đậm 28/24/21 (Notes giữ 24/21/18); bộ đọc nhận cả dạng cũ lẫn chữ đậm 24/21/18 đứng riêng một dòng.
 - `NotesHTMLWriter`: `NoteDocument` thành HTML cho `set body`. Tiêu đề ghi thành chữ đậm cỡ to; ảnh nhúng `data:` đúng chỗ; bảng ghi lại nguyên HTML đã đọc.
 - `NoteStoreDecoder`: dữ liệu `ZICNOTEDATA.ZDATA` (gzip, rồi protobuf của Notes) thành `NoteDocument` đầy đủ: kiểu đoạn (tiêu đề, đề mục, đề mục phụ, đơn cách, chấm, gạch, số, việc, trích dẫn), trạng thái tích, kiểu chữ, liên kết, vị trí tệp đính kèm và loại của nó. Bộ đọc protobuf tự viết, nhỏ, không thêm thư viện.
 - `EditSafety`: từ `NoteDocument` đầy đủ trả về `.editable` hoặc `.readOnly(lý do)`. Chỉ xem khi có: danh sách việc, danh sách số, trích dẫn, tệp đính kèm không phải ảnh hay bảng, bản vẽ, ghi chú bị khoá. Tiêu đề, Đề mục của Notes không chặn sửa, nhưng sổ ghi rõ là sau khi lưu chúng thành chữ đậm cỡ to.
@@ -72,7 +72,7 @@ Modules/Notes/
 
 ### NotesFeature
 
-- `NotesBridge`: chạy AppleScript qua `NSAppleScript` trên một hàng đợi riêng. Liệt kê tài khoản, thư mục, ghi chú (id, tên, ngày sửa, thư mục, khoá hay không); đọc `body` và `plaintext`; lưu tệp đính kèm ra thư mục cache của app; tạo, ghi, xoá ghi chú; tạo thư mục. Có một giao thức để test thay bằng Notes giả.
+- `NotesBridge`: chạy AppleScript qua `NSAppleScript` trên một hàng đợi riêng. Liệt kê tài khoản, thư mục, ghi chú (id, tên, ngày sửa, thư mục, khoá hay không); đọc `body` và `plaintext`; lấy id tệp đính kèm (không lưu được tệp: `save attachment` hỏng trên macOS 27, sửa 2026-10-27); tạo, ghi, xoá ghi chú; tạo thư mục. Có một giao thức để test thay bằng Notes giả.
 - `NoteStoreReader`: mở `~/Library/Group Containers/group.com.apple.notes/NoteStore.sqlite` bằng SQLite của hệ thống với `SQLITE_OPEN_READONLY` (không dùng `immutable=1`, vì Notes vẫn đang ghi vào tệp), tìm ghi chú theo id `ZICCLOUDSYNCINGOBJECT` khớp với số `pNN` của id AppleScript, đưa dữ liệu cho `NoteStoreDecoder`. Thiếu quyền hay giải mã hỏng thì trả `nil` và ghi log; nơi gọi lùi về chế độ chỉ AppleScript.
 - Theo dõi thay đổi: `DispatchSource` trên `NoteStore.sqlite-wal` (khi có Full Disk Access), gộp các lần đổi trong 1 giây rồi làm mới danh sách. Không có quyền thì làm mới khi mở trang, mở cửa sổ, và mỗi 30 giây khi cửa sổ đang mở.
 - `NoteEditor`: `NSTextView` bọc cho SwiftUI, dùng chung ở notch và cửa sổ. `NSAttributedString` qua lại `NoteDocument`. Ảnh là `NSTextAttachment` (thu nhỏ trên notch, vừa chiều rộng ở cửa sổ). Bảng là một attachment vẽ lưới chỉ xem. Ở chế độ chỉ xem, trình soạn không cho sửa và vẽ đủ ô tích, số, trích dẫn.
@@ -105,7 +105,7 @@ Modules/Notes/
 ## Đồng bộ và dữ liệu
 
 - Notes là nguồn duy nhất. AraNotch lưu trong UserDefaults: `notes.recentIDs` (id ghi chú mở gần đây), `notes.selectedFolderID`, `notes.defaultFolderID` (thư mục cho ghi chú mới; mặc định là thư mục mặc định của Notes), `notes.showsPage`.
-- Ảnh lấy ra lần lượt khi cần, lưu trong `~/Library/Caches/<bundle id>/Notes/<id ghi chú>/`, xoá khi ghi chú bị xoá hay khi cache quá 200 MB (xoá cái cũ nhất trước).
+- Ảnh (sửa 2026-10-27: lấy từ tệp media của cơ sở dữ liệu, không bằng AppleScript) được giữ trong `~/Library/Caches/<bundle id>/Notes/<id ghi chú>/`, xoá khi ghi chú bị xoá hay khi cache quá 200 MB (xoá cái cũ nhất trước).
 - Danh sách chỉ đọc tên, dòng đầu, ngày sửa, có ảnh không, khoá không; nội dung đọc khi mở ghi chú.
 - Lưu: đọc ngày sửa hiện tại; trùng ngày sửa lúc mở thì `set body`, rồi đọc lại ngày sửa mới làm mốc. Khác thì báo "Ghi chú đã đổi ở nơi khác" với nút Tải lại và Chép phần của tôi; không ghi.
 

@@ -85,7 +85,7 @@
 Tự viết một bộ quét thẻ nhỏ (không dùng `NSAttributedString(html:)`, vì nó cần AppKit và chạy WebKit). Quy tắc:
 - Mỗi `<div>` cấp ngoài, `<li>`, `<h1>`/`<h2>`/`<h3>`, `<object>` là một khối.
 - `<b>`, `<i>`, `<u>`, `<strike>`, `<tt>`, `<font face="Courier">` cho kiểu; `<a href>` cho liên kết; bỏ `<span style>`.
-- Một `<div>` chỉ chứa chữ đậm `.AppleSystemUIFontBold` cỡ 21/15/13 px là `.heading(1/2/3)`.
+- Một `<div>` chỉ chứa chữ đậm `.AppleSystemUIFontBold` cỡ 21/15/13 px là `.heading(1/2/3)`. (Sửa 2026-10-27: bộ ghi nay viết tiêu đề đậm 28/24/21 và thân bài 18 px vì Notes ép cỡ nhỏ về 11 px; bộ đọc nhận thêm đậm 24/21/18.)
 - `<ul class="Apple-dash-list">` là `.dash`, `<ul>` là `.bullet`, `<ol>` là `.numbered`. `<ul>` lồng nhau tăng `indent`.
 - `<div>` toàn chữ Courier (`<tt>`) là `.code`.
 - `<object><table>` là `.table`: HTML nguyên văn từ `<object>` tới `</object>`, ô là chữ của từng `<td>`.
@@ -223,7 +223,7 @@ Tự viết một bộ quét thẻ nhỏ (không dùng `NSAttributedString(html:
       func folders() async throws -> [NoteFolder]
       func notes(in folderID: String?) async throws -> [NoteSummary]        // nil: mọi thư mục
       func content(of noteID: String) async throws -> NoteContent
-      func saveAttachment(_ index: Int, of noteID: String, to url: URL) async throws
+      func saveAttachment(_ index: Int, of noteID: String, to url: URL) async throws  // Sửa 2026-10-27: đã bỏ, hỏng trên macOS 27 (-10000); xem attachmentIDs(of:)
       func create(in folderID: String, html: String) async throws -> String  // id mới
       func setBody(_ html: String, of noteID: String) async throws -> Date   // ngày sửa mới
       func modification(of noteID: String) async throws -> Date
@@ -351,7 +351,7 @@ Tự viết một bộ quét thẻ nhỏ (không dùng `NSAttributedString(html:
   }
   final class NoteImageCache { init(root: URL, limitBytes: Int = 200_000_000); func url(noteID: String, index: Int) -> URL; func trim(); func remove(noteID: String) }
   ```
-- `openNote`: lấy `content`, đọc `full` từ cơ sở dữ liệu nếu có. Tài liệu hiển thị là `full` khi có (bảng lấy `html` và `cells` từ tài liệu HTML theo `attachmentIndex`), không thì là tài liệu HTML. `safety = EditSafety.check(...)`. Ảnh được lưu ra cache bằng `saveAttachment` khi chưa có. Thêm id vào `recentIDs` (tối đa 20).
+- `openNote`: lấy `content`, đọc `full` từ cơ sở dữ liệu nếu có. Tài liệu hiển thị là `full` khi có (bảng lấy `html` và `cells` từ tài liệu HTML theo `attachmentIndex`), không thì là tài liệu HTML. `safety = EditSafety.check(...)`. Ảnh được lấy từ tệp media của cơ sở dữ liệu (hay cache của app) khi chưa có. (Sửa 2026-10-27: `saveAttachment` đã bỏ vì `save attachment` hỏng trên macOS 27, lỗi -10000; `NotesService` có `attachmentIDs(of:)` thay thế, cache khoá theo id tệp đính kèm.) Thêm id vào `recentIDs` (tối đa 20).
 - Lưu: `modification` → `SaveGuard.decide`; `.conflict` thì `saveState = .conflict` và không ghi. `.write` thì đọc ảnh từ cache, `NotesHTMLWriter.write`, `setBody`, đặt `openedAt` bằng ngày trả về. Lỗi `.notFound` thì `.deleted`. Ghi chú `.readOnly` không bao giờ gọi `setBody`.
 
 - [ ] **Step 1:** Viết test với `FakeNotesService` và `debounce: .milliseconds(10)`:

@@ -414,7 +414,6 @@
 "menu.paused" = "Clipboard Recording Paused";
 "menu.pausedUntil" = "Clipboard Recording Paused until %@";
 "shortcut.newNote" = "New note";
-"clipboard.note.new" = "New note";
 "clipboard.filters.save" = "Save this search as a filter";
 "clipboard.filters.remove" = "Remove Filter";
 "clipboard.menu.remind" = "Remind Me";

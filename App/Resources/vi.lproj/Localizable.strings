@@ -414,7 +414,6 @@
 "menu.paused" = "Đang tạm dừng ghi clipboard";
 "menu.pausedUntil" = "Đang tạm dừng ghi clipboard tới %@";
 "shortcut.newNote" = "Ghi chú mới";
-"clipboard.note.new" = "Ghi chú mới";
 "clipboard.filters.save" = "Lưu tìm kiếm này làm bộ lọc";
 "clipboard.filters.remove" = "Xoá bộ lọc";
 "clipboard.menu.remind" = "Nhắc tôi";
