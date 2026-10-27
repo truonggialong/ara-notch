@@ -10,6 +10,9 @@ public enum ReadOnlyReason: Hashable, Sendable {
     /// The note has formatting AraNotch cannot write back (font, colour, highlight, superscript, alignment):
     /// a write would drop it.
     case formatting
+    /// Notes' database cannot be read (no Full Disk Access): quotes, colours and the like cannot be seen, so a write
+    /// could drop them. The owner chose view only over editing with a warning (2026-10-27).
+    case needsFullDiskAccess
 }
 
 public enum EditSafety: Hashable, Sendable {
@@ -51,7 +54,8 @@ public enum EditSafety: Hashable, Sendable {
     }
 
     private static let order: [ReadOnlyReason] = [
-        .checklist, .numberedList, .quote, .file, .drawing, .formatting, .locked, .listsUnknown, .imagesUnavailable, .unreadable,
+        .needsFullDiskAccess, .checklist, .numberedList, .quote, .file, .drawing, .formatting, .locked, .listsUnknown,
+        .imagesUnavailable, .unreadable,
     ]
 
     private static func make(_ found: Set<ReadOnlyReason>) -> EditSafety {

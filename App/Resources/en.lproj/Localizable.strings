@@ -896,6 +896,7 @@
 "notes.readOnly.listsUnknown" = "lists need Full Disk Access";
 "notes.readOnly.imagesUnavailable" = "a picture could not be read";
 "notes.readOnly.unreadable" = "part of the note could not be read";
+"notes.readOnly.needsFullDiskAccess" = "editing needs Full Disk Access (System Settings › Privacy & Security)";
 "notes.banner.conflict" = "This note changed somewhere else.";
 "notes.banner.deleted" = "This note was deleted in Notes.";
 "notes.banner.failed" = "Could not save.";

@@ -567,6 +567,19 @@ private struct Harness {
         #expect(h.fake.calls("content:\(a)") == reads + 1)
     }
 
+    /// Without Full Disk Access a quote reads as a plain line, so a save would flatten it: every note is view only.
+    @Test func everyNoteIsViewOnlyWithoutFullDiskAccess() async throws {
+        let db = FakeDatabase()
+        db.readable = false
+        let h = try await Harness(database: db)
+        let a = h.plainNote("A")
+        await h.store.openNote(a)
+        #expect(h.store.open?.safety == .readOnly([.needsFullDiskAccess]))
+        h.store.edit(generation: h.store.open?.generation, NoteDocument(blocks: [p("A"), p("typed")]))
+        await h.store.flush()
+        #expect(h.fake.setBodyCalls == 0)
+    }
+
     /// Files left by a write the app never finished are removed by a later one; recent ones are not.
     @Test func stagingRemovesOldLeftovers() throws {
         let folder = temporaryDirectory()

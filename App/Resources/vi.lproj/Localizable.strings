@@ -896,6 +896,7 @@
 "notes.readOnly.listsUnknown" = "cần Full Disk Access để sửa danh sách";
 "notes.readOnly.imagesUnavailable" = "không đọc được một ảnh";
 "notes.readOnly.unreadable" = "không đọc được một phần ghi chú";
+"notes.readOnly.needsFullDiskAccess" = "cần Full Disk Access để sửa (Cài đặt hệ thống › Quyền riêng tư & Bảo mật)";
 "notes.banner.conflict" = "Ghi chú đã đổi ở nơi khác.";
 "notes.banner.deleted" = "Ghi chú đã bị xoá trong Notes.";
 "notes.banner.failed" = "Chưa lưu được.";

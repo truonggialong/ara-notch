@@ -89,6 +89,7 @@ struct NoteStatusBanner: View {
         case .listsUnknown: "listsUnknown"
         case .imagesUnavailable: "imagesUnavailable"
         case .unreadable: "unreadable"
+        case .needsFullDiskAccess: "needsFullDiskAccess"
         }
     }
 

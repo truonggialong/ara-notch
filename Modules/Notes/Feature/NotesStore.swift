@@ -266,6 +266,9 @@ final class NotesStore: ObservableObject {
                                                     plainText: read.content.plainText,
                                                     unsupportedFormatting: read.full?.hasUnsupportedFormatting ?? false)
             var safety = composed
+            // A database that is there but cannot be read (no Full Disk Access): what a write would drop cannot be
+            // seen, so every note is view only. Tests without a database are not concerned.
+            if database != nil, !read.readable { safety = safety.adding(.needsFullDiskAccess) }
             if read.stale {
                 Self.log.error("Notes' database does not hold the note's last change yet; opened read only")
                 safety = safety.adding(.unreadable)
