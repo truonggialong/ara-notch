@@ -4,19 +4,15 @@
 
 A macOS app that turns the MacBook notch into a small control panel: clipboard, now playing, timers, calendar and reminders, a file shelf, screen capture, quick translate and the state of coding agents.
 
-## Mới trong bản 0.26.0 · New in 0.26.0
+## Mới trong bản 0.27.0 · New in 0.27.0
 
-- **Bộ widget mới cho Tổng quan:** bảy ô thẻ tối, mỗi ô một con số chính thật to và một màu riêng dễ nhìn; chuyển sang cam đỏ khi có gì cần bạn chú ý (pin yếu, hẹn giờ sắp hết, agent đang chờ). Ô nhỏ đã đủ điều cần biết, ô lớn hơn cho thêm chi tiết và nhiều mục hơn.
-- **Giới hạn Claude đúng hơn:** bật "Lấy giới hạn từ tài khoản Claude" trong Cài đặt › Agent để thấy giới hạn 5 giờ và giới hạn tuần, kể cả khi dùng Claude trong app Claude.
-- **Lịch và agent rõ ràng hơn:** việc quá hạn được đếm và hiện riêng; phiên agent bạn bấm dừng giữa chừng hiện "Đã dừng".
-- **Tự sắp xếp Tổng quan như widget** (từ 0.25): bấm nút bút chì trên hàng tab để kéo, đổi cỡ, bỏ hay thêm ô.
+- **Ghi chú:** trang Ghi chú trên notch và cửa sổ Ghi chú riêng, viết và định dạng chữ (đậm, nghiêng, gạch chân, liên kết, đề mục, danh sách, ảnh). Đó chính là ghi chú của Apple Notes, nên đồng bộ qua iCloud. Để sửa, cấp Full Disk Access cho AraNotch.
+- **"Ghi chú mới" tạo ghi chú trong Notes**, và app không còn hỏi mật khẩu máy sau mỗi lần cập nhật khi bật giới hạn từ tài khoản Claude.
 
 ---
 
-- **A new widget set for the Overview:** seven dark cards, each with one big number and its own easy-to-see colour; a card turns orange when something needs you (low battery, a timer about to end, an agent waiting). A small card already tells you what matters; larger ones add detail and more items.
-- **Claude's limits, right:** turn on "Read limits from the Claude account" in Settings › Agents to see the five-hour and weekly limits, even when you use Claude in the Claude app.
-- **A clearer calendar and agent list:** overdue reminders are counted and shown on their own; an agent session you stopped midway shows "Stopped".
-- **Arrange the Overview like widgets** (since 0.25): press the pencil on the tab row to drag, resize, remove or add tiles.
+- **Notes:** a Notes page on the notch and a Notes window of its own, to write and format text (bold, italic, underline, links, headings, lists, pictures). They are Apple Notes notes, so iCloud syncs them. To edit, give AraNotch Full Disk Access.
+- **"New note" makes a note in Notes**, and the app no longer asks for your password after each update when Claude account limits are on.
 
 ## Tính năng · Features
 
