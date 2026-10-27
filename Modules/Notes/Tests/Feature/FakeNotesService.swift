@@ -22,6 +22,7 @@ final class FakeNotesService: NotesService, @unchecked Sendable {
     private var readDelays: [String: Duration] = [:]
     private var bodyDateOffset: TimeInterval = 0
     private var modDelay: Duration = .zero
+    private var makeDelay: Duration = .zero
     private var failAfterWrite = false
     private var pictures: [Data?] = []
 
@@ -179,8 +180,16 @@ final class FakeNotesService: NotesService, @unchecked Sendable {
         }
     }
 
+    /// How long making a note takes, as Notes takes seconds when busy.
+    var createDelay: Duration {
+        get { lock.withLock { makeDelay } }
+        set { lock.withLock { makeDelay = newValue } }
+    }
+
     func create(in folderID: String, html: String) async throws -> String {
-        try lock.withLock {
+        count("create")
+        if createDelay > .zero { try await Task.sleep(for: createDelay) }
+        return try lock.withLock {
             guard folderList.contains(where: { $0.id == folderID }) else { throw NotesServiceError.notFound }
             counter += 1
             let id = "x-coredata://FAKE/ICNote/p\(counter)"
@@ -249,6 +258,7 @@ final class FakeNotesService: NotesService, @unchecked Sendable {
     }
 
     func show(_ noteID: String) async throws {
+        count("show")
         try lock.withLock { if notesByID[noteID] == nil { throw NotesServiceError.notFound } }
     }
 }

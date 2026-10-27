@@ -1,7 +1,7 @@
 import AppKit
 import NotesCore
 
-/// For checks without a person at the keyboard (`--self-test-notes <report>`): drives the Notes window the way a person
+/// For checks without a person at the keyboard (`--self-test-notes <report>`): drives the notch's Notes page the way a person
 /// would, with key and mouse events sent through the application (so menus, key equivalents and the text system handle
 /// them as real ones), and writes each step to `report`. The general pasteboard is put back as it was. Ends by typing
 /// a letter and quitting at once, so the last line of the note tells whether quitting saves.
@@ -126,11 +126,11 @@ extension NotesController {
             let state = "open \(store.open?.id.split(separator: "/").last ?? "-") \(store.open.map { "\($0.safety)" } ?? "") "
                 + "reloading \(store.isReloading) save \(store.saveState)"
             if state != seen { log("  waiting: " + state); seen = state }
-            guard let window = window?.window, let open = store.open, open.id != before, open.safety == .editable,
-                  let text = Self.textView(in: window.contentView), text.isEditable,
-                  let editor = text.host as? NoteEditorCoordinator else { continue }
+            guard let open = store.open, open.id != before, open.safety == .editable,
+                  let editor = model.editor.editor, case let text = editor.textView, text.isEditable,
+                  let window = text.window, window.isVisible else { continue }
             NSApp.activate(ignoringOtherApps: true)
-            window.makeKeyAndOrderFront(nil)
+            window.makeKey()
             window.makeFirstResponder(text)
             try? await Task.sleep(for: .milliseconds(300))
             log(String(format: "note open after %.1f s: %@, key window %@", Date().timeIntervalSince(started), open.id,

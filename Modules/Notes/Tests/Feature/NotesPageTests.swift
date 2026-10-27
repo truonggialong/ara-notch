@@ -7,7 +7,7 @@ import Testing
 @testable import NotesFeature
 
 private func temporaryDirectory() -> URL {
-    let url = FileManager.default.temporaryDirectory.appendingPathComponent("NotesWindowTests-\(UUID().uuidString)")
+    let url = FileManager.default.temporaryDirectory.appendingPathComponent("NotesPageTests-\(UUID().uuidString)")
     try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
     return url
 }
@@ -20,9 +20,9 @@ private let pngBytes: Data = {
 }()
 
 @MainActor
-private struct WindowHarness {
+private struct PageHarness {
     let fake = FakeNotesService()
-    let settings = NotesSettings(store: NotesSettingsStore(defaults: UserDefaults(suiteName: "notes.window.\(UUID().uuidString)")!))
+    let settings = NotesSettings(store: NotesSettingsStore(defaults: UserDefaults(suiteName: "notes.page.\(UUID().uuidString)")!))
     let folderID: String
     let store: NotesStore
 
@@ -37,7 +37,7 @@ private struct WindowHarness {
                      plainText: lines.joined(separator: "\n"), locked: locked)
     }
 
-    /// The window's editor as SwiftUI builds it, with its toolbar handle attached.
+    /// The page's editor as SwiftUI builds it, with its toolbar handle attached.
     func windowEditor() -> (NoteEditorHandle, NSView) {
         let handle = NoteEditorHandle()
         let host = NSHostingView(rootView: NoteEditorView(store: store, imageSize: .fitWidth(400)).handle(handle))
@@ -47,9 +47,9 @@ private struct WindowHarness {
     }
 }
 
-@MainActor @Suite struct NotesWindowTests {
+@MainActor @Suite struct NotesPageTests {
     @Test func createFolderSelectsIt() async throws {
-        let h = try await WindowHarness()
+        let h = try await PageHarness()
         h.note(["In Notes"])
         await h.store.refresh()
         #expect(h.store.notes.count == 1)
@@ -63,8 +63,8 @@ private struct WindowHarness {
         #expect(h.store.folders.count == 2)
     }
 
-    @Test func newNoteFromTheWindowGoesToTheChosenFolder() async throws {
-        let h = try await WindowHarness()
+    @Test func newNoteGoesToTheChosenFolder() async throws {
+        let h = try await PageHarness()
         await h.store.refresh()
         let work = try #require(await h.store.createFolder(named: "Work"))
         await h.store.newNote(in: work.id)
@@ -74,7 +74,7 @@ private struct WindowHarness {
     }
 
     @Test func windowToolbarBoldAppliesToWindowEditor() async throws {
-        let h = try await WindowHarness()
+        let h = try await PageHarness()
         await h.store.openNote(h.note(["Title", "body"]))
         let generation = try #require(h.store.open?.generation)
         let (handle, host) = h.windowEditor()
@@ -94,7 +94,7 @@ private struct WindowHarness {
     }
 
     @Test func toolbarDisabledWhenReadOnly() async throws {
-        let h = try await WindowHarness()
+        let h = try await PageHarness()
         await h.store.openNote(h.note(["Secret"], locked: true))
         let (handle, host) = h.windowEditor()
         #expect(!handle.isEditable)
@@ -115,7 +115,7 @@ private struct WindowHarness {
     }
 
     @Test func toolbarBlockFormatsAreUndoable() async throws {
-        let h = try await WindowHarness()
+        let h = try await PageHarness()
         await h.store.openNote(h.note(["Title", "body"]))
         let (handle, host) = h.windowEditor()
         // In a window (never shown), so the text has an undo manager; one undo group per toolbar click.
@@ -147,7 +147,7 @@ private struct WindowHarness {
     }
 
     @Test func insertImageGoesThroughThePastePath() async throws {
-        let h = try await WindowHarness()
+        let h = try await PageHarness()
         await h.store.openNote(h.note(["Title"]))
         let (handle, host) = h.windowEditor()
         let editor = try #require(handle.editor)
@@ -167,7 +167,7 @@ private struct WindowHarness {
     }
 
     @Test func secondEditorFollowsEditsOfTheFirst() async throws {
-        let h = try await WindowHarness()
+        let h = try await PageHarness()
         await h.store.openNote(h.note(["One"]))
         let (_, notchHost) = h.windowEditor()
         let (windowHandle, windowHost) = h.windowEditor()
@@ -187,7 +187,7 @@ private struct WindowHarness {
     }
 
     @Test func keystrokeOnOlderTextNeverReplacesTheOtherEditorsEdit() async throws {
-        let h = try await WindowHarness()
+        let h = try await PageHarness()
         await h.store.openNote(h.note(["One"]))
         let (_, notchHost) = h.windowEditor()
         let (windowHandle, windowHost) = h.windowEditor()
@@ -216,7 +216,7 @@ private struct WindowHarness {
     }
 
     @Test func undoNeverSendsABareAttachment() async throws {
-        let h = try await WindowHarness()
+        let h = try await PageHarness()
         await h.store.openNote(h.note(["Title"]))
         let (handle, host) = h.windowEditor()
         let window = NSWindow(contentRect: host.frame, styleMask: [.titled], backing: .buffered, defer: true)
@@ -248,42 +248,6 @@ private struct WindowHarness {
         #expect(h.store.open?.document.plainText.contains("\u{FFFC}") == false)
         #expect(h.store.open?.document.plainText == "Title")
     }
-
-    @Test func windowBuildsOffscreen() async throws {
-        let h = try await WindowHarness()
-        h.note(["Hello"])
-        await h.store.refresh()
-        let controller = NotesWindowController(store: h.store, page: NotesPageModel())
-        let window = controller.window
-        #expect(window.title == L10n.string("notes.window.title"))
-        #expect(window.frameAutosaveName == "AraNotesWindow")
-        #expect(!window.isReleasedWhenClosed)
-        window.contentView?.layoutSubtreeIfNeeded()
-        #expect(window.contentView != nil)
-        #expect(!window.isVisible)
-    }
-
-    @Test func openingTheWindowStartsNotes() async throws {
-        let h = try await WindowHarness()
-        h.fake.accessValue = .notRunning
-        h.fake.accessAfterLaunch = .granted
-        let notch = NotchController(settings: ShellSettings(store: ShellSettingsStore(
-            defaults: UserDefaults(suiteName: "notes.shell.\(UUID().uuidString)")!)))
-        let controller = NotesController(settings: h.settings, notch: notch, service: h.fake, database: nil,
-                                          cache: NoteImageCache(root: temporaryDirectory()))
-        controller.windowShowingChanged(true)
-        try await waitUntil("Notes was started") { h.fake.launchCalls == 1 }
-        try await waitUntil("access is known") { controller.store.access == .granted }
-        // No Full Disk Access (no database): the open window lists again on a timer, stopped when it closes.
-        #expect(controller.isRefreshingOnTimer)
-        // In the Dock it pauses, and comes back with the window.
-        controller.windowMiniaturizedChanged(true)
-        #expect(!controller.isRefreshingOnTimer)
-        controller.windowMiniaturizedChanged(false)
-        #expect(controller.isRefreshingOnTimer)
-        controller.windowShowingChanged(false)
-        #expect(!controller.isRefreshingOnTimer)
-    }
 }
 
 private extension NSView {
@@ -295,3 +259,135 @@ private extension NSView {
     }
 }
 
+
+/// What the controller asked of the notch.
+@MainActor
+private final class PresenterLog {
+    var shown = 0
+    var focused = 0
+    var keeps: [Bool] = []
+    var hidden = false
+    var notesOpened = 0
+
+    var presenter: NotesPresenter {
+        NotesPresenter(showPage: { self.shown += 1 }, focusEditor: { self.focused += 1 },
+                       isPageHidden: { self.hidden }, setKeepsOpen: { self.keeps.append($0) },
+                       openNotesApp: { self.notesOpened += 1 })
+    }
+}
+
+@MainActor @Suite struct NotesPageControllerTests {
+    private func controller(_ h: PageHarness) -> (NotesController, PresenterLog) {
+        let notch = NotchController(settings: ShellSettings(store: ShellSettingsStore(
+            defaults: UserDefaults(suiteName: "notes.shell.\(UUID().uuidString)")!)))
+        let controller = NotesController(settings: h.settings, notch: notch, service: h.fake, database: nil,
+                                         cache: NoteImageCache(root: temporaryDirectory()))
+        let log = PresenterLog()
+        controller.presenter = log.presenter
+        return (controller, log)
+    }
+
+    @Test func newNoteShowsThePageBeforeTheNoteIsMade() async throws {
+        let h = try await PageHarness()
+        let (controller, log) = controller(h)
+        h.fake.createDelay = .milliseconds(300)
+        controller.newNote()
+        #expect(log.shown == 1)
+        #expect(controller.store.open == nil)
+        try await waitUntil("the note was made and opened") { controller.store.open != nil }
+        #expect(h.fake.calls("create") == 1)
+        #expect(log.focused == 1)
+        #expect(log.shown == 1)
+    }
+
+    @Test func newNoteThatCannotBeMadeStillShowsThePage() async throws {
+        let h = try await PageHarness()
+        let (controller, log) = controller(h)
+        h.fake.accessValue = .denied
+        controller.newNote()
+        #expect(log.shown == 1)
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(controller.store.open == nil)
+        #expect(log.focused == 0)
+    }
+
+    @Test func newNoteWithTheHiddenPageOpensItInNotes() async throws {
+        let h = try await PageHarness()
+        let (controller, log) = controller(h)
+        log.hidden = true
+        controller.newNote()
+        try await waitUntil("the note was shown in Notes") { h.fake.calls("show") == 1 }
+        #expect(log.shown == 0)
+        #expect(h.fake.calls("create") == 1)
+        #expect(log.notesOpened == 0)
+    }
+
+    @Test func newNoteWithTheHiddenPageAndNoNoteOpensNotes() async throws {
+        let h = try await PageHarness()
+        let (controller, log) = controller(h)
+        log.hidden = true
+        h.fake.accessValue = .denied
+        controller.newNote()
+        try await waitUntil("Notes was opened") { log.notesOpened == 1 }
+        #expect(log.shown == 0)
+        #expect(h.fake.calls("show") == 0)
+    }
+
+    @Test func showPageShowsThePage() async throws {
+        let h = try await PageHarness()
+        let (controller, log) = controller(h)
+        controller.showPage()
+        #expect(log.shown == 1)
+    }
+
+    @Test func timerRunsOnlyWhileThePageShowsWithoutFullDiskAccess() async throws {
+        let h = try await PageHarness()
+        let (controller, _) = controller(h)
+        #expect(!controller.isRefreshingOnTimer)
+        controller.pageShowingChanged(true)
+        #expect(controller.isRefreshingOnTimer)
+        controller.pageShowingChanged(false)
+        #expect(!controller.isRefreshingOnTimer)
+    }
+
+    @Test func keepsTheNotchOpenWhileAnythingIsUnderWay() async throws {
+        let h = try await PageHarness()
+        let (controller, log) = controller(h)
+        let model = controller.model
+        let flags: [ReferenceWritableKeyPath<NotesPageModel, Bool>] = [
+            \.isEditorFocused, \.isChoosingFolder, \.isAddingFolder, \.isChoosingImages,
+        ]
+        for flag in flags {
+            model[keyPath: flag] = true
+            #expect(log.keeps.last == true)
+            model[keyPath: flag] = false
+            #expect(log.keeps.last == false)
+        }
+        model.deletingID = "x"
+        #expect(log.keeps.last == true)
+        // Two reasons at once: letting go of one keeps the notch.
+        model.isChoosingFolder = true
+        model.deletingID = nil
+        #expect(log.keeps.last == true)
+        model.isChoosingFolder = false
+        #expect(log.keeps.last == false)
+        // Told only when the answer changes.
+        #expect(zip(log.keeps, log.keeps.dropFirst()).allSatisfy { $0 != $1 })
+    }
+
+    @Test func leavingThePageClosesWhatWasOpenOnIt() async throws {
+        let h = try await PageHarness()
+        let (controller, log) = controller(h)
+        controller.pageShowingChanged(true)
+        controller.model.isChoosingFolder = true
+        controller.model.isAddingFolder = true
+        controller.model.newFolderName = "Wo"
+        controller.model.deletingID = "x"
+        controller.pageShowingChanged(false)
+        #expect(!controller.model.isChoosingFolder)
+        #expect(!controller.model.isAddingFolder)
+        #expect(controller.model.newFolderName.isEmpty)
+        #expect(controller.model.deletingID == nil)
+        #expect(log.keeps.last == false)
+    }
+}

@@ -373,7 +373,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             notes.newNote()
         }
         if arguments.showNotes {
-            notes.showWindow()
+            notes.showPage()
         }
         if let dump = arguments.dumpNoteData {
             print(notes.dumpNoteData(noteID: dump.id, to: dump.file) ? "note data written to \(dump.file.path)" : "note data not written")

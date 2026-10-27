@@ -104,9 +104,9 @@ struct LaunchArguments {
     let removeClaudeStatusLine: Bool
     /// `--print-agents <file>`: write what the app knows about agents (sessions, rate limits) after a moment.
     let agentSummaryFile: URL?
-    /// `--new-note`: make a new note in Notes and open it in the Notes window.
+    /// `--new-note`: make a new note in Notes and open it on the notch.
     let newNote: Bool
-    /// `--show-notes`: show the Notes window right away.
+    /// `--show-notes`: open the notch on the Notes page right away.
     let showNotes: Bool
     /// `--dump-note-data <note id> <file>`: write the note's raw database body to the file (needs Full Disk Access).
     let dumpNoteData: (id: String, file: URL)?

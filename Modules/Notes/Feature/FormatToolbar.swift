@@ -36,6 +36,20 @@ final class NoteEditorHandle: ObservableObject {
         return editor.perform(format)
     }
 
+    /// Puts the caret in the editor and makes its window key. The editor of a page just shown may not be built yet,
+    /// so this looks again a few times, a moment apart.
+    func focus(attemptsLeft: Int = 10) {
+        if let text = editor?.textView, let window = text.window, text.isEditable {
+            window.makeKey()
+            window.makeFirstResponder(text)
+            return
+        }
+        guard attemptsLeft > 1 else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
+            MainActor.assumeIsolated { self?.focus(attemptsLeft: attemptsLeft - 1) }
+        }
+    }
+
     /// A paragraph kind for the paragraphs of the selection.
     @discardableResult
     func apply(_ block: BlockFormat) -> Bool {

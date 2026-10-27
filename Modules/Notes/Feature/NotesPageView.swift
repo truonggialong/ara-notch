@@ -3,15 +3,39 @@ import NotchShell
 import NotesCore
 import SwiftUI
 
-/// What the Notes page needs beside the store: whether access was looked at yet, and the controller's actions.
+/// What the Notes page needs beside the store: whether access was looked at yet, what is under way on it (each of
+/// which keeps the notch open), the handle the toolbar acts on the editor through, and the controller's actions.
 @MainActor
 final class NotesPageModel: ObservableObject {
     /// False until the first refresh, so the access card does not flash before Notes answered.
     @Published var hasChecked = false
+    let editor = NoteEditorHandle()
+    @Published var isEditorFocused = false { didSet { updateKeepsNotchOpen() } }
+    @Published var isChoosingFolder = false { didSet { updateKeepsNotchOpen() } }
+    @Published var isAddingFolder = false { didSet { updateKeepsNotchOpen() } }
+    @Published var newFolderName = ""
+    /// The note whose deletion waits to be confirmed.
+    @Published var deletingID: String? { didSet { updateKeepsNotchOpen() } }
+    /// True while the picture chooser is up: it takes the keyboard from the editor.
+    @Published var isChoosingImages = false { didSet { updateKeepsNotchOpen() } }
+    @Published private(set) var keepsNotchOpen = false
     var onAppear: (() -> Void)?
-    var onShowWindow: ((String?) -> Void)?
     var onEditorFocus: ((Bool) -> Void)?
     var onNewNote: (() -> Void)?
+
+    private func updateKeepsNotchOpen() {
+        let keeps = isEditorFocused || isChoosingFolder || isAddingFolder || deletingID != nil || isChoosingImages
+        if keeps != keepsNotchOpen { keepsNotchOpen = keeps }
+    }
+
+    /// The page was left: what was open on it closes, and nothing keeps the notch any more.
+    func closeWhatIsOpen() {
+        isChoosingFolder = false
+        isAddingFolder = false
+        newFolderName = ""
+        deletingID = nil
+        isEditorFocused = false
+    }
 }
 
 /// The Notes page of the notch: the recent notes on the left with search and "+", the open note's editor on the right.
@@ -151,17 +175,12 @@ struct NotesPageView: View {
     private var editorColumn: some View {
         VStack(spacing: 6 * ui) {
             NoteStatusBanner(store: store)
-            if let open = store.open {
+            if store.open != nil {
                 NoteEditorView(store: store, imageSize: .thumbnail)
+                    .handle(model.editor)
                     .focusChanged { model.onEditorFocus?($0) }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .araCard(radius: 12, level: .plate)
-                    .overlay(alignment: .topTrailing) {
-                        AraIconButton(.enlarge, look: .bare, size: .small, help: L10n.string("notes.openWindow")) {
-                            model.onShowWindow?(open.id)
-                        }
-                        .padding(4 * ui)
-                    }
             } else {
                 AraEmptyState(icon: .document, title: L10n.string("notes.none.title"),
                               detail: L10n.string("notes.none.detail"))
