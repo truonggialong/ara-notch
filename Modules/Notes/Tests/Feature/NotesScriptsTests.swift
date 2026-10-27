@@ -43,6 +43,22 @@ import Testing
         #expect(NotesScripts.content(noteID: "n1").contains("password protected of n}"))
     }
 
+    /// A note deleted in Notes keeps its id in Recently Deleted, where `set body` fails with -10000 and
+    /// `container` fails too: membership is looked up by the ids of each trash folder of each account.
+    @Test func trashLookupChecksEveryTrashName() {
+        let script = NotesScripts.isInTrash(noteID: "x-coredata://AA/ICNote/p1")
+        #expect(script.contains("repeat with a in every account"))
+        #expect(script.contains("\"Recently Deleted\", \"Đã xoá gần đây\", \"Đã xóa gần đây\""))
+        #expect(script.contains("(id of notes of folder (contents of t) of a) contains \"x-coredata://AA/ICNote/p1\""))
+        #expect(script.contains("try"))
+    }
+
+    @Test func onlyAFailedWriteWithMinusTenThousandMayBeADeletedNote() {
+        #expect(NotesBridge.mayBeInTrash(NotesServiceError.script("Can't modify a note in Recently Deleted. (-10000)")))
+        #expect(!NotesBridge.mayBeInTrash(NotesServiceError.script("timed out (-1712)")))
+        #expect(!NotesBridge.mayBeInTrash(NotesServiceError.notFound))
+    }
+
     @Test func attachmentIDsListsInOrder() {
         #expect(NotesScripts.attachmentIDs(noteID: "n1").contains("id of attachments of note id \"n1\""))
     }

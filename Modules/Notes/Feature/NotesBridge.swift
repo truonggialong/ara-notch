@@ -135,10 +135,23 @@ public final class NotesBridge: NotesService {
         }
     }
 
+    /// A note deleted in Notes is in Recently Deleted: it keeps its id and date, and the write fails with -10000.
+    /// That is reported as not found, so the store shows the note as deleted instead of a failed save.
     public func setBody(_ html: String, of noteID: String) async throws -> Date {
-        try await withHTMLFile(html) { path in
-            try await run(NotesScripts.setBody(noteID: noteID, htmlPath: path)) { try Self.date($0) }
+        do {
+            return try await withHTMLFile(html) { path in
+                try await run(NotesScripts.setBody(noteID: noteID, htmlPath: path)) { try Self.date($0) }
+            }
+        } catch where Self.mayBeInTrash(error) {
+            let inTrash = (try? await run(NotesScripts.isInTrash(noteID: noteID)) { $0.booleanValue }) ?? false
+            throw inTrash ? NotesServiceError.notFound : error
         }
+    }
+
+    /// The error Notes gives for a write to a note in Recently Deleted (among others): -10000.
+    static func mayBeInTrash(_ error: Error) -> Bool {
+        guard case NotesServiceError.script(let message) = error else { return false }
+        return message.hasSuffix("(-10000)")
     }
 
     public func delete(_ noteID: String) async throws {

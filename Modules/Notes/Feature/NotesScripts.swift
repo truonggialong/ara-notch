@@ -124,6 +124,24 @@ enum NotesScripts {
         """
     }
 
+    /// true when the note sits in a "Recently Deleted" folder of any account. There it keeps its id, but `container`
+    /// fails (-1728), so each trash folder's note ids are looked through; a name a folder does not have is skipped.
+    static func isInTrash(noteID: String) -> String {
+        let names = trashFolderNames.map(quoted).joined(separator: ", ")
+        return """
+        tell application "Notes"
+            repeat with a in every account
+                repeat with t in {\(names)}
+                    try
+                        if (id of notes of folder (contents of t) of a) contains \(quoted(noteID)) then return true
+                    end try
+                end repeat
+            end repeat
+            return false
+        end tell
+        """
+    }
+
     static func modification(noteID: String) -> String {
         """
         tell application "Notes" to return modification date of note id \(quoted(noteID))
