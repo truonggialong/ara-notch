@@ -4,7 +4,9 @@
 
 A macOS app that turns the MacBook notch into a small control panel: clipboard, now playing, timers, calendar and reminders, notes, a file shelf, screen capture, quick translate and the state of coding agents.
 
-## Mới trong bản 0.31.0 · New in 0.31.0
+## Mới trong bản 1.0.0 · New in 1.0.0
+
+AraNotch chính thức lên bản 1.0, với đủ mọi tính năng của bản 0.31.0 dưới đây.
 
 - **Nhạc trên notch đóng đẹp và gọn hơn:** khi đang phát nhạc, notch chỉ còn ảnh bìa bên trái và sóng nhạc bên phải, ngắn hơn trước nhiều. Sóng nhạc và một vạch tiến độ nhỏ phát sáng ngay dưới camera mang màu lấy từ ảnh bìa của bài.
 - **Tạm dừng vẫn thấy:** khi bạn dừng nhạc, sóng xẹp thành chấm và ảnh bìa mờ đi thay vì biến mất. Sau 5 phút không phát lại thì tự ẩn.
@@ -13,6 +15,8 @@ A macOS app that turns the MacBook notch into a small control panel: clipboard, 
 Bản 0.30.1 trước đó làm chữ ghi chú trên notch to và dễ đọc hơn.
 
 ---
+
+AraNotch is now version 1.0, with everything in the 0.31.0 release below.
 
 - **A neater, prettier player on the closed notch:** while music plays, the notch shows just the artwork on the left and the bars on the right, much shorter than before. The bars and a small glowing progress line right under the camera take their colours from the track's artwork.
 - **Still there when paused:** when you pause, the bars lie flat and the artwork dims instead of disappearing. After 5 minutes without playing, it goes away.
