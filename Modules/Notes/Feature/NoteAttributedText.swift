@@ -281,8 +281,10 @@ enum NoteAttributedText {
             emitted = true
         }
 
-        text.enumerateAttributes(in: range, options: []) { attributes, sub, _ in
-            if attributes[NoteAttribute.decoration] != nil { return }
+        // Only the exact leading mark is display-only; anything else that carries the attribute (typed text that
+        // inherited it) is text.
+        let body = NSRange(location: range.location + leadingMarkLength(text, range), length: range.length - leadingMarkLength(text, range))
+        text.enumerateAttributes(in: body, options: []) { attributes, sub, _ in
             let flags = flags(of: attributes[.font] as? NSFont, kind: kind)
             var style: TextStyle = []
             if flags.bold { style.insert(.bold) }
@@ -299,17 +301,22 @@ enum NoteAttributedText {
                 else { runs.append(TextRun(piece, style: style, link: link)) }
                 piece = ""
             }
-            for offset in sub.location..<(sub.location + sub.length) {
-                let unit = string.character(at: offset)
-                if unit == 0xFFFC, attributes[.attachment] != nil, let block = attachmentBlock(attributes, original: original) {
-                    flushPiece()
-                    flushRuns()
-                    emit(block)
-                    emitted = true
-                } else {
-                    piece += string.substring(with: NSRange(location: offset, length: 1))
-                }
+            // Whole slices, never single UTF-16 units, so surrogate pairs and combining marks stay intact.
+            var sliceStart = sub.location
+            func takeSlice(upTo end: Int) {
+                if end > sliceStart { piece += string.substring(with: NSRange(location: sliceStart, length: end - sliceStart)) }
             }
+            for offset in sub.location..<(sub.location + sub.length)
+            where string.character(at: offset) == 0xFFFC && attributes[.attachment] != nil {
+                guard let block = attachmentBlock(attributes, original: original) else { continue }
+                takeSlice(upTo: offset)
+                flushPiece()
+                flushRuns()
+                emit(block)
+                emitted = true
+                sliceStart = offset + 1
+            }
+            takeSlice(upTo: sub.location + sub.length)
             flushPiece()
         }
         flushRuns()
@@ -329,6 +336,28 @@ enum NoteAttributedText {
             case .quote: emit(.quote([]))
             }
         }
+    }
+
+    /// The length of the display-only mark at the start of a paragraph: "• ", "– ", "☐ ", "☑ " or "12. ", and only
+    /// when those characters carry the decoration attribute.
+    private static func leadingMarkLength(_ text: NSAttributedString, _ range: NSRange) -> Int {
+        var span = 0
+        while span < range.length, text.attribute(NoteAttribute.decoration, at: range.location + span, effectiveRange: nil) != nil { span += 1 }
+        guard span > 0 else { return 0 }
+        let lead = (text.string as NSString).substring(with: NSRange(location: range.location, length: span))
+        if let first = lead.first, "•–☐☑".contains(first), lead.dropFirst().first == " " { return first.utf16.count + 1 }
+        var digits = 0
+        let units = Array(lead.utf16)
+        while digits < units.count, units[digits] >= 0x30, units[digits] <= 0x39 { digits += 1 }
+        if digits > 0, digits + 1 < units.count, units[digits] == 0x2E, units[digits + 1] == 0x20 { return digits + 2 }
+        return 0
+    }
+
+    /// Typing attributes without the display-only mark, so typed text is never mistaken for one.
+    static func cleanTypingAttributes(_ attributes: [NSAttributedString.Key: Any]) -> [NSAttributedString.Key: Any] {
+        var clean = attributes
+        clean[NoteAttribute.decoration] = nil
+        return clean
     }
 
     private static func attachmentBlock(_ attributes: [NSAttributedString.Key: Any], original: NoteDocument) -> NoteBlock? {

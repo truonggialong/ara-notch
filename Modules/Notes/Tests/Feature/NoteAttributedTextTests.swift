@@ -190,3 +190,45 @@ private let sample = NoteDocument(blocks: [
     NoteFormatting.apply(BlockFormat.body, to: text, range: NSRange(location: 0, length: 2))
     #expect(NoteAttributedText.document(from: text, original: NoteDocument(blocks: [])).blocks == [.paragraph([TextRun("Hi")])])
 }
+
+@Test @MainActor func emojiAndCombiningCharactersSurviveInPlainAndBoldRuns() {
+    for word in ["a😀b", "🇻🇳", "e\u{301}", "Tiếng Việt"] {
+        let doc = NoteDocument(blocks: [.paragraph([TextRun(word, style: .bold), TextRun(" " + word)])])
+        #expect(roundTrip(doc) == doc)
+    }
+}
+
+@Test @MainActor func emojiNextToAnImageSurvives() {
+    let doc = NoteDocument(blocks: [.image(attachmentIndex: 0), .paragraph([TextRun("😀")])])
+    #expect(roundTrip(doc) == doc)
+}
+
+@Test @MainActor func textTypedAfterTheMarkKeepsItsCharacters() {
+    let doc = NoteDocument(blocks: [.listItem(.bullet, indent: 0, [])])
+    let text = NSMutableAttributedString(attributedString: NoteAttributedText.make(doc, images: [:], imageSize: .thumbnail))
+    text.append(NSAttributedString(string: "x", attributes: text.attributes(at: 0, effectiveRange: nil)))
+    #expect(NoteAttributedText.document(from: text, original: doc).blocks == [.listItem(.bullet, indent: 0, [TextRun("x")])])
+}
+
+@Test @MainActor func textTypedAtColumnZeroIsKept() {
+    let doc = NoteDocument(blocks: [.listItem(.bullet, indent: 0, [TextRun("one")])])
+    let text = NSMutableAttributedString(attributedString: NoteAttributedText.make(doc, images: [:], imageSize: .thumbnail))
+    text.insert(NSAttributedString(string: "y", attributes: text.attributes(at: 0, effectiveRange: nil)), at: 0)
+    let blocks = NoteAttributedText.document(from: text, original: doc).blocks
+    #expect(blocks.count == 1)
+    if case .listItem(_, _, let runs) = blocks[0] { #expect(runs.map(\.text).joined().contains("y")) } else { Issue.record("not a list item") }
+}
+
+@Test @MainActor func twoDigitNumberMarkIsStripped() {
+    let items = (1...12).map { NoteBlock.listItem(.numbered, indent: 0, [TextRun("i\($0)")]) }
+    let doc = NoteDocument(blocks: items)
+    let text = NoteAttributedText.make(doc, images: [:], imageSize: .thumbnail)
+    #expect(text.string.contains("12. i12"))
+    #expect(NoteAttributedText.document(from: text, original: doc) == doc)
+}
+
+@Test func cleanTypingAttributesDropsTheMark() {
+    let attributes = NoteAttributedText.cleanTypingAttributes([NoteAttribute.decoration: true, NoteAttribute.block: "bullet"])
+    #expect(attributes[NoteAttribute.decoration] == nil)
+    #expect(attributes[NoteAttribute.block] as? String == "bullet")
+}
