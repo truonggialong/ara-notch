@@ -33,6 +33,33 @@ public final class NoteImageCache: @unchecked Sendable {
         try write(data, key: id, fileExtension: fileExtension)
     }
 
+    /// Keeps each file (in this cache) also under its id, as a hard link: the bytes are not read nor written again,
+    /// and the old file stays valid for whoever still holds it. Every file is linked under a temporary name first, so
+    /// files may trade ids (pictures swapped in a note) without one being removed before it is linked. Copies when a
+    /// link cannot be made. Returns the new file of each id kept.
+    public func link(_ files: [(file: URL, id: String)]) -> [String: URL] {
+        guard (try? fileManager.createDirectory(at: root, withIntermediateDirectories: true)) != nil else { return [:] }
+        var staged: [(temporary: URL, id: String, ext: String)] = []
+        for (file, id) in files {
+            let ext = file.pathExtension.lowercased().isEmpty ? "png" : file.pathExtension.lowercased()
+            let temporary = root.appendingPathComponent("new-" + UUID().uuidString + "." + ext)
+            if (try? fileManager.linkItem(at: file, to: temporary)) != nil || (try? fileManager.copyItem(at: file, to: temporary)) != nil {
+                staged.append((temporary, id, ext))
+            }
+        }
+        var kept: [String: URL] = [:]
+        for (temporary, id, ext) in staged {
+            remove(key: id)
+            let target = root.appendingPathComponent(Self.fileBase(id) + "." + ext)
+            if (try? fileManager.moveItem(at: temporary, to: target)) != nil {
+                kept[id] = target
+            } else {
+                try? fileManager.removeItem(at: temporary)
+            }
+        }
+        return kept
+    }
+
     /// Stores an image that has no attachment id yet; returns its "new-<uuid>" key.
     public func storeNew(_ data: Data, fileExtension: String) throws -> String {
         let key = "new-" + UUID().uuidString

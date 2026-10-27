@@ -76,10 +76,12 @@ private struct Harness {
     let folderID: String
     let store: NotesStore
 
-    init(database: NoteDatabase? = nil, debounce: Duration = .milliseconds(10), cacheLimit: Int = 200_000_000) async throws {
+    init(database: NoteDatabase? = nil, debounce: Duration = .milliseconds(10), imageDebounce: Duration? = nil,
+         cacheLimit: Int = 200_000_000) async throws {
         cache = NoteImageCache(root: temporaryDirectory(), limitBytes: cacheLimit)
         folderID = try await fake.createFolder(named: "Notes").id
-        store = NotesStore(service: fake, database: database, cache: cache, settings: settings, debounce: debounce)
+        store = NotesStore(service: fake, database: database, cache: cache, settings: settings, debounce: debounce,
+                           imageDebounce: imageDebounce ?? debounce)
     }
 
     /// A two-paragraph note with no attachments.
@@ -474,6 +476,38 @@ private struct Harness {
         // The open document keeps its own indexes, so an editor holding them still points at the right bytes.
         #expect(h.store.open?.document.blocks[1] == .image(attachmentIndex: added))
         #expect(try Data(contentsOf: try #require(h.store.open?.images[added])) == Data([9, 9, 9]))
+    }
+
+    /// The bytes are the same under the new id: the file is linked, not written again on every save.
+    @Test func savedImagesAreLinkedNotRewritten() async throws {
+        let h = try await Harness()
+        let id = fakeOneImageNote(h)
+        let old = try h.cache.store(pngBytes, forAttachmentID: attachmentID(1), fileExtension: "png")
+        await h.store.openNote(id)
+        h.fake.setAttachments([attachmentID(7)], of: id)
+        h.store.edit(generation: h.store.open?.generation, NoteDocument(blocks: [p("a changed"), .image(attachmentIndex: 0)]))
+        await h.store.flush()
+        let new = try #require(h.cache.url(forAttachmentID: attachmentID(7)))
+        func inode(_ url: URL) throws -> Int? { try FileManager.default.attributesOfItem(atPath: url.path)[.systemFileNumber] as? Int }
+        #expect(try inode(new) == inode(old))
+    }
+
+    /// Every write of a note with pictures re-sends them to Notes and iCloud: it waits for a longer pause.
+    @Test func aNoteWithImagesSavesAfterALongerPause() async throws {
+        let h = try await Harness(debounce: .milliseconds(10), imageDebounce: .seconds(60))
+        let id = fakeOneImageNote(h)
+        _ = try h.cache.store(pngBytes, forAttachmentID: attachmentID(1), fileExtension: "png")
+        await h.store.openNote(id)
+        h.store.edit(generation: h.store.open?.generation, NoteDocument(blocks: [p("a typed"), .image(attachmentIndex: 0)]))
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(h.fake.setBodyCalls == 0)
+        #expect(h.store.saveState == .pending)
+        await h.store.flush()   // leaving the page, closing the window or quitting
+        #expect(h.fake.setBodyCalls == 1)
+        let plain = h.plainNote("P")
+        await h.store.openNote(plain)
+        h.store.edit(generation: h.store.open?.generation, NoteDocument(blocks: [p("P"), p("typed")]))
+        try await waitUntil("the plain note is saved") { h.fake.setBodyCalls == 2 }
     }
 
     @Test func missingImageBytesFailWithoutWriting() async throws {

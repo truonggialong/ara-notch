@@ -35,6 +35,8 @@ final class NotesStore: ObservableObject {
     private let cache: NoteImageCache
     private let settings: NotesSettings
     private let debounce: Duration
+    /// A note with pictures waits longer: each write sends every picture to Notes and iCloud again.
+    private let imageDebounce: Duration
 
     @Published private(set) var access: NotesAccess = .unknown
     /// Notes' database can be read (Full Disk Access): lists of every kind and images are shown faithfully.
@@ -77,12 +79,13 @@ final class NotesStore: ObservableObject {
     private var lockedByID: [String: Bool] = [:]
 
     init(service: NotesService, database: NoteDatabase?, cache: NoteImageCache, settings: NotesSettings,
-         debounce: Duration = .milliseconds(1500)) {
+         debounce: Duration = .milliseconds(1500), imageDebounce: Duration = .seconds(5)) {
         self.service = service
         self.database = database
         self.cache = cache
         self.settings = settings
         self.debounce = debounce
+        self.imageDebounce = imageDebounce
         selectedFolderID = settings.selectedFolderID
     }
 
@@ -456,8 +459,10 @@ final class NotesStore: ObservableObject {
         pending = (note, document)
         saveState = .pending
         debounceTask?.cancel()
-        debounceTask = Task { [weak self, debounce] in
-            try? await Task.sleep(for: debounce)
+        // Leaving the page, closing the window or the notch, and quitting save at once (`flush`) all the same.
+        let wait = document.imageCount > 0 ? imageDebounce : debounce
+        debounceTask = Task { [weak self] in
+            try? await Task.sleep(for: wait)
             guard !Task.isCancelled else { return }
             self?.startSaving()
         }
@@ -526,8 +531,9 @@ final class NotesStore: ObservableObject {
             guard note.safety == .editable else { return .failed("The note may not be written") }
             let base = lastWritten[generation] ?? edited.openedAt
             if SaveGuard.decide(openedAt: base, currentModification: current) == .conflict { return .conflict }
-            let images = imageData(for: document, from: note.images)
-            let html = try NotesHTMLWriter.write(document, images: images)
+            // Reading the pictures and building the HTML (base64 of every picture) is done off the main actor.
+            let files = note.images
+            let html = try await Task.detached { try NotesHTMLWriter.write(document, images: Self.imageData(for: document, from: files)) }.value
             // No await between this check and the write: saves run one at a time.
             guard writeCount[id, default: 0] == (loadStamp[generation] ?? -1) + ownWrites[generation, default: 0] else {
                 Self.log.error("Note was written from another load since this one read it")
@@ -549,7 +555,7 @@ final class NotesStore: ObservableObject {
             noteWritten(id, by: generation)
             guard open?.generation == generation else { return .saved }
             open?.openedAt = modified
-            await keepImages(of: document, images: images, noteID: id, generation: generation)
+            await keepImages(of: document, files: files, noteID: id, generation: generation)
             return .saved
         } catch NotesServiceError.notFound {
             return .deleted
@@ -574,7 +580,7 @@ final class NotesStore: ObservableObject {
     }
 
     /// The bytes of every image block that has them; a missing one makes the writer throw.
-    private func imageData(for document: NoteDocument, from files: [Int: URL]) -> [Int: NoteImageData] {
+    nonisolated private static func imageData(for document: NoteDocument, from files: [Int: URL]) -> [Int: NoteImageData] {
         var result: [Int: NoteImageData] = [:]
         for block in document.blocks {
             guard case .image(let index) = block, result[index] == nil, let url = files[index],
@@ -584,11 +590,12 @@ final class NotesStore: ObservableObject {
         return result
     }
 
-    /// Notes gives written images new attachment ids: the cache keeps their bytes under those ids, so the note
-    /// can be written again without Full Disk Access. The open document keeps its own indexes (an editor holding
-    /// them stays right); only the files behind them move. Skipped when the ids do not line up.
-    private func keepImages(of document: NoteDocument, images: [Int: NoteImageData], noteID: String, generation: Int) async {
-        guard !images.isEmpty else { return }
+    /// Notes gives written images new attachment ids: the cache keeps their files under those ids too (linked, the
+    /// bytes are not written again), so the note can be written again without Full Disk Access. The open document
+    /// keeps its own indexes (an editor holding them stays right); only the files behind them move. Skipped when the
+    /// ids do not line up.
+    private func keepImages(of document: NoteDocument, files: [Int: URL], noteID: String, generation: Int) async {
+        guard document.imageCount > 0 else { return }
         let ids: [String]
         do { ids = try await service.attachmentIDs(of: noteID) } catch {
             Self.log.error("No attachment ids after a save: \(String(describing: error), privacy: .public)")
@@ -599,12 +606,15 @@ final class NotesStore: ObservableObject {
             Self.log.error("Saved note has \(ids.count) attachment ids for \(slots.count) attachments; images not re-keyed")
             return
         }
-        var moved: [Int: URL] = [:]
+        var pairs: [(file: URL, id: String)] = []
+        var indexOfID: [String: Int] = [:]
         for (slot, block) in slots {
-            guard case .image(let index) = block, let image = images[index] else { continue }
-            let ext = Self.mimeTypes.first(where: { $0.value == image.mimeType })?.key ?? "png"
-            if let url = try? cache.store(image.data, forAttachmentID: ids[slot], fileExtension: ext) { moved[index] = url }
+            guard case .image(let index) = block, let file = files[index] else { continue }
+            pairs.append((file, ids[slot]))
+            indexOfID[ids[slot]] = index
         }
+        var moved: [Int: URL] = [:]
+        for (id, url) in cache.link(pairs) { if let index = indexOfID[id] { moved[index] = url } }
         // A reload while the ids were read has its own indexes: these files must not be put behind them.
         guard var note = open, note.generation == generation else { return }
         for (index, url) in moved { note.images[index] = url }  // "new-" files left behind go with trim
@@ -626,7 +636,9 @@ final class NotesStore: ObservableObject {
         }
         let document = document ?? NoteDocument(blocks: [.paragraph([])])
         do {
-            let html = try NotesHTMLWriter.write(document, images: imageData(for: document, from: imageFiles))
+            let html = try await Task.detached {
+                try NotesHTMLWriter.write(document, images: Self.imageData(for: document, from: imageFiles))
+            }.value
             let id = try await service.create(in: folder.id, html: html)
             let generation = requestLoad()
             await refresh()
