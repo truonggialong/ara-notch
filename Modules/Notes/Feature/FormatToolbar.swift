@@ -141,7 +141,9 @@ struct FormatToolbar: View {
                 .frame(height: 24 * ui)
                 .contentShape(Rectangle())
             }
-            .menuStyle(.borderlessButton)
+            // A plain button look, so the label keeps its own colour instead of the menu's dimmed one.
+            .menuStyle(.button)
+            .buttonStyle(.plain)
             .menuIndicator(.hidden)
             .fixedSize()
             .help(L10n.string("notes.toolbar.paragraph"))

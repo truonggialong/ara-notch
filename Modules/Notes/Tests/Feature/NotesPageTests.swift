@@ -472,6 +472,20 @@ private final class PresenterLog {
         #expect(log.shown == 1)
     }
 
+    @Test func newNoteDoesNotReadAnotherNoteFirst() async throws {
+        let h = try await PageHarness()
+        let (controller, _) = controller(h)
+        let older = h.note(["Opened last time"])
+        h.settings.recentIDs = [older]
+        // As the real notch does: showing the page tells the controller.
+        controller.presenter.showPage = { controller.pageShowingChanged(true) }
+        controller.newNote()
+        try await waitUntil("the new note is open") { controller.store.open.map { $0.id != older } == true }
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(h.fake.calls("content:\(older)") == 0)
+        #expect(controller.store.open?.id != older)
+    }
+
     @Test func newNoteThatCannotBeMadeStillShowsThePage() async throws {
         let h = try await PageHarness()
         let (controller, log) = controller(h)

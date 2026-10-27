@@ -33,6 +33,9 @@ public final class NotesController {
     private var watcher: NoteStoreWatcher?
     private var cancellables: Set<AnyCancellable> = []
     private var isPageShowing = false
+    /// True while a new note is being made: the page showing for it does not open another note meanwhile, which
+    /// would queue a whole read in Notes before the note is made.
+    private var isMakingNote = false
     private var refreshTimer: Timer?
     var presenter: NotesPresenter
 
@@ -100,11 +103,13 @@ public final class NotesController {
     /// access card, so the command never does nothing. With the page hidden the note opens in Notes instead.
     public func newNote() {
         let isHidden = presenter.isPageHidden()
+        isMakingNote = true
         if !isHidden { presenter.showPage() }
         Task {
             await flush()
             let before = store.open?.generation
             await store.newNote()
+            isMakingNote = false
             let made = store.open.flatMap { $0.generation != before ? $0.id : nil }
             if isHidden {
                 if let made { await store.showInNotes(made) } else { presenter.openNotesApp() }
@@ -246,7 +251,7 @@ public final class NotesController {
                 guard store.open?.id != noteID else { return }
                 NoteEditorCoordinator.commitAll()
                 await store.openNote(noteID)
-            } else if store.open == nil, let first = Self.firstToOpen(store.notes, recent: settings.recentIDs) {
+            } else if store.open == nil, !isMakingNote, let first = Self.firstToOpen(store.notes, recent: settings.recentIDs) {
                 await store.openNote(first.id)
             }
         }

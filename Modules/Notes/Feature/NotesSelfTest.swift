@@ -123,9 +123,14 @@ extension NotesController {
         let started = Date()
         for _ in 0..<450 {
             try? await Task.sleep(for: .milliseconds(100))
+            let text = model.editor.editor?.textView
             let state = "open \(store.open?.id.split(separator: "/").last ?? "-") \(store.open.map { "\($0.safety)" } ?? "") "
-                + "reloading \(store.isReloading) save \(store.saveState)"
-            if state != seen { log("  waiting: " + state); seen = state }
+                + "reloading \(store.isReloading) save \(store.saveState), editor \(text == nil ? "none" : "attached") "
+                + "editable \(text?.isEditable ?? false) shown \(text?.window?.isVisible ?? false)"
+            if state != seen {
+                log(String(format: "  waiting %.1f s: ", Date().timeIntervalSince(started)) + state)
+                seen = state
+            }
             guard let open = store.open, open.id != before, open.safety == .editable,
                   let editor = model.editor.editor, case let text = editor.textView, text.isEditable,
                   let window = text.window, window.isVisible else { continue }
@@ -133,7 +138,7 @@ extension NotesController {
             window.makeKey()
             window.makeFirstResponder(text)
             try? await Task.sleep(for: .milliseconds(300))
-            log(String(format: "note open after %.1f s: %@, key window %@", Date().timeIntervalSince(started), open.id,
+            log(String(format: "note open after %.1f s: %@, notch %@, key window %@", Date().timeIntervalSince(started), open.id, NSStringFromRect(window.frame),
                        window.isKeyWindow ? "yes" : "no"))
             return (window, text, editor)
         }

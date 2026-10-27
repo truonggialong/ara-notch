@@ -120,9 +120,10 @@ struct NotesPageView: View {
         VStack(spacing: 6 * ui) {
             HStack(spacing: 6 * ui) {
                 NoteFolderPicker(store: store, model: model)
-                    .frame(maxWidth: 110 * ui, alignment: .leading)
                     .fixedSize(horizontal: true, vertical: false)
                 searchField
+                    .frame(minWidth: 84 * ui)
+                    .layoutPriority(1)
                 AraIconButton(.add, size: .small, help: L10n.string("notes.new")) { model.onNewNote?() }
             }
             ZStack(alignment: .top) {

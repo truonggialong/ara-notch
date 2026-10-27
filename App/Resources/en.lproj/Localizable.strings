@@ -917,6 +917,7 @@
 "notes.format.link.save" = "Add link";
 "notes.format.link.cancel" = "Cancel";
 "notes.allNotes" = "All Notes";
+"notes.allNotes.short" = "All";
 "notes.newFolder" = "New Folder";
 "notes.folderName" = "Folder name";
 "notes.createFolder" = "Create folder";

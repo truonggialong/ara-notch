@@ -112,7 +112,7 @@ struct LaunchArguments {
     let dumpNoteData: (id: String, file: URL)?
     /// `--append-note <note id> <text> <report file>`: add a paragraph to the note and save it, as typing would.
     let appendNote: (id: String, text: String, report: URL)?
-    /// `--self-test-notes <report file>`: drive the Notes window with key and mouse events, then quit (see `runSelfTest`).
+    /// `--self-test-notes <report file>`: drive the notch's Notes page with key and mouse events, then quit (see `runSelfTest`).
     let selfTestNotes: URL?
     /// `--check-reminders <file>`: write whether a reminder can be made (one is made and removed at once).
     let checkRemindersFile: URL?

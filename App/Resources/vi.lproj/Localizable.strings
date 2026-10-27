@@ -917,6 +917,7 @@
 "notes.format.link.save" = "Thêm liên kết";
 "notes.format.link.cancel" = "Huỷ";
 "notes.allNotes" = "Tất cả ghi chú";
+"notes.allNotes.short" = "Tất cả";
 "notes.newFolder" = "Thư mục mới";
 "notes.folderName" = "Tên thư mục";
 "notes.createFolder" = "Tạo thư mục";

@@ -17,9 +17,10 @@ struct NoteFolderPicker: View {
             HStack(spacing: 4 * ui) {
                 Image(systemName: "folder")
                     .font(.system(size: 10 * ui, weight: .semibold))
-                Text(store.folders.first { $0.id == store.selectedFolderID }?.name ?? L10n.string("notes.allNotes"))
+                Text(store.folders.first { $0.id == store.selectedFolderID }?.name ?? L10n.string("notes.allNotes.short"))
                     .font(.system(size: 11 * ui, weight: .semibold))
                     .lineLimit(1)
+                    .frame(maxWidth: 64 * ui, alignment: .leading)
                 Image(systemName: "chevron.down")
                     .font(.system(size: 7 * ui, weight: .bold))
                     .rotationEffect(.degrees(model.isChoosingFolder ? 180 : 0))
