@@ -103,4 +103,18 @@ import Testing
         let html = try NotesHTMLWriter.write(NoteDocument(blocks: [.paragraph([TextRun("a<b>&")])]), images: [:])
         #expect(html.contains("a&lt;b&gt;&amp;"))
     }
+
+    @Test func refusesAnImageWithEmptyData() {
+        let document = NoteDocument(blocks: [.image(attachmentIndex: 0)])
+        #expect(throws: NotesHTMLWriterError.missingImage(0)) {
+            try NotesHTMLWriter.write(document, images: [0: NoteImageData(data: Data(), mimeType: "image/png")])
+        }
+    }
+
+    @Test func treatsANegativeIndentAsTopLevel() throws {
+        let html = try NotesHTMLWriter.write(NoteDocument(blocks: [
+            .listItem(.bullet, indent: -1, [TextRun("a")]), .listItem(.bullet, indent: -3, [TextRun("b")]),
+        ]), images: [:])
+        #expect(html == "<ul><li>a</li><li>b</li></ul>")
+    }
 }

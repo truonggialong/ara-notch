@@ -34,7 +34,7 @@ public enum NotesHTMLWriter {
                 case .numbered: throw NotesHTMLWriterError.unwritableBlock("numberedList")
                 case .checklist: throw NotesHTMLWriterError.unwritableBlock("checklist")
                 }
-                openItem(kind, depth: min(indent + 1, lists.count + 1), lists: &lists, html: &html)
+                openItem(kind, depth: max(1, min(indent + 1, lists.count + 1)), lists: &lists, html: &html)
                 html += inline(runs) ?? "<br>"
                 continue
             }
@@ -49,7 +49,7 @@ public enum NotesHTMLWriter {
             case .code(let text):
                 html += "<div><font face=\"Courier\">\(text.isEmpty ? "<br>" : escape(text))</font></div>"
             case .image(let index):
-                guard let image = images[index] else { throw NotesHTMLWriterError.missingImage(index) }
+                guard let image = images[index], !image.data.isEmpty else { throw NotesHTMLWriterError.missingImage(index) }
                 let mime = image.mimeType.isEmpty ? "image/png" : image.mimeType
                 html += "<div><img src=\"data:\(escape(mime));base64,\(image.data.base64EncodedString())\"></div>"
             case .table(let tableHTML, _):
