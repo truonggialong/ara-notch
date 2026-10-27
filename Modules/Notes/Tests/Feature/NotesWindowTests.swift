@@ -173,11 +173,16 @@ private struct WindowHarness {
         let (windowHandle, windowHost) = h.windowEditor()
         let notchEditor = try #require(notchHost.subviewsEditor)
         let windowEditor = try #require(windowHandle.editor)
-        windowEditor.textView.setSelectedRange(NSRange(location: 3, length: 0))
-        windowEditor.textView.insertText(" two", replacementRange: windowEditor.textView.selectedRange())
-        windowEditor.commitNow()
-        // The other editor is in no key window: it shows the edit at once.
-        #expect(notchEditor.textView.string == "One two")
+        let rebuilds = notchEditor.rebuildCount
+        for word in [" two", " three", " four"] {
+            windowEditor.textView.setSelectedRange(NSRange(location: windowEditor.textView.string.utf16.count, length: 0))
+            windowEditor.textView.insertText(word, replacementRange: windowEditor.textView.selectedRange())
+            windowEditor.commitNow()
+        }
+        // The other editor is in no key window: it shows the edits once the typing pauses, rebuilt once for all.
+        #expect(notchEditor.textView.string == "One")
+        try await waitUntil("the other editor caught up") { notchEditor.textView.string == "One two three four" }
+        #expect(notchEditor.rebuildCount == rebuilds + 1)
         _ = windowHost
     }
 

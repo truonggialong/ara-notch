@@ -96,6 +96,10 @@ final class NoteEditorCoordinator: NSObject, NSTextViewDelegate, NSTextStorageDe
     /// is another one (an edit from the other editor on the same load), the text catches up with it.
     private var shownDocument: NoteDocument?
     private var needsCatchUp = false
+    private var idleCatchUp: DispatchWorkItem?
+    static let idleCatchUpDelay: TimeInterval = 0.5
+    /// How often the text was rebuilt from the store; for tests.
+    private(set) var rebuildCount = 0
     private var commitScheduled = false
     private var isRebuilding = false
     private var isStripping = false
@@ -151,8 +155,9 @@ final class NoteEditorCoordinator: NSObject, NSTextViewDelegate, NSTextStorageDe
         if open?.generation != generation {
             rebuild(open)
         } else if let open, open.document != shownDocument, !commitScheduled {
-            // Not being typed in: shown at once. In the key window: soon, or at the next keystroke's send.
-            if windowIsKey() { scheduleCatchUp() } else { catchUp(to: open) }
+            // In the key window: soon, or at the next keystroke's send. Not being typed in: once the other editor's
+            // typing pauses, so a long note is not rebuilt for every keystroke typed in the other one.
+            if windowIsKey() { scheduleCatchUp() } else { scheduleIdleCatchUp() }
         }
         let editable = Self.isEditable(open, state, isReloading: isReloading)
         if textView.isEditable != editable {
@@ -170,6 +175,9 @@ final class NoteEditorCoordinator: NSObject, NSTextViewDelegate, NSTextStorageDe
     }
 
     private func rebuild(_ open: OpenNote?) {
+        rebuildCount += 1
+        idleCatchUp?.cancel()
+        idleCatchUp = nil
         commitScheduled = false   // an edit not sent yet belonged to the load being replaced
         needsCatchUp = false
         popover.hide()
@@ -206,6 +214,15 @@ final class NoteEditorCoordinator: NSObject, NSTextViewDelegate, NSTextStorageDe
             self.needsCatchUp = false
             self.catchUpIfStale()
         }
+    }
+
+    /// The text that cannot be typed in shows the other editor's edits half a second after they stop (or when its
+    /// window gets the keyboard, or it sends).
+    private func scheduleIdleCatchUp() {
+        idleCatchUp?.cancel()
+        let work = DispatchWorkItem { [weak self] in self?.catchUpIfStale() }
+        idleCatchUp = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.idleCatchUpDelay, execute: work)
     }
 
     /// Shows the store's document when it moved on from the one this text shows, and nothing waits to be sent here.
