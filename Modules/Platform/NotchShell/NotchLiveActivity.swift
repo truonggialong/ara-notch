@@ -29,6 +29,17 @@ public struct NotchLiveActivity {
     /// What a notice that dropped out of the notch is filled with, in place of the notch's
     /// plain black; nil for plain black.
     let dropFill: (@MainActor () -> AnyView)?
+    /// A strip under the hardware notch, between the two sides, for an activity shown beside
+    /// it: the closed notch grows down by `bottomHeight` to hold it. Set with `setBottom`.
+    private(set) var bottom: (@MainActor () -> AnyView)?
+    /// The strip's height in the layout's points; 0 without one.
+    public private(set) var bottomHeight: CGFloat = 0
+    /// The strip's height while the pointer is on the activity's own part (see `keepsSides`).
+    public private(set) var hoveredBottomHeight: CGFloat = 0
+    /// The activity's sides and its strip are its own: the pointer there does not open the
+    /// notch, and the activity's views take hovering (`notchActivityIsHovered`), clicks and
+    /// drags. Over the hardware notch the pointer opens it as usual.
+    public var keepsSides = false
 
     public init<L: View, T: View>(
         id: String,
@@ -63,5 +74,29 @@ public struct NotchLiveActivity {
         trailing = { AnyView(EmptyView()) }
         self.drop = { AnyView(drop()) }
         dropSize = size
+    }
+
+    /// Grows the closed notch down by `height` (in the layout's points) and draws `view` in
+    /// the strip that appears under the hardware notch, where the screen has pixels.
+    /// `hoveredHeight` is the strip's height while the pointer is on an activity that keeps
+    /// its sides; nil keeps `height`.
+    public mutating func setBottom<B: View>(
+        height: CGFloat, hoveredHeight: CGFloat? = nil, @ViewBuilder _ view: @escaping @MainActor () -> B
+    ) {
+        bottomHeight = height
+        hoveredBottomHeight = hoveredHeight ?? height
+        bottom = { AnyView(view()) }
+    }
+}
+
+private struct NotchActivityHoverKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
+extension EnvironmentValues {
+    /// The pointer is on the part of the closed notch an activity keeps for itself.
+    public var notchActivityIsHovered: Bool {
+        get { self[NotchActivityHoverKey.self] }
+        set { self[NotchActivityHoverKey.self] = newValue }
     }
 }

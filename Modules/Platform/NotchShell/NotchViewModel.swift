@@ -32,8 +32,18 @@ final class NotchViewModel: ObservableObject {
         activity?.sideWidth.map { ($0 * edgeScale).rounded() } ?? activitySideWidth
     }
 
+    /// The strip under the hardware notch for the activity showing beside it, grown with the
+    /// notch's edge; 0 when it has none.
+    var shownActivityBottomHeight: CGFloat {
+        guard let activity, activity.dropSize == nil, activity.bottom != nil else { return 0 }
+        let height = isActivityHovered ? activity.hoveredBottomHeight : activity.bottomHeight
+        return (height * edgeScale).rounded()
+    }
+
     /// The pointer is on the closed notch: it swells a little to say it was touched.
     @Published var isTouched = false
+    /// The pointer is on the sides or strip of an activity that keeps them for itself.
+    @Published var isActivityHovered = false
     /// The closed notch may show its activity's extra line while touched.
     @Published var allowsPeek = false
     /// The notice on show is about to go: what is on it fades before the plate shrinks.

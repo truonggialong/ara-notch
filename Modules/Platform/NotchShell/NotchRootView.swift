@@ -41,6 +41,7 @@ struct NotchRootView: View {
         .animation(.spring(response: 0.36, dampingFraction: 0.82), value: model.openSize)
         // The swell under the pointer springs out with a little overshoot.
         .animation(reduceMotion ? nil : .spring(response: 0.24, dampingFraction: 0.58), value: model.isTouched)
+        .animation(reduceMotion ? nil : .spring(response: 0.3, dampingFraction: 0.8), value: model.isActivityHovered)
         // A notice opens and closes smoothly, without a bounce: an overshoot of the plate read
         // as a jolt.
         .animation(Self.noticeMotion, value: model.activity?.request.id)
@@ -105,6 +106,7 @@ struct NotchRootView: View {
             size = NotchDropLayout.shapeSize(closed: size, card: card, scale: model.scale)
         } else if model.activity != nil {
             size.width += 2 * model.shownActivitySideWidth
+            size.height += model.shownActivityBottomHeight
         } else if !model.isTouched, let idle = model.idleSize {
             // Nothing to show and nothing on it: the notch waits as a thin bar.
             size = idle
@@ -151,7 +153,7 @@ struct NotchRootView: View {
                 .lineLimit(1)
                 .padding(.horizontal, 14)
                 .frame(width: closedShapeSize.width, height: Self.peekHeight)
-                .padding(.top, model.closedSize.height + 1)
+                .padding(.top, model.closedSize.height + model.shownActivityBottomHeight + 1)
                 .transition(.opacity)
         }
     }
@@ -179,12 +181,18 @@ struct NotchRootView: View {
                 .transition(Self.noticeContent)
                 .id(activity.request.id)
         } else if let activity = model.activity, !model.isOpen {
-            HStack(spacing: 0) {
-                activitySide(activity.leading(), alignment: .leading)
-                Color.clear.frame(width: model.closedSize.width)
-                activitySide(activity.trailing(), alignment: .trailing)
+            VStack(spacing: 0) {
+                HStack(spacing: 0) {
+                    activitySide(activity.leading(), alignment: .leading)
+                    Color.clear.frame(width: model.closedSize.width)
+                    activitySide(activity.trailing(), alignment: .trailing)
+                }
+                .frame(height: model.closedSize.height)
+                if let bottom = activity.bottom {
+                    activityBottom(bottom())
+                }
             }
-            .frame(height: model.closedSize.height)
+            .environment(\.notchActivityIsHovered, model.isActivityHovered)
             .foregroundStyle(AraPalette.ink)
             .lineLimit(1)
             .transition(.opacity)
@@ -203,6 +211,18 @@ struct NotchRootView: View {
             .frame(width: width, height: model.closedSize.height)
             .drawingGroup()
             .padding(.horizontal, 10)
+    }
+
+    /// The strip under the hardware notch, across the notch and its sides, enlarged like the
+    /// sides. Not drawn as one picture, so a glow on it is not cut at the strip's edge.
+    private func activityBottom(_ view: AnyView) -> some View {
+        let scale = model.edgeScale
+        let height = model.shownActivityBottomHeight
+        let width = model.closedSize.width + 2 * model.shownActivitySideWidth
+        return view
+            .frame(width: width / scale, height: height / scale)
+            .scaleEffect(scale)
+            .frame(width: width, height: height)
     }
 
     private var content: some View {

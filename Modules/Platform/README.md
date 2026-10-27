@@ -58,6 +58,7 @@ Những gì app gọi (hàm `public` của controller; các kiểu `public` khá
 
 - **Ngoại lệ có chủ ý:** `ShortcutAction` (danh mục phím tắt toàn cục, có tên hành động của Clipboard, Translate, Capture) nằm ở đây, vì việc kiểm tra trùng phím cần thấy mọi phím. Thêm một phím tắt toàn cục mới cho tính năng = thêm một case ở đây; đó là thay đổi giao diện công khai của nền tảng, phải báo trước.
 - `NotchController` là đầu mối mà tính năng dùng: `register(page:)`, `present(_:)`, `setRestingActivity`, `setSheetHeight`, `setKeepsOpen`, `setBeingEdited`, `shortcuts`.
+- Hoạt động bên notch có thể có một dải dưới camera (`NotchLiveActivity.setBottom(height:hoveredHeight:_:)`): notch đóng nhô xuống thêm chừng ấy, vì chỗ camera không có điểm ảnh. Với `keepsSides = true`, hai cánh và dải đó là của hoạt động: rê chuột vào đó notch không mở, panel nhận chuột để view của hoạt động tự xử lý bấm và kéo, view đọc `\.notchActivityIsHovered`; rê vào giữa (chỗ camera) thì mở như thường. Vùng tính trong `NotchActivityZones` (NotchCore).
 - Bộ widget dùng chung: `WidgetSize`, `WidgetAlert`, `WidgetMeasure`, `WidgetPalette` (`NotchCore`), `AraWidget` và `\.araTileSize` (`NotchShell/Design`).
 
 ## Dữ liệu lưu
@@ -83,6 +84,7 @@ Không cần quyền nào. `PointerMonitor` theo dõi chuột toàn cục không
 - `Modules/Platform/NotchCore/DisplayChooser.swift` — Which display the notch lives on when several are connected.
 - `Modules/Platform/NotchCore/FullScreenRule.swift` — When an app is full screen on a display (a video, a presentation), the notch on that display gets out of the way; a notice still drops out of it for its few seconds.
 - `Modules/Platform/NotchCore/LiveActivityQueue.swift` — A request to show something beside the closed notch for a while.
+- `Modules/Platform/NotchCore/NotchActivityZones.swift` — Where the pointer is on a closed notch showing an activity that keeps its sides for itself: the middle opens the notch, the sides and the strip under it are the activity's.
 - `Modules/Platform/NotchCore/NotchDropLayout.swift` — A notice that drops out of the closed notch: the notch grows downwards into a sign, one piece with it, instead of showing something on either side.
 - `Modules/Platform/NotchCore/NotchGeometry.swift` — How the notch is drawn on a display that has no hardware notch.
 - `Modules/Platform/NotchCore/NotchStateMachine.swift` — Decides when the notch opens and closes.
@@ -157,3 +159,4 @@ Mỗi dòng: ngày — lỗi hoặc thay đổi — test đã thêm — commit.
 
 - 2026-10-26 — tái cấu trúc theo module (nhánh `refactor/feature-modules`): bỏ tên Overview khỏi nền tảng (`PageRegistry.order(_:leading:)`, `NotchController(leadingPageID:)`); `OverviewTileSize` → `WidgetSize`, `OverviewAlert` → `WidgetAlert`; hàng phím số thành khái niệm chung `NumberRow`, `ShortcutCenter.setNumberRow`; chuỗi `settings.shortcuts.quickPaste.refused` → `settings.shortcuts.numberRow.refused`.
 - 2026-10-26 — thêm test cho việc `ShortcutCenter` truyền mọi hàng phím số đã khai báo làm `others`: hai hàng không dùng chung phím bổ trợ, `numberRow(using:)` tìm đúng hàng (`ShortcutCenterNumberRowTests`, có `isRecording` để không đăng ký phím thật). Khi tạm truyền `others: []`, test thất bại.
+- 2026-10-28 — thêm cho hoạt động bên notch: dải dưới camera (`setBottom(height:hoveredHeight:_:)`), `keepsSides` (hai cánh và dải nhận chuột, không mở notch), môi trường `notchActivityIsHovered`; dùng cho nhạc ở notch đóng — `NotchActivityZonesTests` (6 test).

@@ -562,6 +562,9 @@ public final class NotchController {
             $0.model.activityIsResting = viewModel.activityIsResting
         }
         applyFullScreenHiding()
+        if activity?.keepsSides != true {
+            setActivityHovered(false)
+        }
         refreshClickCatcher()
     }
 
@@ -766,11 +769,35 @@ public final class NotchController {
             layoutForCurrentScreen()
         }
         let inside = isInside(point)
+        let ownsPointer = activityOwnsPointer(at: point)
+        setActivityHovered(ownsPointer)
         touchChanged(to: inside && !stateMachine.isPresented)
         if !inside, stateMachine.state == .open {
             stateMachine.isTyping = isTypingInPanel
         }
-        send(.pointerMoved(inside: inside))
+        // On the part an activity keeps for itself the notch does not open.
+        send(.pointerMoved(inside: inside && !ownsPointer))
+    }
+
+    /// The pointer is on the sides or strip of the closed notch's activity that keeps them for
+    /// itself; once a drag has started there, until the button is let go.
+    private func activityOwnsPointer(at point: CGPoint) -> Bool {
+        guard !stateMachine.isPresented, !viewModel.isHiddenForFullScreen, let geometry,
+              let activity = viewModel.activity, activity.keepsSides, activity.dropSize == nil
+        else { return false }
+        if viewModel.isActivityHovered, NSEvent.pressedMouseButtons & 1 == 1 { return true }
+        return NotchActivityZones.zone(
+            of: point, closedRect: geometry.closedRect, sideWidth: viewModel.shownActivitySideWidth,
+            bottomHeight: viewModel.shownActivityBottomHeight, padding: settings.interactionPadding) == .own
+    }
+
+    /// While the activity has the pointer its views take the clicks: the panel listens and the
+    /// click catcher is out of the way.
+    private func setActivityHovered(_ isHovered: Bool) {
+        guard viewModel.isActivityHovered != isHovered else { return }
+        viewModel.isActivityHovered = isHovered
+        panel?.ignoresMouseEvents = !(isHovered || stateMachine.isPresented)
+        refreshClickCatcher()
     }
 
     /// A menu put up from the open panel, such as a clip's context menu, holds the panel open
@@ -814,6 +841,8 @@ public final class NotchController {
 
     private func clicked(at point: CGPoint) {
         guard !isHiddenByUser else { return }
+        // The activity's own views answer clicks on its part of the notch.
+        if activityOwnsPointer(at: point) { return }
         // A click on a notice that takes something back does that, and the notice goes.
         if !stateMachine.isPresented, let activity = viewModel.activity, let action = activity.onClick,
            let area = activityClickArea {
@@ -845,7 +874,7 @@ public final class NotchController {
 
     /// Puts the click catcher over what shows on the closed notch, or away.
     private func refreshClickCatcher() {
-        guard !isHiddenByUser,
+        guard !isHiddenByUser, !viewModel.isActivityHovered,
               NotchClickArea.takesClicks(
                 isOpen: stateMachine.isPresented, showsSomething: viewModel.activity != nil,
                 isHidden: viewModel.isHiddenForFullScreen),
@@ -1000,6 +1029,7 @@ public final class NotchController {
             }
             pageForNextOpen = nil
             viewModel.isTouched = false
+            setActivityHovered(false)
             viewModel.isOpen = true
             applyFullScreenHiding()
             panel?.ignoresMouseEvents = false
