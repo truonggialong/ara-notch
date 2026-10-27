@@ -248,7 +248,7 @@ public final class NotesController {
         NoteEditorCoordinator.commitAll()
         guard let open = store.open, store.saveState == .saved,
               let summary = store.notes.first(where: { $0.id == open.id }),
-              summary.modified.timeIntervalSince(open.openedAt) > 1 else { return }
+              summary.modified > open.openedAt else { return }
         await store.reloadOpenNote()
     }
 }

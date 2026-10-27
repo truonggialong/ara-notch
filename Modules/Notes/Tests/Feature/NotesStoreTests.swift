@@ -276,7 +276,7 @@ private struct Harness {
         await h.store.openNote(a)
         let gen = h.store.open?.generation
         h.fake.setBodyDelay = .milliseconds(100)
-        h.fake.setBodyDateOffset = 60  // each write moves the date far past SaveGuard's second
+        h.fake.setBodyDateOffset = 60  // each write moves the date far on
         h.fake.setContentDelay(.milliseconds(60), for: b)
         let opening = Task { await h.store.openNote(b) }
         try await waitUntil("B is being read") { h.fake.calls("content:\(b)") == 1 }

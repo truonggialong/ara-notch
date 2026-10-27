@@ -62,7 +62,7 @@ final class NotesStore: ObservableObject {
     private var savingID: String?
     /// Writes per note (a write whose outcome is unknown counts too). A load notes the count it read the note at;
     /// a save from that load is allowed only while every write since was its own. Dates cannot tell this:
-    /// SaveGuard takes writes under a second apart as the same moment.
+    /// two writes in the same second have the same date.
     private var writeCount: [String: Int] = [:]
     private var loadStamp: [Int: Int] = [:]
     private var ownWrites: [Int: Int] = [:]

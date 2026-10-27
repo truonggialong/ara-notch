@@ -112,14 +112,17 @@ import Testing
         #expect(EditSafety.readOnly([.listsUnknown]).adding(.checklist) == .readOnly([.checklist, .listsUnknown]))
     }
 
-    @Test func sameSecondWrites() {
+    @Test func sameDateWrites() {
         let t = Date(timeIntervalSince1970: 1000)
         #expect(SaveGuard.decide(openedAt: t, currentModification: t) == .write)
-        #expect(SaveGuard.decide(openedAt: t, currentModification: t.addingTimeInterval(1)) == .write)
     }
 
-    @Test func laterModificationConflicts() {
+    /// Both dates come through the same AppleScript rounding, so a date one second later is a change made
+    /// elsewhere (an edit synced from the iPhone right after AraNotch's write), never the same moment.
+    @Test func anyOtherDateConflicts() {
         let t = Date(timeIntervalSince1970: 1000)
+        #expect(SaveGuard.decide(openedAt: t, currentModification: t.addingTimeInterval(1)) == .conflict)
+        #expect(SaveGuard.decide(openedAt: t, currentModification: t.addingTimeInterval(-1)) == .conflict)
         #expect(SaveGuard.decide(openedAt: t, currentModification: t.addingTimeInterval(1.5)) == .conflict)
         #expect(SaveGuard.decide(openedAt: t, currentModification: t.addingTimeInterval(-5)) == .conflict)
     }

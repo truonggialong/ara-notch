@@ -39,7 +39,7 @@ final class FakeNotesService: NotesService, @unchecked Sendable {
     /// How long `content` of one note takes (overrides `contentDelay`).
     func setContentDelay(_ delay: Duration, for noteID: String) { lock.withLock { readDelays[noteID] = delay } }
 
-    /// Added to the date `setBody` returns, so two writes are more than SaveGuard's second apart.
+    /// Added to the date `setBody` returns, so two writes have clearly different dates.
     var setBodyDateOffset: TimeInterval {
         get { lock.withLock { bodyDateOffset } }
         set { lock.withLock { bodyDateOffset = newValue } }
