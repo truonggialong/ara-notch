@@ -1,6 +1,5 @@
 import AgentCore
 import Foundation
-import Security
 
 /// Asks the Claude account for its rate limits every few minutes, as Claude Code's `/usage`
 /// does, with the sign-in Claude Code keeps in the keychain. This works whatever runs Claude
@@ -112,31 +111,38 @@ final class ClaudeAccountReader {
         }
     }
 
+    /// Through Apple's `security` tool, as Claude Code itself reads and writes the item: its access
+    /// list trusts that tool. A read from this app is tied to the code hash of this build (the signing
+    /// certificate has no team), so every new build made macOS ask for the login password again.
     nonisolated private static func readLogin() -> Result<ClaudeLogin, StateError> {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: ClaudeLogin.keychainService,
-            kSecReturnData as String: true,
-            kSecMatchLimit as String: kSecMatchLimitOne,
-        ]
-        var item: CFTypeRef?
-        let status = SecItemCopyMatching(query as CFDictionary, &item)
-        switch status {
-        case errSecSuccess:
-            guard let data = item as? Data, let login = ClaudeLogin.read(data, now: Date()) else {
-                return .failure(StateError(.noLogin))
-            }
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/security")
+        process.arguments = ["find-generic-password", "-s", ClaudeLogin.keychainService, "-w"]
+        let output = Pipe()
+        process.standardOutput = output
+        process.standardError = FileHandle.nullDevice
+        do { try process.run() } catch { return .failure(StateError(.failed(status: -1))) }
+        let data = output.fileHandleForReading.readDataToEndOfFile()
+        process.waitUntilExit()
+        return login(exitStatus: process.terminationStatus, output: data, now: Date())
+    }
+
+    /// `security` exits with the low byte of the keychain status.
+    nonisolated static func login(exitStatus: Int32, output: Data, now: Date) -> Result<ClaudeLogin, StateError> {
+        switch exitStatus {
+        case 0:
+            guard let login = ClaudeLogin.read(output, now: now) else { return .failure(StateError(.noLogin)) }
             return .success(login)
-        case errSecItemNotFound:
+        case 44:  // errSecItemNotFound
             return .failure(StateError(.noLogin))
-        case errSecUserCanceled, errSecAuthFailed, errSecInteractionNotAllowed:
+        case 128, 51, 36:  // errSecUserCanceled, errSecAuthFailed, errSecInteractionNotAllowed
             return .failure(StateError(.refused))
         default:
-            return .failure(StateError(.failed(status: Int(status))))
+            return .failure(StateError(.failed(status: Int(exitStatus))))
         }
     }
 
-    private struct StateError: Error {
+    struct StateError: Error {
         let state: State
         init(_ state: State) { self.state = state }
     }

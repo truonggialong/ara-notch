@@ -195,7 +195,7 @@ Trợ năng để tự dán (gửi ⌘V) và để nghe ⌘V; Lời nhắc cho "
 - Hoàn tác xoá chỉ có trong 8 giây và chỉ trong lần chạy đó của app; số đếm trên bảng ghim chưa giảm cho tới khi clip bị xoá thật. Xoá bảng, xoá theo khoảng thời gian và xoá cả lịch sử thì không hoàn tác được.
 - Xem nhanh một clip chữ ghi một tệp tạm trong thư mục tạm của máy; tệp đó không được dọn ngay.
 - Con lăn chuột chỉ được đổi hướng ở trang Clipboard của notch; bảng clipboard và Thư viện vốn cuộn dọc.
-- Touch ID: việc kiểm tra vân tay do AraNotch thực hiện rồi mới đọc mật mã từ Chuỗi khoá; mục trong Chuỗi khoá không tự gắn với vân tay, vì app ký bằng chứng thư tự tạo không dùng được loại mục đó. Bật tuỳ chọn nghĩa là mật mã nằm trong Chuỗi khoá đăng nhập của máy.
+- Touch ID: việc kiểm tra vân tay do AraNotch thực hiện rồi mới đọc mật mã từ Chuỗi khoá; mục trong Chuỗi khoá không tự gắn với vân tay, vì app ký bằng chứng thư tự tạo không dùng được loại mục đó. Bật tuỳ chọn nghĩa là mật mã nằm trong Chuỗi khoá đăng nhập của máy. Vì chứng thư không có Team ID, mục đó gắn với mã băm của bản dựng đã lưu nó: sau mỗi bản cập nhật, lần mở khoá bằng Touch ID đầu tiên macOS hỏi mật khẩu máy một lần (chọn "Luôn cho phép" để không bị hỏi lại tới bản sau). Chỉ hết hẳn khi ký bằng chứng thư Developer ID có Team ID.
 - Nhận diện code là phỏng đoán; SQL viết thường và đoạn rất ngắn có thể không được tô màu.
 
 ## Nhật ký sửa lỗi
