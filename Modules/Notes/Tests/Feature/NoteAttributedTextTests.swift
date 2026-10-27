@@ -268,14 +268,14 @@ private let sample = NoteDocument(blocks: [
 }
 
 /// The text is sized for the notch, read from further away than a window: at the standard notch size (×1.25) the body
-/// shows at 15 pt (what Notes shows the body AraNotch writes at), every heading larger than the body, the first line
+/// shows at 14 pt (a little smaller than the list's titles), every heading larger than the body, the first line
 /// between the body and the first heading.
 @Test func textIsSizedToReadInTheNotch() {
     func size(_ kind: NoteBlockKind, mono: Bool = false) -> CGFloat { NoteAttributedText.font(kind: kind, mono: mono).pointSize }
-    #expect(size(.paragraph) * NotchSize.standard.scale == 15)
-    #expect(size(.paragraph, mono: true) == 11)
-    #expect(size(.code) == 11)
-    #expect([size(.h1), size(.h2), size(.h3)] == [19, 16, 13.5])
-    #expect(NoteAttributedText.leadSize == 15)
+    #expect(abs(size(.paragraph) * NotchSize.standard.scale - 14) < 0.01)
+    #expect(size(.paragraph, mono: true) == 10.4)
+    #expect(size(.code) == 10.4)
+    #expect([size(.h1), size(.h2), size(.h3)] == [17.6, 15, 12.6])
+    #expect(NoteAttributedText.leadSize == 14)
     #expect(NoteAttributedText.lineSpacing == 3)
 }

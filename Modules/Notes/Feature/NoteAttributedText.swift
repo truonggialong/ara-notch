@@ -38,16 +38,16 @@ enum NoteAttributedText {
     // MARK: Fonts and attributes
 
     /// In the text's own points; the editor is drawn magnified by the notch's size, so at the standard size (×1.25)
-    /// the body shows at 15 pt, what Notes shows the body AraNotch writes at, and the size of the list's titles.
+    /// the body shows at 14 pt, a little smaller than the list's titles.
     /// Only drawn: sizes are never read back into the note.
     static func font(kind: NoteBlockKind, bold: Bool = false, italic: Bool = false, mono: Bool = false) -> NSFont {
         let useMono = mono || kind == .code
         let size: CGFloat
         switch kind {
-        case .h1: size = 19
-        case .h2: size = 16
-        case .h3: size = 13.5
-        default: size = useMono ? 11 : 12
+        case .h1: size = 17.6
+        case .h2: size = 15
+        case .h3: size = 12.6
+        default: size = useMono ? 10.4 : 11.2
         }
         var font = useMono ? NSFont.monospacedSystemFont(ofSize: size, weight: .regular) : NSFont.systemFont(ofSize: size)
         var traits = font.fontDescriptor.symbolicTraits
@@ -171,7 +171,7 @@ enum NoteAttributedText {
 
     /// The size a first line that is a plain paragraph is drawn at, so it reads as the note's name. Only drawn: sizes
     /// are never read back into the note.
-    static let leadSize: CGFloat = 15
+    static let leadSize: CGFloat = 14
     /// Room added between the lines of every paragraph.
     static let lineSpacing: CGFloat = 3
 
