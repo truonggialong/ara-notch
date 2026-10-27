@@ -6,11 +6,12 @@ import Testing
     static let png = NoteImageData(data: Data([1, 2, 3, 4]), mimeType: "image/png")
     static let table = "<object><table><tr><td>A</td><td>B</td></tr><tr><td>C</td><td>D</td></tr></table></object>"
 
-    /// What Notes on macOS 27 keeps of the sizes AraNotch writes (seen 2026-10-27).
+    /// What Notes on macOS 27 keeps of the sizes AraNotch writes (seen 2026-10-27). It drops `white-space: pre-wrap`
+    /// and returns the spaces and tabs it kept raw inside `<span style="font-size: 15px">`.
     static func keptByNotes(_ html: String) -> String {
         let kept = [28: 24, 24: 21, 21: 18, 18: 15]
         var result = ""
-        var rest = Substring(html)
+        var rest = Substring(html.replacingOccurrences(of: "; white-space: pre-wrap", with: ""))
         while let range = rest.range(of: "font-size: ") {
             result += rest[..<range.upperBound]
             rest = rest[range.upperBound...]
@@ -65,8 +66,8 @@ import Testing
         let html = try NotesHTMLWriter.write(NoteDocument(blocks: [
             .heading(level: 1, [TextRun("T")]), .heading(level: 3, [TextRun("S")]),
         ]), images: [:])
-        #expect(html.contains("<div><b><span style=\"font-size: 28px\">T</span></b></div>"))
-        #expect(html.contains("<div><b><span style=\"font-size: 21px\">S</span></b></div>"))
+        #expect(html.contains("<div><b><span style=\"font-size: 28px; white-space: pre-wrap\">T</span></b></div>"))
+        #expect(html.contains("<div><b><span style=\"font-size: 21px; white-space: pre-wrap\">S</span></b></div>"))
     }
 
     /// Below 18 px Notes shows text at 11 px, smaller than its own.
@@ -74,9 +75,30 @@ import Testing
         let html = try NotesHTMLWriter.write(NoteDocument(blocks: [
             .paragraph([TextRun("p")]), .paragraph([]), .listItem(.bullet, indent: 0, [TextRun("i")]), .code("c"),
         ]), images: [:])
-        #expect(html == "<div><span style=\"font-size: 18px\">p</span></div><div><span style=\"font-size: 18px\"><br></span></div>"
-            + "<ul><li><span style=\"font-size: 18px\">i</span></li></ul>"
-            + "<div><font face=\"Courier\"><span style=\"font-size: 18px\">c</span></font></div>")
+        let span = "<span style=\"font-size: 18px; white-space: pre-wrap\">"
+        #expect(html == "<div>\(span)p</span></div><div>\(span)<br></span></div>"
+            + "<ul><li>\(span)i</span></li></ul>"
+            + "<div><font face=\"Courier\">\(span)c</span></font></div>")
+    }
+
+    /// Notes collapses runs of spaces and drops tabs and leading spaces from HTML, unless the span says
+    /// `white-space: pre-wrap` (checked on Notes 2026-10-27).
+    @Test func keepsLeadingSpacesRunsAndTabs() throws {
+        let document = NoteDocument(blocks: [
+            .paragraph([TextRun("  lead  two\ttab")]),
+            .listItem(.bullet, indent: 0, [TextRun("  item\tx")]),
+            .heading(level: 2, [TextRun("  H  1", style: .bold)]),
+        ])
+        let html = try NotesHTMLWriter.write(document, images: [:])
+        #expect(html.components(separatedBy: "white-space: pre-wrap").count == 4)
+        #expect(NotesHTMLReader.read(html: Self.keptByNotes(html), plainText: document.plainText) == document)
+    }
+
+    @Test func keepsTheIndentationOfACodeBlock() throws {
+        let document = NoteDocument(blocks: [.code("func f() {\n    return 1\n\tdone\n}"), .paragraph([TextRun("x")])])
+        let html = try NotesHTMLWriter.write(document, images: [:])
+        #expect(html.contains("<font face=\"Courier\"><span style=\"font-size: 18px; white-space: pre-wrap\">"))
+        #expect(NotesHTMLReader.read(html: Self.keptByNotes(html), plainText: document.plainText) == document)
     }
 
     @Test func groupsListItemsAndMarksDashLists() throws {
@@ -140,6 +162,7 @@ import Testing
         let html = try NotesHTMLWriter.write(NoteDocument(blocks: [
             .listItem(.bullet, indent: -1, [TextRun("a")]), .listItem(.bullet, indent: -3, [TextRun("b")]),
         ]), images: [:])
-        #expect(html == "<ul><li><span style=\"font-size: 18px\">a</span></li><li><span style=\"font-size: 18px\">b</span></li></ul>")
+        let span = "<span style=\"font-size: 18px; white-space: pre-wrap\">"
+        #expect(html == "<ul><li>\(span)a</span></li><li>\(span)b</span></li></ul>")
     }
 }

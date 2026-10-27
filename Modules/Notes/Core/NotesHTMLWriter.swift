@@ -26,6 +26,10 @@ public enum NotesHTMLWriterError: Error, Equatable {
 /// Notes turns every font size it gets through HTML below 18 px into 11 px, smaller than text typed
 /// in Notes, and lowers larger sizes by about three. So body text is written at 18 px (Notes keeps
 /// 15 px, a little larger than its own) and headings as bold 28, 24 and 21 px (Notes keeps 24, 21, 18).
+///
+/// Notes collapses runs of spaces and drops tabs and leading spaces it gets through HTML, unless the text says
+/// `white-space: pre-wrap`; so every sized span says it, and spaces and tabs are written as they are. Notes keeps
+/// them and returns them raw, without the declaration (checked 2026-10-27).
 public enum NotesHTMLWriter {
     static let bodySize = 18
     static func headingSize(_ level: Int) -> Int { [1: 28, 2: 24, 3: 21][level] ?? 28 }
@@ -121,7 +125,7 @@ public enum NotesHTMLWriter {
     }
 
     private static func sized(_ html: String, _ size: Int) -> String {
-        "<span style=\"font-size: \(size)px\">\(html)</span>"
+        "<span style=\"font-size: \(size)px; white-space: pre-wrap\">\(html)</span>"
     }
 
     private static func escape(_ text: String) -> String {

@@ -225,7 +225,7 @@ private struct Harness {
         await reopening.value
         await h.store.flush()
         #expect(h.fake.lastHTML?.contains("x") == true)
-        #expect(try await h.fake.content(of: a).html.contains("<div><span style=\"font-size: 18px\">x</span></div>"))
+        #expect(try await h.fake.content(of: a).html.contains("<div><span style=\"font-size: 18px; white-space: pre-wrap\">x</span></div>"))
         #expect(h.store.open?.document.blocks.contains(p("x")) == true)
         #expect(h.store.open?.generation != old)
         #expect(h.fake.setBodyCalls == 1)

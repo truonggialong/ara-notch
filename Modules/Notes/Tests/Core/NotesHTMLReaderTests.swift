@@ -131,6 +131,12 @@ import Testing
         ])
     }
 
+    /// The size is read when other declarations follow it, as in what AraNotch writes.
+    @Test func readsTheSizeBeforeOtherDeclarations() {
+        let html = "<div><b><span style=\"font-size: 24px; white-space: pre-wrap\">H1</span></b></div>"
+        #expect(NotesHTMLReader.read(html: html, plainText: "H1").blocks == [.heading(level: 1, [TextRun("H1", style: .bold)])])
+    }
+
     @Test func imageDivStaysEmptyParagraphWithoutPlaceholderLine() {
         let html = "<div><br></div><div><span><br></span><span><br></span></div>"
         let document = NotesHTMLReader.read(html: html, plainText: "\n\u{FFFC}")
