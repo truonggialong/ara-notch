@@ -50,6 +50,9 @@ import Testing
                                             locale: english) == "August")
         #expect(NoteListGrouping.monthTitle(of: Self.date(2025, 8, 15), now: Self.now, calendar: Self.calendar,
                                             locale: english) == "August 2025")
+        // In the app's language when it is Vietnamese.
+        #expect(NoteListGrouping.monthTitle(of: Self.date(2026, 8, 1), now: Self.now, calendar: Self.calendar,
+                                            locale: Locale(identifier: "vi")) == "Tháng 8")
     }
 
     @Test func aDayStartsAtMidnightInTheCalendarsTimeZone() {

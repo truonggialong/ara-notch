@@ -10,7 +10,20 @@ struct NoteStatusBanner: View {
     @ObservedObject var store: NotesStore
 
     var body: some View {
-        if let open = store.open, let content = Self.content(open: open, state: store.saveState) {
+        if store.caughtUp, store.open.flatMap({ Self.content(open: $0, state: store.saveState) }) == nil {
+            HStack(spacing: 8 * ui) {
+                AraIcon.done.image
+                    .font(.system(size: 11 * ui, weight: .semibold))
+                    .foregroundStyle(AraPalette.accent)
+                Text(L10n.string("notes.banner.caughtUp"))
+                    .font(.system(size: AraType.footnote * ui))
+                    .lineLimit(1)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .padding(.horizontal, 10 * ui)
+            .padding(.vertical, 6 * ui)
+            .araCard(radius: 10, level: .raised)
+        } else if let open = store.open, let content = Self.content(open: open, state: store.saveState) {
             HStack(spacing: 8 * ui) {
                 AraIcon.warning.image
                     .font(.system(size: 11 * ui, weight: .semibold))

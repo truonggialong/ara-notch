@@ -906,6 +906,7 @@
 "notes.banner.copy" = "Copy";
 "notes.banner.recreate" = "Make it again";
 "notes.banner.showInNotes" = "Edit in Notes";
+"notes.banner.caughtUp" = "Updated from the other window";
 "notes.format.bold" = "Bold (⌘B)";
 "notes.format.italic" = "Italic (⌘I)";
 "notes.format.underline" = "Underline (⌘U)";

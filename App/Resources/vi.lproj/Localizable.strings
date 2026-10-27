@@ -906,6 +906,7 @@
 "notes.banner.copy" = "Chép";
 "notes.banner.recreate" = "Tạo lại";
 "notes.banner.showInNotes" = "Sửa trong Notes";
+"notes.banner.caughtUp" = "Đã cập nhật từ cửa sổ khác";
 "notes.format.bold" = "Đậm (⌘B)";
 "notes.format.italic" = "Nghiêng (⌘I)";
 "notes.format.underline" = "Gạch chân (⌘U)";

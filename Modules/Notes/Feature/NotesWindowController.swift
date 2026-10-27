@@ -8,6 +8,8 @@ final class NotesWindowController: NSObject, NSWindowDelegate {
     let window: NSWindow
     let model: NotesWindowModel
     var onClose: (() -> Void)?
+    /// True when the window goes to the Dock, false when it comes back.
+    var onMiniaturize: ((Bool) -> Void)?
 
     init(store: NotesStore, page: NotesPageModel) {
         let model = NotesWindowModel()
@@ -40,6 +42,14 @@ final class NotesWindowController: NSObject, NSWindowDelegate {
         // An accessory app is not frontmost by default, so activate before showing.
         NSApp.activate(ignoringOtherApps: true)
         window.makeKeyAndOrderFront(nil)
+    }
+
+    func windowWillMiniaturize(_ notification: Notification) {
+        onMiniaturize?(true)
+    }
+
+    func windowDidDeminiaturize(_ notification: Notification) {
+        onMiniaturize?(false)
     }
 
     func windowWillClose(_ notification: Notification) {

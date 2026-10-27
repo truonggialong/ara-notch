@@ -1,6 +1,7 @@
 import AppKit
 import Combine
 import NotesCore
+import os
 import SwiftUI
 
 /// The editor of the open note, shared by the notch page and the Notes window.
@@ -104,6 +105,10 @@ final class NoteEditorCoordinator: NSObject, NSTextViewDelegate, NSTextStorageDe
     /// Pictures already read, so a rebuild of the same note does not read its files again.
     private var imageCache: [URL: NSImage] = [:]
     private var cancellables: Set<AnyCancellable> = []
+    private static let log = Logger(subsystem: "AraNotch", category: "Notes")
+    /// Whether the text's window has the keyboard. A text in a window without it cannot be typed in, so it catches up
+    /// with the other editor's edits at once; tests stand in for a key window.
+    lazy var windowIsKey: () -> Bool = { [weak self] in self?.textView.window?.isKeyWindow == true }
 
     init(store: NotesStore, imageSize: NoteImageSize) {
         self.store = store
@@ -127,6 +132,12 @@ final class NoteEditorCoordinator: NSObject, NSTextViewDelegate, NSTextStorageDe
                                        .cursor: NSCursor.pointingHand]
         textView.textStorage?.delegate = self
         Self.live.add(self)
+        NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)
+            .sink { [weak self] notification in
+                guard let self, let window = self.textView.window, notification.object as? NSWindow === window else { return }
+                self.catchUpIfStale()
+            }
+            .store(in: &cancellables)
         apply(store.open, store.saveState)
         // The values come before the store's properties change, so they are taken from the sink, not the store.
         store.$open.combineLatest(store.$saveState)
@@ -140,14 +151,16 @@ final class NoteEditorCoordinator: NSObject, NSTextViewDelegate, NSTextStorageDe
         if open?.generation != generation {
             rebuild(open)
         } else if let open, open.document != shownDocument, !commitScheduled {
-            scheduleCatchUp()
+            // Not being typed in: shown at once. In the key window: soon, or at the next keystroke's send.
+            if windowIsKey() { scheduleCatchUp() } else { catchUp(to: open) }
         }
         let editable = Self.isEditable(open, state)
         if textView.isEditable != editable {
             textView.isEditable = editable
             if !editable { popover.hide() }
         }
-        handle?.refresh()
+        // Not from inside the store's change: the toolbar's state is published.
+        DispatchQueue.main.async { [weak self] in self?.handle?.refresh() }
     }
 
     /// Whether a note in this state may be typed in (and formatted from the toolbar).
@@ -182,18 +195,27 @@ final class NoteEditorCoordinator: NSObject, NSTextViewDelegate, NSTextStorageDe
                 ?? NoteAttributedText.typingAttributes(for: .paragraph))
     }
 
-    /// The other editor of the same load sent an edit: this text shows it soon, or at once when it gets the keyboard,
-    /// so nothing typed here sends the older text back.
+    /// The other editor of the same load sent an edit: this text shows it soon, or at once when its window gets the
+    /// keyboard or it sends, so nothing typed here sends the older text back.
     private func scheduleCatchUp() {
         guard !needsCatchUp else { return }
         needsCatchUp = true
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in self?.catchUp() }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in
+            guard let self, self.needsCatchUp else { return }
+            self.needsCatchUp = false
+            self.catchUpIfStale()
+        }
     }
 
-    private func catchUp() {
-        guard needsCatchUp else { return }
-        needsCatchUp = false
+    /// Shows the store's document when it moved on from the one this text shows, and nothing waits to be sent here.
+    private func catchUpIfStale() {
         guard !commitScheduled, let open = store.open, open.generation == generation, open.document != shownDocument else { return }
+        catchUp(to: open)
+    }
+
+    /// Rebuilds the text from `open` (the same load), keeping the caret where it was as far as it can.
+    private func catchUp(to open: OpenNote) {
+        needsCatchUp = false
         let selection = textView.selectedRange()
         rebuild(open)
         let length = textView.textStorage?.length ?? 0
@@ -236,6 +258,16 @@ final class NoteEditorCoordinator: NSObject, NSTextViewDelegate, NSTextStorageDe
         guard commitScheduled else { return }
         commitScheduled = false
         guard let generation, let storage = textView.textStorage else { return }
+        // Undo can bring back a picture character the strip took out; it never goes into an edit.
+        stripBareAttachments()
+        // The other editor sent an edit this text has not caught up with: sending would put the older text back over
+        // it. Its text wins; the keystroke typed here meanwhile is dropped, and the banner says so.
+        if let open = store.open, open.generation == generation, open.document != shownDocument {
+            Self.log.info("An edit made on older text was dropped; the other editor's edit is kept")
+            catchUp(to: open)
+            store.noteCaughtUp()
+            return
+        }
         let document = NoteAttributedText.document(from: storage, original: loadedDocument)
         shownDocument = document
         store.edit(document, generation: generation)
@@ -565,7 +597,7 @@ final class NoteEditorCoordinator: NSObject, NSTextViewDelegate, NSTextStorageDe
     // MARK: Focus and scrolling
 
     func focusChanged(_ isFocused: Bool) {
-        if isFocused { catchUp() }
+        if isFocused { catchUpIfStale() }
         if !isFocused {
             commitNow()
             if !popover.isEditingLink { popover.hide() }

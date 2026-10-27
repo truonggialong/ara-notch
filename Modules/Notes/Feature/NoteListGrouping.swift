@@ -35,8 +35,11 @@ enum NoteListGrouping {
         return result
     }
 
+    static var appLocale: Locale { Locale(identifier: Bundle.main.preferredLocalizations.first ?? "en") }
+
     /// The name of a month group: "August", or "August 2025" for another year than `now`'s.
-    static func monthTitle(of date: Date, now: Date, calendar: Calendar, locale: Locale = .current) -> String {
+    /// `locale`: the app's language by default (as the Calendar widget does), not the system's region.
+    static func monthTitle(of date: Date, now: Date, calendar: Calendar, locale: Locale = appLocale) -> String {
         let formatter = DateFormatter()
         formatter.calendar = calendar
         formatter.timeZone = calendar.timeZone

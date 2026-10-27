@@ -24,6 +24,7 @@ public final class NotesController {
     private var isPageShowing = false
     private var window: NotesWindowController?
     private(set) var isWindowShowing = false
+    private var isWindowMiniaturized = false
     private var refreshTimer: Timer?
 
     public convenience init(settings: NotesSettings, notch: NotchController) {
@@ -92,6 +93,7 @@ public final class NotesController {
     private func makeWindow() -> NotesWindowController {
         let controller = NotesWindowController(store: store, page: model)
         controller.onClose = { [weak self] in self?.windowShowingChanged(false) }
+        controller.onMiniaturize = { [weak self] in self?.windowMiniaturizedChanged($0) }
         controller.model.onNewNote = { [weak self] in self?.newNoteInWindow() }
         notch.settings.$hidesFromCapture
             .removeDuplicates()
@@ -162,6 +164,7 @@ public final class NotesController {
     /// Closing it saves what was typed.
     func windowShowingChanged(_ isShowing: Bool, noteID: String? = nil) {
         isWindowShowing = isShowing
+        isWindowMiniaturized = false
         updateRefreshTimer(fullView: store.fullView)
         if isShowing {
             load(launching: true, noteID: noteID)
@@ -189,9 +192,17 @@ public final class NotesController {
         }
     }
 
-    /// Refreshes every 30 seconds while the window is up and no database change can be watched.
+    /// The window went to the Dock (the timer pauses) or came back (lists again at once, and the timer resumes).
+    func windowMiniaturizedChanged(_ isMiniaturized: Bool) {
+        guard isWindowShowing, isMiniaturized != isWindowMiniaturized else { return }
+        isWindowMiniaturized = isMiniaturized
+        updateRefreshTimer(fullView: store.fullView)
+        if !isMiniaturized, !store.fullView { Task { await refreshAfterChange(launchingNotes: false) } }
+    }
+
+    /// Refreshes every 30 seconds while the window is up (not in the Dock) and no database change can be watched.
     private func updateRefreshTimer(fullView: Bool) {
-        guard isWindowShowing, !fullView else {
+        guard isWindowShowing, !isWindowMiniaturized, !fullView else {
             refreshTimer?.invalidate()
             refreshTimer = nil
             return

@@ -49,6 +49,9 @@ final class NotesStore: ObservableObject {
     @Published var searchText = ""
     @Published private(set) var open: OpenNote?
     @Published private(set) var saveState: NoteSaveState = .saved
+    /// Briefly true after an editor dropped a keystroke typed on older text, to show the other editor's newer edit.
+    @Published private(set) var caughtUp = false
+    private var caughtUpTask: Task<Void, Never>?
 
     /// The latest edit not written yet, with the load it was made on: an edit belongs to that load and is
     /// saved against its state, never against a note or a load opened later.
@@ -418,6 +421,17 @@ final class NotesStore: ObservableObject {
             try? await Task.sleep(for: debounce)
             guard !Task.isCancelled else { return }
             self?.startSaving()
+        }
+    }
+
+    /// Shows the "updated from the other window" note for two seconds.
+    func noteCaughtUp() {
+        caughtUp = true
+        caughtUpTask?.cancel()
+        caughtUpTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(2))
+            guard !Task.isCancelled else { return }
+            self?.caughtUp = false
         }
     }
 

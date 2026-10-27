@@ -175,11 +175,72 @@ private struct WindowHarness {
         windowEditor.textView.setSelectedRange(NSRange(location: 3, length: 0))
         windowEditor.textView.insertText(" two", replacementRange: windowEditor.textView.selectedRange())
         windowEditor.commitNow()
-        // The other editor shows the edit, so a keystroke there cannot send the old text back.
-        notchEditor.focusChanged(true)
+        // The other editor is in no key window: it shows the edit at once.
         #expect(notchEditor.textView.string == "One two")
-        try await waitUntil("the other editor caught up by itself") { notchEditor.textView.string == "One two" }
         _ = windowHost
+    }
+
+    @Test func keystrokeOnOlderTextNeverReplacesTheOtherEditorsEdit() async throws {
+        let h = try await WindowHarness()
+        await h.store.openNote(h.note(["One"]))
+        let (_, notchHost) = h.windowEditor()
+        let (windowHandle, windowHost) = h.windowEditor()
+        let notchEditor = try #require(notchHost.subviewsEditor)
+        let windowEditor = try #require(windowHandle.editor)
+        // The notch's text has the keyboard in its own window: it catches up only a moment later.
+        notchEditor.windowIsKey = { true }
+        windowEditor.textView.setSelectedRange(NSRange(location: 3, length: 0))
+        windowEditor.textView.insertText(" two", replacementRange: windowEditor.textView.selectedRange())
+        windowEditor.commitNow()
+        #expect(notchEditor.textView.string == "One")
+        // A keystroke there before it caught up.
+        notchEditor.textView.setSelectedRange(NSRange(location: 3, length: 0))
+        notchEditor.textView.insertText("X", replacementRange: notchEditor.textView.selectedRange())
+        notchEditor.commitNow()
+        #expect(h.store.open?.document.plainText == "One two")
+        #expect(notchEditor.textView.string == "One two")
+        #expect(h.store.caughtUp)
+        // The window's next keystroke is sent as usual.
+        windowEditor.textView.setSelectedRange(NSRange(location: 7, length: 0))
+        windowEditor.textView.insertText("!", replacementRange: windowEditor.textView.selectedRange())
+        windowEditor.commitNow()
+        #expect(h.store.open?.document.plainText == "One two!")
+        try await waitUntil("the note about it went away", timeout: .seconds(4)) { !h.store.caughtUp }
+        _ = windowHost
+    }
+
+    @Test func undoNeverSendsABareAttachment() async throws {
+        let h = try await WindowHarness()
+        await h.store.openNote(h.note(["Title"]))
+        let (handle, host) = h.windowEditor()
+        let window = NSWindow(contentRect: host.frame, styleMask: [.titled], backing: .buffered, defer: true)
+        window.isReleasedWhenClosed = false
+        window.contentView = host
+        let editor = try #require(handle.editor)
+        let text = editor.textView
+        let storage = try #require(text.textStorage)
+        let undo = try #require(text.undoManager)
+        undo.groupsByEvent = false
+        // A bare attachment put in without the delegate hearing of it (as if it slipped past), then deleted normally.
+        let bare = NSAttributedString(attachment: NSTextAttachment())
+        undo.beginUndoGrouping()
+        #expect(text.shouldChangeText(in: NSRange(location: 5, length: 0), replacementString: bare.string))
+        storage.replaceCharacters(in: NSRange(location: 5, length: 0), with: bare)
+        undo.endUndoGrouping()
+        undo.beginUndoGrouping()
+        #expect(text.shouldChangeText(in: NSRange(location: 5, length: 1), replacementString: ""))
+        storage.replaceCharacters(in: NSRange(location: 5, length: 1), with: "")
+        text.didChangeText()
+        undo.endUndoGrouping()
+        editor.commitNow()
+        // ⌘Z brings the bare attachment back; what is sent never has it.
+        undo.undo()
+        undo.beginUndoGrouping()   // the strip is an undoable change of its own
+        editor.commitNow()
+        undo.endUndoGrouping()
+        #expect(!(text.string.contains("\u{FFFC}")))
+        #expect(h.store.open?.document.plainText.contains("\u{FFFC}") == false)
+        #expect(h.store.open?.document.plainText == "Title")
     }
 
     @Test func windowBuildsOffscreen() async throws {
@@ -208,6 +269,11 @@ private struct WindowHarness {
         try await waitUntil("Notes was started") { h.fake.launchCalls == 1 }
         try await waitUntil("access is known") { controller.store.access == .granted }
         // No Full Disk Access (no database): the open window lists again on a timer, stopped when it closes.
+        #expect(controller.isRefreshingOnTimer)
+        // In the Dock it pauses, and comes back with the window.
+        controller.windowMiniaturizedChanged(true)
+        #expect(!controller.isRefreshingOnTimer)
+        controller.windowMiniaturizedChanged(false)
         #expect(controller.isRefreshingOnTimer)
         controller.windowShowingChanged(false)
         #expect(!controller.isRefreshingOnTimer)
