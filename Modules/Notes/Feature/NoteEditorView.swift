@@ -588,6 +588,8 @@ final class NoteEditorCoordinator: NSObject, NSTextViewDelegate, NSTextStorageDe
         storage.endEditing()
     }
 
+    func imageFile(forAttachmentIndex index: Int) -> URL? { store.open?.images[index] }
+
     func imageLine(for data: Data, fileExtension: String) -> NSAttributedString? {
         guard textView.isEditable, let index = store.addImage(data, fileExtension: fileExtension) else { return nil }
         let image = NSImage(data: data).map { [index: $0] } ?? [:]

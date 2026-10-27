@@ -8,6 +8,8 @@ protocol NoteTextViewHost: AnyObject {
     func perform(_ format: NoteFormat) -> Bool
     /// Keeps an image the user put in the note and returns its text (an image line), or nil to refuse it.
     func imageLine(for data: Data, fileExtension: String) -> NSAttributedString?
+    /// The file of the open note's picture with this attachment index, for copying it.
+    func imageFile(forAttachmentIndex index: Int) -> URL?
     /// The range a paste or drop over `range` really replaces: widened so no list mark is cut in two.
     func rangeForReplacing(_ range: NSRange) -> NSRange
     func focusChanged(_ isFocused: Bool)
@@ -25,6 +27,8 @@ final class NoteTextView: NSTextView {
         (NSPasteboard.PasteboardType(UTType.gif.identifier), "gif"), (.tiff, "tiff"),
     ]
     private static let keptExtensions: Set<String> = ["png", "jpg", "jpeg", "heic", "gif", "tiff", "tif"]
+    /// A copy from this editor that holds pictures, as text and picture pieces in order: what it puts back on paste.
+    static let fragmentType = NSPasteboard.PasteboardType("com.aranotch.notes.fragment")
 
     // MARK: Keys
 
@@ -67,7 +71,41 @@ final class NoteTextView: NSTextView {
     // MARK: Paste and drop
 
     override var readablePasteboardTypes: [NSPasteboard.PasteboardType] {
-        [.string, .fileURL] + Self.keptImageTypes.map(\.0)
+        [Self.fragmentType, .string, .fileURL] + Self.keptImageTypes.map(\.0)
+    }
+
+    /// Copy and cut also write the selection's pictures with their bytes, so pasting them back keeps them (the system
+    /// copy holds them only as rich text, which paste does not take).
+    override func writeSelection(to pboard: NSPasteboard, types: [NSPasteboard.PasteboardType]) -> Bool {
+        let wrote = super.writeSelection(to: pboard, types: types)
+        guard wrote, let fragment = fragment(of: selectedRange()) else { return wrote }
+        pboard.addTypes([Self.fragmentType], owner: nil)
+        pboard.setData(fragment, forType: Self.fragmentType)
+        return wrote
+    }
+
+    /// The text and pictures of `range` as an encoded `[Piece]`; nil when it holds no picture whose bytes are at hand.
+    private func fragment(of range: NSRange) -> Data? {
+        guard range.length > 0, let storage = textStorage, let host else { return nil }
+        var pieces: [Piece] = []
+        var text = ""
+        var hasImage = false
+        let string = storage.string as NSString
+        storage.enumerateAttribute(NoteAttribute.attachmentIndex, in: range) { value, run, _ in
+            guard let index = value as? Int,
+                  storage.attribute(NoteAttribute.attachmentKind, at: run.location, effectiveRange: nil) as? String == "image",
+                  let file = host.imageFile(forAttachmentIndex: index), let data = try? Data(contentsOf: file) else {
+                text += string.substring(with: run)
+                return
+            }
+            if !text.isEmpty { pieces.append(.text(text)) }
+            text = ""
+            pieces.append(.image(data, file.pathExtension.lowercased()))
+            hasImage = true
+        }
+        if !text.isEmpty { pieces.append(.text(text)) }
+        guard hasImage else { return nil }
+        return try? PropertyListEncoder().encode(pieces)
     }
 
     override var acceptableDragTypes: [NSPasteboard.PasteboardType] { readablePasteboardTypes }
@@ -109,7 +147,8 @@ final class NoteTextView: NSTextView {
     @discardableResult
     func insert(from pasteboard: NSPasteboard) -> Bool {
         guard isEditable, let storage = textStorage else { return false }
-        let pieces = (pasteboard.pasteboardItems ?? []).compactMap(piece(of:))
+        let fragment = pasteboard.data(forType: Self.fragmentType).flatMap { try? PropertyListDecoder().decode([Piece].self, from: $0) }
+        let pieces = fragment ?? (pasteboard.pasteboardItems ?? []).compactMap(piece(of:))
         guard !pieces.isEmpty else { return false }
         // Widened here, not by the delegate: the delegate's widened replace is plain text and would drop pictures.
         let range = host?.rangeForReplacing(selectedRange()) ?? selectedRange()
@@ -143,7 +182,7 @@ final class NoteTextView: NSTextView {
         return true
     }
 
-    private enum Piece {
+    private enum Piece: Codable {
         case text(String)
         case image(Data, String)
     }

@@ -187,6 +187,35 @@ private func key(_ characters: String, _ flags: NSEvent.ModifierFlags) -> NSEven
         board.releaseGlobally()
     }
 
+    /// Cut and paste inside a note moves its pictures too, not only the text around them.
+    @Test func cutAndPasteKeepsPictures() async throws {
+        let h = try await EditorHarness()
+        await h.store.openNote(h.note(["Pic"]))
+        let editor = h.editor()
+        let text = editor.textView
+        text.setSelectedRange(NSRange(location: 3, length: 0))
+        let board = NSPasteboard(name: NSPasteboard.Name("notes.test.\(UUID().uuidString)"))
+        defer { board.releaseGlobally() }
+        board.clearContents()
+        board.setData(pngBytes, forType: .png)
+        #expect(text.insert(from: board))
+        editor.commitNow()
+        // Cut everything, then paste it back.
+        text.setSelectedRange(NSRange(location: 0, length: text.string.utf16.count))
+        #expect(text.writeSelection(to: board, types: text.writablePasteboardTypes))
+        text.insertText("", replacementRange: text.selectedRange())
+        editor.commitNow()
+        #expect(h.store.open?.document.imageCount == 0)
+        #expect(text.insert(from: board))
+        editor.commitNow()
+        let document = try #require(h.store.open?.document)
+        #expect(document.imageCount == 1)
+        #expect(document.plainText.hasPrefix("Pic"))
+        let index = document.blocks.compactMap { block -> Int? in if case .image(let i) = block { i } else { nil } }.first
+        let file = try #require(index.flatMap { h.store.open?.images[$0] })
+        #expect(try Data(contentsOf: file) == pngBytes)
+    }
+
     @Test func bareAttachmentsAreStripped() async throws {
         let h = try await EditorHarness()
         await h.store.openNote(h.note(["Text"]))
