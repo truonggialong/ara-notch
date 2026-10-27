@@ -206,21 +206,62 @@ private struct Harness {
         #expect(h.store.saveState == .saved)
     }
 
-    @Test func editOnTheOldVersionDuringAReloadNeverOverwritesAChange() async throws {
+    /// An edit that reaches the store during a reload and conflicts is not replaced by the reload: the note stays on
+    /// that load with the conflict banner, so "Copy mine" still has it.
+    @Test func editOnTheOldVersionDuringAReloadKeepsItAsAConflict() async throws {
         let h = try await Harness(debounce: .milliseconds(200))
         let a = h.plainNote("A")
         await h.store.openNote(a)
+        let old = h.store.open?.generation
         h.fake.touch(a, to: Date().addingTimeInterval(60))  // changed in Notes meanwhile
         h.fake.contentDelay = .milliseconds(80)
         let reads = h.fake.calls("content:\(a)")
         let reloading = Task { await h.store.reloadOpenNote() }
         try await waitUntil("A is being read again") { h.fake.calls("content:\(a)") > reads }
+        #expect(h.store.isReloading)
         h.store.edit(generation: h.store.open?.generation, NoteDocument(blocks: [p("A"), p("stale")]))
         await reloading.value
-        #expect(h.store.open?.safety == .editable)
         await h.store.flush()
         #expect(h.fake.setBodyCalls == 0)
-        #expect(h.store.saveState == .saved)
+        #expect(h.store.open?.generation == old)
+        #expect(h.store.saveState == .conflict)
+        #expect(h.store.open?.document.blocks.contains(p("stale")) == true)
+        #expect(!h.store.isReloading)
+    }
+
+    /// Switching notes saves the one left first; when that save conflicts, the note stays open with the banner.
+    @Test func switchingStaysOnANoteWhoseSaveConflicts() async throws {
+        let h = try await Harness(debounce: .seconds(30))
+        let a = h.plainNote("A")
+        let b = h.plainNote("B")
+        await h.store.openNote(a)
+        h.store.edit(generation: h.store.open?.generation, NoteDocument(blocks: [p("A"), p("mine")]))
+        h.fake.touch(a, to: Date().addingTimeInterval(60))
+        await h.store.openNote(b)
+        #expect(h.store.open?.id == a)
+        #expect(h.store.saveState == .conflict)
+        #expect(h.store.open?.document.blocks.contains(p("mine")) == true)
+        // Once the conflict is seen, the user may leave the note.
+        await h.store.openNote(b)
+        #expect(h.store.open?.id == b)
+    }
+
+    /// An edit of the note being left that arrives while the next one loads, and conflicts, keeps that note open.
+    @Test func lateConflictingEditOfTheNoteLeftKeepsItOpen() async throws {
+        let h = try await Harness(debounce: .milliseconds(200))
+        let a = h.plainNote("A")
+        let b = h.plainNote("B")
+        await h.store.openNote(a)
+        h.fake.touch(a, to: Date().addingTimeInterval(60))
+        h.fake.contentDelay = .milliseconds(80)
+        let opening = Task { await h.store.openNote(b) }
+        try await waitUntil("B is being read") { h.fake.calls("content:\(b)") == 1 }
+        h.store.edit(generation: h.store.open?.generation, NoteDocument(blocks: [p("A"), p("late")]))
+        await h.store.flush()
+        await opening.value
+        #expect(h.store.open?.id == a)
+        #expect(h.store.saveState == .conflict)
+        #expect(h.store.open?.document.blocks.contains(p("late")) == true)
     }
 
     @Test func editDuringAReloadOfTheSameNoteIsKept() async throws {

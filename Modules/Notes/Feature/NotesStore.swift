@@ -51,6 +51,8 @@ final class NotesStore: ObservableObject {
     @Published var searchText = ""
     @Published private(set) var open: OpenNote?
     @Published private(set) var saveState: NoteSaveState = .saved
+    /// The open note is being read again: it is not editable meanwhile, since what is typed would be replaced.
+    @Published private(set) var isReloading = false
     /// Briefly true after an editor dropped a keystroke typed on older text, to show the other editor's newer edit.
     @Published private(set) var caughtUp = false
     private var caughtUpTask: Task<Void, Never>?
@@ -75,6 +77,9 @@ final class NotesStore: ObservableObject {
     private var generationCounter = 0
     /// Only the latest requested load may become `open`.
     private var latestRequest = 0
+    /// Saves of each load that ended in a conflict (its edit not written). A load that replaces the open one looks
+    /// whether this grew while it ran: then the open one stays, with its edit and the conflict banner.
+    private var conflicts: [Int: Int] = [:]
     /// Whether each note seen in a listing is locked.
     private var lockedByID: [String: Bool] = [:]
 
@@ -163,10 +168,19 @@ final class NotesStore: ObservableObject {
 
     // MARK: Opening
 
+    /// Saves the open note first. When that save, or a save of it made while `id` loads, ends in a conflict, the open
+    /// note stays (its edit could be lost otherwise); asking again then leaves it.
     func openNote(_ id: String) async {
+        let replaced = open
+        let seen = replaced.map { conflicts[$0.generation, default: 0] }
         let generation = requestLoad()
+        isReloading = id == replaced?.id
         await flush()
-        await load(id, generation: generation)
+        if let replaced, conflictArose(on: replaced, since: seen) {
+            if generation == latestRequest { isReloading = false }
+            return
+        }
+        await load(id, generation: generation, replacing: replaced, conflictsSeen: seen)
     }
 
     /// After a conflict: drops the unsaved edit of the open load and reads the note again.
@@ -176,12 +190,21 @@ final class NotesStore: ObservableObject {
         guard let current = open else { return }
         let id = current.id
         let generation = requestLoad()
+        isReloading = true
         if pending?.note.generation == current.generation {
             debounceTask?.cancel()
             debounceTask = nil
             pending = nil
         }
-        await load(id, generation: generation)
+        await load(id, generation: generation, replacing: current, conflictsSeen: conflicts[current.generation, default: 0])
+    }
+
+    /// Whether `note` is still the open load and one of its saves ended in a conflict since `seen` was counted.
+    private func conflictArose(on note: OpenNote, since seen: Int?) -> Bool {
+        guard open?.generation == note.generation, conflicts[note.generation, default: 0] > (seen ?? 0) else { return false }
+        Self.log.error("A save of the note being left ended in a conflict; it stays open")
+        saveState = .conflict
+        return true
     }
 
     private func requestLoad() -> Int {
@@ -201,7 +224,9 @@ final class NotesStore: ObservableObject {
         var stale: Bool
     }
 
-    private func load(_ id: String, generation: Int) async {
+    /// `replacing`: the open load this one is to replace, with its conflict count when the request was made.
+    private func load(_ id: String, generation: Int, replacing replaced: OpenNote? = nil, conflictsSeen: Int? = nil) async {
+        defer { if generation == latestRequest { isReloading = false } }
         do {
             guard let isLocked = try await lockedState(of: id) else { throw NotesServiceError.notFound }
             // A save of this note (an edit made on an earlier load) is written first, so the note read includes it;
@@ -230,6 +255,7 @@ final class NotesStore: ObservableObject {
                 Self.log.info("A later open replaced this one")
                 return
             }
+            if let replaced, conflictArose(on: replaced, since: conflictsSeen) { return }
             if safety != .editable { Self.log.info("Note opened read only: \(String(describing: safety), privacy: .public)") }
             // Still unsettled after the last read (reads ran out, or a write landed while images loaded): what is
             // shown may lack a write, so it opens as a conflict and offers a reload instead of being edited.
@@ -506,6 +532,7 @@ final class NotesStore: ObservableObject {
             let result = await save(document, of: note)
             inFlight = nil
             if result != .saved { Self.log.error("Note not saved: \(String(describing: result), privacy: .public)") }
+            if result == .conflict { conflicts[note.generation, default: 0] += 1 }
             guard isOpen() else { continue }
             if result == .saved {
                 saveState = pending == nil ? .saved : .pending
@@ -575,7 +602,10 @@ final class NotesStore: ObservableObject {
         if let generation { ownWrites[generation, default: 0] += 1 }
         if let open, open.id == id, open.generation != generation {
             saveState = .conflict
-            if pending?.note.generation == open.generation { pending = nil }
+            if pending?.note.generation == open.generation {
+                pending = nil
+                conflicts[open.generation, default: 0] += 1
+            }
         }
     }
 

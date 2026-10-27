@@ -330,7 +330,7 @@ struct NotesWindowView: View {
 
     private var editorColumn: some View {
         VStack(alignment: .leading, spacing: 8) {
-            FormatToolbar(handle: model.editor, isEnabled: NoteEditorCoordinator.isEditable(store.open, store.saveState))
+            FormatToolbar(handle: model.editor, isEnabled: NoteEditorCoordinator.isEditable(store.open, store.saveState, isReloading: store.isReloading))
             NoteStatusBanner(store: store)
             if store.open != nil {
                 GeometryReader { geometry in

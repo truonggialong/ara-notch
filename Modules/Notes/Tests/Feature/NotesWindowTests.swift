@@ -105,11 +105,12 @@ private struct WindowHarness {
         let open = try #require(h.store.open)
         var editable = open
         editable.safety = .editable
-        #expect(NoteEditorCoordinator.isEditable(editable, .saved))
-        #expect(!NoteEditorCoordinator.isEditable(editable, .conflict))
-        #expect(!NoteEditorCoordinator.isEditable(editable, .deleted))
-        #expect(!NoteEditorCoordinator.isEditable(open, .saved))
-        #expect(!NoteEditorCoordinator.isEditable(nil, .saved))
+        #expect(NoteEditorCoordinator.isEditable(editable, .saved, isReloading: false))
+        #expect(!NoteEditorCoordinator.isEditable(editable, .conflict, isReloading: false))
+        #expect(!NoteEditorCoordinator.isEditable(editable, .deleted, isReloading: false))
+        #expect(!NoteEditorCoordinator.isEditable(editable, .saved, isReloading: true))
+        #expect(!NoteEditorCoordinator.isEditable(open, .saved, isReloading: false))
+        #expect(!NoteEditorCoordinator.isEditable(nil, .saved, isReloading: false))
         _ = host
     }
 

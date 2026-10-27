@@ -73,6 +73,25 @@ private func key(_ characters: String, _ flags: NSEvent.ModifierFlags) -> NSEven
         #expect(!editor.textView.performKeyEquivalent(with: key("b", .command)))
     }
 
+    /// Typing while the open note is read again would be thrown away when the new read arrives: the text is not
+    /// editable meanwhile.
+    @Test func editorIsNotEditableWhileItsNoteIsReloaded() async throws {
+        let h = try await EditorHarness()
+        let id = h.note(["Title", "body"])
+        await h.store.openNote(id)
+        let editor = h.editor()
+        #expect(editor.textView.isEditable)
+        h.fake.contentDelay = .milliseconds(150)
+        let reads = h.fake.calls("content:\(id)")
+        let reloading = Task { await h.store.reloadOpenNote() }
+        try await waitUntil("the note is being read again") { h.fake.calls("content:\(id)") > reads }
+        #expect(h.store.isReloading)
+        #expect(!editor.textView.isEditable)
+        await reloading.value
+        #expect(!h.store.isReloading)
+        #expect(editor.textView.isEditable)
+    }
+
     @Test func pageHasNotesID() async throws {
         let h = try await EditorHarness()
         let notch = NotchController(settings: ShellSettings(store: ShellSettingsStore(

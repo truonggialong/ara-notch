@@ -138,23 +138,23 @@ final class NoteEditorCoordinator: NSObject, NSTextViewDelegate, NSTextStorageDe
                 self.catchUpIfStale()
             }
             .store(in: &cancellables)
-        apply(store.open, store.saveState)
+        apply(store.open, store.saveState, store.isReloading)
         // The values come before the store's properties change, so they are taken from the sink, not the store.
-        store.$open.combineLatest(store.$saveState)
-            .sink { [weak self] open, state in self?.apply(open, state) }
+        store.$open.combineLatest(store.$saveState, store.$isReloading)
+            .sink { [weak self] open, state, isReloading in self?.apply(open, state, isReloading) }
             .store(in: &cancellables)
     }
 
     // MARK: Following the store
 
-    private func apply(_ open: OpenNote?, _ state: NoteSaveState) {
+    private func apply(_ open: OpenNote?, _ state: NoteSaveState, _ isReloading: Bool) {
         if open?.generation != generation {
             rebuild(open)
         } else if let open, open.document != shownDocument, !commitScheduled {
             // Not being typed in: shown at once. In the key window: soon, or at the next keystroke's send.
             if windowIsKey() { scheduleCatchUp() } else { catchUp(to: open) }
         }
-        let editable = Self.isEditable(open, state)
+        let editable = Self.isEditable(open, state, isReloading: isReloading)
         if textView.isEditable != editable {
             textView.isEditable = editable
             if !editable { popover.hide() }
@@ -163,9 +163,10 @@ final class NoteEditorCoordinator: NSObject, NSTextViewDelegate, NSTextStorageDe
         DispatchQueue.main.async { [weak self] in self?.handle?.refresh() }
     }
 
-    /// Whether a note in this state may be typed in (and formatted from the toolbar).
-    static func isEditable(_ open: OpenNote?, _ state: NoteSaveState) -> Bool {
-        open?.safety == .editable && state != .conflict && state != .deleted
+    /// Whether a note in this state may be typed in (and formatted from the toolbar). Not while the note is read
+    /// again: what was typed would be replaced by the new read.
+    static func isEditable(_ open: OpenNote?, _ state: NoteSaveState, isReloading: Bool) -> Bool {
+        open?.safety == .editable && state != .conflict && state != .deleted && !isReloading
     }
 
     private func rebuild(_ open: OpenNote?) {
