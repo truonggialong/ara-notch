@@ -4,23 +4,21 @@
 
 A macOS app that turns the MacBook notch into a small control panel: clipboard, now playing, timers, calendar and reminders, notes, a file shelf, screen capture, quick translate and the state of coding agents.
 
-## Mới trong bản 0.29.0 · New in 0.29.0
+## Mới trong bản 0.30.0 · New in 0.30.0
 
-- **Biết ngay ghi chú đã lưu chưa:** trên đầu ghi chú có tên thư mục, giờ sửa và trạng thái: "Đã lưu", "Đang lưu…" hay "Chỉ xem".
-- **Nút bấm cho mọi việc:** nút "Mở trong Notes" và "Xoá" nằm ngay trên đầu ghi chú. Rê chuột lên một dòng trong danh sách là có nút xoá, không cần chuột phải.
-- **Thanh định dạng gọn hơn:** thanh định dạng nằm trong khung viết, không còn là dải trắng nổi bật. Kiểu đang dùng sáng màu cam. Ghi chú chỉ xem thì thanh này ẩn đi.
-- **Dễ đọc hơn:** dòng đầu của ghi chú to hơn như một cái tên, chữ có lề và giãn dòng thoáng hơn, khung viết rộng hơn.
-- **Thư mục ngay trên danh sách:** tên thư mục đang xem và số ghi chú nằm ngay trên danh sách; bấm vào để đổi thư mục. Nút "+" tạo ghi chú mới to và dễ thấy hơn.
+- **Gõ ngay khi bấm "+":** ghi chú mới mở ra tức thì với con trỏ sẵn sàng, không còn phải chờ Apple Notes tạo xong. Trên đầu ghi chú hiện "Đang tạo…" trong lúc chờ; những gì bạn gõ được lưu vào ghi chú ngay khi Notes tạo xong.
+- **Xoá kèm Hoàn tác:** bấm Xoá là ghi chú biến mất ngay, không hỏi lại. Một dải "Đã xoá …" với nút **Hoàn tác** hiện trên danh sách trong 10 giây; bấm Hoàn tác là ghi chú trở về đúng thư mục cũ và mở lại.
+
+Bản 0.29.0 trước đó làm mới giao diện Ghi chú: trạng thái lưu trên đầu ghi chú, nút Mở trong Notes và Xoá, thanh định dạng gọn hơn, chữ dễ đọc hơn.
 
 Ghi chú dùng chính Apple Notes. Lần đầu, AraNotch xin quyền điều khiển Notes; để sửa ghi chú, cấp thêm **Full Disk Access** trong System Settings › Privacy & Security.
 
 ---
 
-- **See at once whether a note is saved:** the top of the note shows its folder, when it was edited and its state: "Saved", "Saving…" or "View only".
-- **A button for everything:** "Open in Notes" and "Delete" sit right at the top of the note. Hover over a note in the list for a delete button, no right-click needed.
-- **A calmer format toolbar:** the toolbar now sits inside the writing area instead of a bright white strip. Styles in use light up in orange. Notes you can only view hide it.
-- **Easier to read:** a note's first line is larger, like a name; the text has more margin and line spacing, and the writing area is wider.
-- **Folder right above the list:** the folder you are viewing and how many notes it has sit right above the list; click to switch folders. The "+" button for a new note is bigger and easier to spot.
+- **Type as soon as you press "+":** a new note opens instantly with the cursor ready, no more waiting for Apple Notes to make it. The top of the note shows "Creating…" meanwhile; what you type is saved into the note as soon as Notes has made it.
+- **Delete with Undo:** Delete removes the note at once, without asking. A "Deleted …" strip with an **Undo** button shows above the list for 10 seconds; Undo puts the note back in its folder and opens it again.
+
+The 0.29.0 release before it refreshed the Notes page: the saved state at the top of the note, Open in Notes and Delete buttons, a calmer format toolbar and easier-to-read text.
 
 Notes are your Apple Notes. The first time, AraNotch asks to control Notes; to edit notes, also give it **Full Disk Access** in System Settings › Privacy & Security.
 
