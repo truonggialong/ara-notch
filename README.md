@@ -1,18 +1,26 @@
 # AraNotch
 
-Ứng dụng macOS biến tai thỏ (notch) của MacBook thành một bảng điều khiển nhỏ: clipboard, nhạc đang phát, hẹn giờ, lịch và lời nhắc, thả tệp, chụp màn hình, dịch nhanh và trạng thái của các agent lập trình.
+Ứng dụng macOS biến tai thỏ (notch) của MacBook thành một bảng điều khiển nhỏ: clipboard, nhạc đang phát, hẹn giờ, lịch và lời nhắc, ghi chú, thả tệp, chụp màn hình, dịch nhanh và trạng thái của các agent lập trình.
 
-A macOS app that turns the MacBook notch into a small control panel: clipboard, now playing, timers, calendar and reminders, a file shelf, screen capture, quick translate and the state of coding agents.
+A macOS app that turns the MacBook notch into a small control panel: clipboard, now playing, timers, calendar and reminders, notes, a file shelf, screen capture, quick translate and the state of coding agents.
 
 ## Mới trong bản 0.27.0 · New in 0.27.0
 
-- **Ghi chú:** trang Ghi chú trên notch và cửa sổ Ghi chú riêng, viết và định dạng chữ (đậm, nghiêng, gạch chân, liên kết, đề mục, danh sách, ảnh). Đó chính là ghi chú của Apple Notes, nên đồng bộ qua iCloud. Để sửa, cấp Full Disk Access cho AraNotch.
-- **"Ghi chú mới" tạo ghi chú trong Notes**, và app không còn hỏi mật khẩu máy sau mỗi lần cập nhật khi bật giới hạn từ tài khoản Claude.
+- **Ghi chú:** trang Ghi chú mới trên notch và một cửa sổ Ghi chú riêng. Viết và định dạng chữ ngay tại chỗ: đậm, nghiêng, gạch chân, gạch ngang, chữ đơn cách, liên kết, đề mục, danh sách và ảnh. Bôi chữ là có menu định dạng, hoặc dùng phím tắt (⌘B, ⌘I, ⌘U…).
+- **Dùng chính Apple Notes:** ghi chú của AraNotch là ghi chú trong app Notes, nên tự đồng bộ qua iCloud sang iPhone và iPad. Ghi chú có danh sách việc, trích dẫn hay hình vẽ vẫn hiện đầy đủ để xem, kèm nút mở trong Notes để sửa.
+- **"Ghi chú mới" tạo ghi chú trong Notes:** phím tắt và mục "Ghi chú mới" mở một ghi chú Apple Notes mới trong cửa sổ Ghi chú.
+- **Không còn hỏi mật khẩu máy liên tục:** khi bật "Lấy giới hạn từ tài khoản Claude", macOS không còn hỏi mật khẩu sau mỗi lần cập nhật app.
+
+Lần đầu dùng Ghi chú, AraNotch xin quyền điều khiển Notes. Để sửa ghi chú, cấp thêm **Full Disk Access** trong System Settings › Privacy & Security; chưa cấp thì ghi chú chỉ xem được.
 
 ---
 
-- **Notes:** a Notes page on the notch and a Notes window of its own, to write and format text (bold, italic, underline, links, headings, lists, pictures). They are Apple Notes notes, so iCloud syncs them. To edit, give AraNotch Full Disk Access.
-- **"New note" makes a note in Notes**, and the app no longer asks for your password after each update when Claude account limits are on.
+- **Notes:** a new Notes page on the notch and a Notes window of its own. Write and format right there: bold, italic, underline, strikethrough, monospaced text, links, headings, lists and pictures. Select text for a format menu, or use the shortcuts (⌘B, ⌘I, ⌘U…).
+- **It is Apple Notes:** AraNotch's notes are notes in the Notes app, so iCloud syncs them to your iPhone and iPad. Notes with checklists, quotes or drawings still show in full to read, with a button to edit them in Notes.
+- **"New note" makes a note in Notes:** the shortcut and the "New note" item open a new Apple Notes note in the Notes window.
+- **No more password prompts:** with "Read limits from the Claude account" on, macOS no longer asks for your password after each app update.
+
+The first time you use Notes, AraNotch asks to control Notes. To edit notes, also give it **Full Disk Access** in System Settings › Privacy & Security; without it notes are read only.
 
 ## Tính năng · Features
 
@@ -82,9 +90,11 @@ AraNotch không thu thập hay gửi dữ liệu nào về cho người làm ra 
 - Lời bài hát được hỏi từ lrclib.net, chỉ khi bạn bật lời bài hát (mặc định tắt).
 - Mỗi ngày một lần, AraNotch hỏi GitHub có bản mới không.
 
+Ghi chú không rời máy qua AraNotch: app đọc và ghi chúng qua app Notes, iCloud đồng bộ như mọi ghi chú khác của bạn. Với Full Disk Access, AraNotch chỉ đọc kho dữ liệu của Notes (để thấy danh sách việc, trích dẫn và ảnh), không sửa nó; khi lưu ghi chú có ảnh, app đặt tạm tệp ảnh trong một thư mục riêng tên `AraNotch` bên trong thư mục của Notes rồi xoá ngay.
+
 Lịch sử clipboard nằm trên máy bạn, trong `~/Library/Application Support/AraNotch`, và mặc định không vào bản sao lưu Time Machine. Board khoá được mã hoá.
 
-AraNotch collects nothing and sends nothing to its maker. What leaves the Mac: a link you copy is opened once in the background for its title and picture (can be turned off in Settings › Clipboard; links that look like sign-ins, one-time codes or tokens are skipped); text you choose to translate goes to Google Translate when you ask; lyrics are asked of lrclib.net when you turn lyrics on (off by default); and once a day AraNotch asks GitHub for a newer version. The clipboard history stays on your Mac, in `~/Library/Application Support/AraNotch`, out of Time Machine backups by default; locked boards are encrypted.
+AraNotch collects nothing and sends nothing to its maker. What leaves the Mac: a link you copy is opened once in the background for its title and picture (can be turned off in Settings › Clipboard; links that look like sign-ins, one-time codes or tokens are skipped); text you choose to translate goes to Google Translate when you ask; lyrics are asked of lrclib.net when you turn lyrics on (off by default); and once a day AraNotch asks GitHub for a newer version. Notes do not leave the Mac through AraNotch: it reads and writes them through the Notes app, and iCloud syncs them like your other notes. With Full Disk Access, AraNotch only reads Notes' data store (to see checklists, quotes and pictures) and never changes it; when it saves a note with pictures, it puts the picture files for a moment in a folder of its own named `AraNotch` inside Notes' folder, then removes them. The clipboard history stays on your Mac, in `~/Library/Application Support/AraNotch`, out of Time Machine backups by default; locked boards are encrypted.
 
 ## Gỡ cài đặt · Removing AraNotch
 
