@@ -25,7 +25,7 @@ Xem các kiểu `public` trong mã của module.
 - `--show-notes`: mở cửa sổ Notes.
 - `--dump-note-data <noteID> <tệp>`: ghi dữ liệu thô của ghi chú (cần Full Disk Access) ra tệp, in kết quả ra stdout.
 
-Notes nối ở `AppDelegate`: trang đăng ký sau trang Lịch, `makePageSettings()` ở tab Trang, `makeToolSettings()` ở tab Công cụ, công cụ "note", mục menu "Ghi chú mới" và phím `.newNote` đều gọi `NotesController` (`start()` giữ trình xử lý phím). Clipboard không còn ghi chú riêng.
+Notes nối ở `AppDelegate`: trang đăng ký sau trang Lịch, `makePageSettings()` ở tab Trang, `makeToolSettings()` ở tab Công cụ, công cụ "note", mục menu "Ghi chú mới" và phím `.newNote` đều gọi `NotesController` (`start()` giữ trình xử lý phím). Clipboard không còn ghi chú riêng. Khi thoát app, `applicationShouldTerminate` trả `.terminateLater`, chờ `notes.saveBeforeQuitting()` (ghi phần đang gõ dở, tối đa 5 giây) rồi mới cho thoát.
 
 ## Ghi chú cho người sửa
 

@@ -49,6 +49,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var updater: AppUpdater?
     private var appearanceWatch: AnyCancellable?
 
+    /// What was typed in a note and not saved yet (the pause before a save, or a save under way) is written
+    /// before the app ends; a Notes that does not answer holds quitting up for 5 seconds at most.
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        guard let notes else { return .terminateNow }
+        Task {
+            await notes.saveBeforeQuitting()
+            sender.reply(toApplicationShouldTerminate: true)
+        }
+        return .terminateLater
+    }
+
     func applicationWillTerminate(_ notification: Notification) {
         // Deletions still waiting to be undone are carried out: there will be no later.
         clipboard?.flushPendingDeletions(all: true)
