@@ -37,7 +37,8 @@ public final class NotesBridge: NotesService {
         try await run(NotesScripts.listFolders()) { result in
             Self.indices(of: result).compactMap { i in
                 guard let row = result.atIndex(i) else { return nil }
-                guard let id = row.atIndex(1)?.stringValue, let name = row.atIndex(2)?.stringValue else { return nil }
+                guard let id = row.atIndex(1)?.stringValue, let name = row.atIndex(2)?.stringValue,
+                      !NotesScripts.trashFolderNames.contains(name) else { return nil }
                 return NoteFolder(id: id, name: name, account: row.atIndex(3)?.stringValue ?? "",
                                   noteCount: Int(row.atIndex(4)?.int32Value ?? 0))
             }
@@ -53,9 +54,10 @@ public final class NotesBridge: NotesService {
                       let dates = row.atIndex(4), let locks = row.atIndex(5) else { continue }
                 for j in Self.indices(of: ids) {
                     guard let id = ids.atIndex(j)?.stringValue else { continue }
+                    guard let date = dates.atIndex(j)?.dateValue else { throw NotesServiceError.script("bad date") }
                     out.append(NoteSummary(
                         id: id, name: names.atIndex(j)?.stringValue ?? "", folderID: fid,
-                        modified: dates.atIndex(j)?.dateValue ?? .distantPast, snippet: "",
+                        modified: date, snippet: "",
                         hasImages: false, isLocked: locks.atIndex(j)?.booleanValue ?? false))
                 }
             }
@@ -85,18 +87,21 @@ public final class NotesBridge: NotesService {
     public func content(of noteID: String) async throws -> NoteContent {
         try await run(NotesScripts.content(noteID: noteID)) { result in
             NoteContent(html: result.atIndex(1)?.stringValue ?? "", plainText: result.atIndex(2)?.stringValue ?? "",
-                        modified: result.atIndex(3)?.dateValue ?? Date(),
+                        modified: try Self.date(result.atIndex(3)),
                         attachmentCount: Int(result.atIndex(4)?.int32Value ?? 0))
         }
     }
 
     public func modification(of noteID: String) async throws -> Date {
-        try await run(NotesScripts.modification(noteID: noteID)) { $0.dateValue ?? Date() }
+        try await run(NotesScripts.modification(noteID: noteID)) { try Self.date($0) }
     }
 
-    public func saveAttachment(_ index: Int, of noteID: String, to url: URL) async throws {
-        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-        try await run(NotesScripts.saveAttachment(index, noteID: noteID, path: url.path)) { _ in () }
+    public func attachmentIDs(of noteID: String) async throws -> [String] {
+        try await run(NotesScripts.attachmentIDs(noteID: noteID)) { result in
+            // One attachment comes back as a bare string, none as an empty list.
+            if result.numberOfItems == 0 { return result.stringValue.map { [$0] } ?? [] }
+            return Self.indices(of: result).compactMap { result.atIndex($0)?.stringValue }
+        }
     }
 
     // MARK: Writing
@@ -112,7 +117,7 @@ public final class NotesBridge: NotesService {
 
     public func setBody(_ html: String, of noteID: String) async throws -> Date {
         try await withHTMLFile(html) { path in
-            try await run(NotesScripts.setBody(noteID: noteID, htmlPath: path)) { $0.dateValue ?? Date() }
+            try await run(NotesScripts.setBody(noteID: noteID, htmlPath: path)) { try Self.date($0) }
         }
     }
 
@@ -169,6 +174,12 @@ public final class NotesBridge: NotesService {
         case -1728: return .notFound
         default: return .script("\(message) (\(number))")
         }
+    }
+
+    /// A modification date, or an error: a made-up date would defeat SaveGuard.
+    private static func date(_ descriptor: NSAppleEventDescriptor?) throws -> Date {
+        guard let date = descriptor?.dateValue else { throw NotesServiceError.script("bad date") }
+        return date
     }
 
     /// 1-based indices of a list descriptor (empty for an empty list).

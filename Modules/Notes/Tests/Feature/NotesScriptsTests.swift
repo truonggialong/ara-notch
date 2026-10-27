@@ -38,9 +38,21 @@ import Testing
         #expect(one.contains("of notes of folder id \"f1\""))
     }
 
-    @Test func saveAttachmentConvertsToOneBased() {
-        let script = NotesScripts.saveAttachment(0, noteID: "n1", path: "/tmp/a.png")
-        #expect(script.contains("save attachment 1 of note id \"n1\" in POSIX file \"/tmp/a.png\""))
+    @Test func attachmentIDsListsInOrder() {
+        #expect(NotesScripts.attachmentIDs(noteID: "n1").contains("id of attachments of note id \"n1\""))
+    }
+
+    @Test func attachmentKeyFromID() {
+        #expect(NotesIDs.attachmentKey(of: "x-coredata://AA/ICAttachment/p12") == 12)
+        #expect(NotesIDs.attachmentKey(of: "x-coredata://AA/ICNote/p12") == nil)
+    }
+
+    @Test func listingDereferencesIDsAndSkipsRecentlyDeleted() {
+        let all = NotesScripts.listNotes(folderID: nil)
+        #expect(all.contains("set fid to contents of fref"))
+        #expect(all.contains("\"Recently Deleted\""))
+        #expect(all.contains("\"Đã xoá gần đây\"") && all.contains("\"Đã xóa gần đây\""))
+        #expect(NotesScripts.snippets(noteIDs: ["a"]).contains("contents of iref"))
     }
 
     @Test func showActivatesNotes() {
@@ -60,6 +72,8 @@ import Testing
         #expect(fake.setBodyCalls == 1)
         #expect(fake.lastHTML == "<div>b</div>")
         #expect(try await fake.content(of: id).html == "<div>b</div>")
+        fake.setAttachments(["x-coredata://FAKE/ICAttachment/p1"], of: id)
+        #expect(try await fake.attachmentIDs(of: id).count == 1)
         try await fake.delete(id)
         await #expect(throws: NotesServiceError.notFound) { try await fake.content(of: "nope") }
         await #expect(throws: NotesServiceError.notFound) { try await fake.content(of: id) }

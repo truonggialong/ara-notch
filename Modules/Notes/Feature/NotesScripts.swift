@@ -3,6 +3,10 @@ import Foundation
 /// AppleScript source for each Notes command. Pure strings, so they can be tested without Notes.
 /// Every interpolated string goes through `quoted`; HTML never goes in the source, only a file path.
 enum NotesScripts {
+    /// Names of the "Recently Deleted" folder in the languages we know. Notes marks it by no property,
+    /// only by name, and it must not show in the folder list or in "all notes".
+    static let trashFolderNames = ["Recently Deleted", "Đã xoá gần đây", "Đã xóa gần đây"]
+
     /// A string literal, with backslash and quote escaped.
     static func quoted(_ text: String) -> String {
         "\"" + text.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"") + "\""
@@ -41,11 +45,16 @@ enum NotesScripts {
             end tell
             """
         }
+        let skipped = trashFolderNames.map(quoted).joined(separator: ", ")
         return """
         tell application "Notes"
             set out to {}
-            repeat with fid in (id of every folder)
-                \(entry("fid"))
+            set fids to id of every folder
+            repeat with fref in fids
+                set fid to contents of fref
+                if (name of folder id fid) is not in {\(skipped)} then
+                    \(entry("fid"))
+                end if
             end repeat
             return out
         end tell
@@ -59,9 +68,10 @@ enum NotesScripts {
         return """
         tell application "Notes"
             set out to {}
-            repeat with i in {\(list)}
+            repeat with iref in {\(list)}
                 try
-                    set n to note id i
+                    set nid to contents of iref
+                    set n to note id nid
                     set p to plaintext of n
                     if (length of p) > 400 then set p to text 1 thru 400 of p
                     set end of out to {p, count of attachments of n}
@@ -84,12 +94,10 @@ enum NotesScripts {
         """
     }
 
-    /// `index` is 0-based; AppleScript counts attachments from 1.
-    static func saveAttachment(_ index: Int, noteID: String, path: String) -> String {
+    /// Ids of the note's attachments, in order.
+    static func attachmentIDs(noteID: String) -> String {
         """
-        tell application "Notes"
-            save attachment \(index + 1) of note id \(quoted(noteID)) in POSIX file \(quoted(path))
-        end tell
+        tell application "Notes" to return id of attachments of note id \(quoted(noteID))
         """
     }
 

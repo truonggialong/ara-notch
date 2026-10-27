@@ -1,5 +1,16 @@
 import Foundation
 
+/// Notes ids look like "x-coredata://UUID/ICNote/p96"; the number is the row key in its database.
+public enum NotesIDs {
+    public static func databaseKey(of id: String, entity: String) -> Int? {
+        guard let range = id.range(of: "/\(entity)/p") else { return nil }
+        return Int(id[range.upperBound...])
+    }
+
+    /// For "…/ICAttachment/pNN".
+    public static func attachmentKey(of id: String) -> Int? { databaseKey(of: id, entity: "ICAttachment") }
+}
+
 /// A folder of Notes, with the account it lives in.
 public struct NoteFolder: Identifiable, Hashable, Sendable {
     public var id: String
@@ -36,10 +47,7 @@ public struct NoteSummary: Identifiable, Hashable, Sendable {
     }
 
     /// The NN of "…/ICNote/pNN": the note's row key in Notes' database.
-    public var databaseKey: Int? {
-        guard let range = id.range(of: "/ICNote/p") else { return nil }
-        return Int(id[range.upperBound...])
-    }
+    public var databaseKey: Int? { NotesIDs.databaseKey(of: id, entity: "ICNote") }
 }
 
 /// A note as AppleScript gives it: HTML body, plain text (images are U+FFFC), modification date.
@@ -74,8 +82,9 @@ public protocol NotesService: Sendable {
     /// nil: every folder.
     func notes(in folderID: String?) async throws -> [NoteSummary]
     func content(of noteID: String) async throws -> NoteContent
-    /// `index` is 0-based.
-    func saveAttachment(_ index: Int, of noteID: String, to url: URL) async throws
+    /// Ids ("…/ICAttachment/pNN") of the note's attachments, in order. Images are not read through
+    /// AppleScript (`save attachment` fails); they come from the database's media files.
+    func attachmentIDs(of noteID: String) async throws -> [String]
     /// Returns the new note's id.
     func create(in folderID: String, html: String) async throws -> String
     /// Returns the new modification date.

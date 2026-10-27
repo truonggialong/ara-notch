@@ -12,15 +12,17 @@ final class FakeNotesService: NotesService, @unchecked Sendable {
     private var accessState: NotesAccess = .granted
     private var setBodyCount = 0
     private var lastBody: String?
-    private var savedAttachments: [(index: Int, noteID: String, url: URL)] = []
+    private var attachments: [String: [String]] = [:]
 
     var setBodyCalls: Int { lock.withLock { setBodyCount } }
     var lastHTML: String? { lock.withLock { lastBody } }
-    var attachmentSaves: [(index: Int, noteID: String, url: URL)] { lock.withLock { savedAttachments } }
     var accessValue: NotesAccess {
         get { lock.withLock { accessState } }
         set { lock.withLock { accessState = newValue } }
     }
+
+    /// Sets the attachment ids a note reports.
+    func setAttachments(_ ids: [String], of noteID: String) { lock.withLock { attachments[noteID] = ids } }
 
     /// Changes a note's modification date, as if it was edited in Notes.
     func touch(_ id: String, to date: Date) {
@@ -57,10 +59,10 @@ final class FakeNotesService: NotesService, @unchecked Sendable {
         }
     }
 
-    func saveAttachment(_ index: Int, of noteID: String, to url: URL) async throws {
+    func attachmentIDs(of noteID: String) async throws -> [String] {
         try lock.withLock {
             guard contentByID[noteID] != nil else { throw NotesServiceError.notFound }
-            savedAttachments.append((index, noteID, url))
+            return attachments[noteID] ?? []
         }
     }
 
