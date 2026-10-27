@@ -7,6 +7,8 @@ public final class NoteStoreWatcher: @unchecked Sendable {
     private let coalescing: TimeInterval
     private let onChange: @MainActor () -> Void
     private let queue = DispatchQueue(label: "com.aranotch.notes.watcher")
+    // State is guarded by `lock`, so stop() and deinit are safe from any thread, including `queue` itself.
+    private let lock = NSLock()
     private var sources: [String: DispatchSourceFileSystemObject] = [:]
     private var pending = false
     private var stopped = false
@@ -21,16 +23,20 @@ public final class NoteStoreWatcher: @unchecked Sendable {
     deinit { stop() }
 
     public func stop() {
-        queue.sync {
-            stopped = true
-            for source in sources.values { source.cancel() }
-            sources.removeAll()
-        }
+        lock.lock()
+        stopped = true
+        let old = Array(sources.values)
+        sources.removeAll()
+        lock.unlock()
+        for source in old { source.cancel() }
     }
 
     // Runs on `queue`.
     private func watch(_ path: String) {
-        guard !stopped, sources[path] == nil else { return }
+        lock.lock()
+        let skip = stopped || sources[path] != nil
+        lock.unlock()
+        guard !skip else { return }
         let descriptor = open(path, O_EVTONLY)
         guard descriptor >= 0 else {
             // The file is not there (yet): look again shortly.
@@ -43,7 +49,9 @@ public final class NoteStoreWatcher: @unchecked Sendable {
             guard let self, let source else { return }
             if !source.data.intersection([.delete, .rename]).isEmpty {
                 source.cancel()
+                lock.lock()
                 sources[path] = nil
+                lock.unlock()
                 queue.asyncAfter(deadline: .now() + 0.5) { [self] in
                     watch(path)
                     changed()
@@ -53,17 +61,31 @@ public final class NoteStoreWatcher: @unchecked Sendable {
             }
         }
         source.setCancelHandler { close(descriptor) }
+        lock.lock()
+        if stopped {
+            lock.unlock()
+            source.cancel()
+            source.resume()
+            return
+        }
         sources[path] = source
+        lock.unlock()
         source.resume()
     }
 
     // Runs on `queue`. The first event starts a window; later events inside it are absorbed.
     private func changed() {
-        guard !stopped, !pending else { return }
-        pending = true
+        lock.lock()
+        let skip = stopped || pending
+        if !skip { pending = true }
+        lock.unlock()
+        guard !skip else { return }
         queue.asyncAfter(deadline: .now() + coalescing) { [self] in
+            lock.lock()
             pending = false
-            guard !stopped else { return }
+            let isStopped = stopped
+            lock.unlock()
+            guard !isStopped else { return }
             let callback = onChange
             Task { @MainActor in callback() }
         }

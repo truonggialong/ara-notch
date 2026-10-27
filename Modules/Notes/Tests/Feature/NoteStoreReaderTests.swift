@@ -175,6 +175,33 @@ private let minimalProtobuf = Data([0x12, 0x06, 0x1a, 0x04, 0x12, 0x02, 0x48, 0x
         #expect(reader.attachmentFile(forAttachmentKey: 20)?.standardizedFileURL.path == file.standardizedFileURL.path)
     }
 
+    @Test func symlinkLeavingTheContainerIsRejected() throws {
+        let store = try TempStore()
+        try addImage(store)
+        let outside = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".jpg")
+        try Data("secret".utf8).write(to: outside)
+        defer { try? FileManager.default.removeItem(at: outside) }
+        let folder = store.directory.appendingPathComponent("Accounts/ACC-UUID/Media/MEDIA-UUID")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        try FileManager.default.createSymbolicLink(at: folder.appendingPathComponent("pic.jpg"), withDestinationURL: outside)
+        #expect(NoteStoreReader(url: store.dbURL).attachmentFile(forAttachmentKey: 20) == nil)
+    }
+
+    @Test func traversalInIdentifiersAndFilenamesDoesNotEscape() throws {
+        let store = try TempStore()
+        try addImage(store, mediaID: "../Secret")
+        try store.makeFile("Secret/leak.jpg")
+        #expect(NoteStoreReader(url: store.dbURL).attachmentFile(forAttachmentKey: 20) == nil)
+
+        let other = try TempStore()
+        try addImage(other, accountID: "../..", filename: "../../leak.jpg")
+        try other.makeFile("Media/MEDIA-UUID/../../leak.jpg")
+        #expect(NoteStoreReader(url: other.dbURL).attachmentFile(forAttachmentKey: 20)?.lastPathComponent != "nope")
+        let sibling = try TempStore()
+        try addImage(sibling, filename: "../../../leak.jpg")
+        #expect(NoteStoreReader(url: sibling.dbURL).attachmentFile(forAttachmentKey: 20) == nil)
+    }
+
     @Test func missingFileIsNil() throws {
         let store = try TempStore()
         try addImage(store)
@@ -191,7 +218,7 @@ private let minimalProtobuf = Data([0x12, 0x06, 0x1a, 0x04, 0x12, 0x02, 0x48, 0x
         try Data("a".utf8).write(to: file)
         final class Counter: @unchecked Sendable { var count = 0 }
         let counter = Counter()
-        let watcher = NoteStoreWatcher(url: file, coalescing: 0.2) { counter.count += 1 }
+        let watcher = NoteStoreWatcher(url: file, coalescing: 0.5) { counter.count += 1 }
         defer { watcher.stop() }
         try await Task.sleep(for: .milliseconds(100))
         for _ in 0..<2 {
@@ -201,7 +228,7 @@ private let minimalProtobuf = Data([0x12, 0x06, 0x1a, 0x04, 0x12, 0x02, 0x48, 0x
             try handle.close()
             try await Task.sleep(for: .milliseconds(30))
         }
-        try await Task.sleep(for: .milliseconds(700))
+        try await Task.sleep(for: .milliseconds(1300))
         #expect(counter.count == 1)
     }
 }

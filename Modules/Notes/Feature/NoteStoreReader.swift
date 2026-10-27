@@ -98,25 +98,30 @@ public final class NoteStoreReader: Sendable {
             for account in all.sorted() { folders.append(accounts.appendingPathComponent("\(account)/Media/\(row.media)")) }
         }
         folders.append(groupContainerURL.appendingPathComponent("Media/\(row.media)"))
+        let container = groupContainerURL.resolvingSymlinksInPath().path + "/"
         for folder in folders {
-            if let file = Self.firstFile(in: folder, preferring: row.filename) { return file }
+            let inside = Self.regularFiles(in: folder).filter { $0.resolvingSymlinksInPath().path.hasPrefix(container) }
+            if let file = Self.choose(from: inside, preferring: row.filename) { return file }
         }
         return nil
     }
 
     private static func isSafeComponent(_ name: String) -> Bool {
-        !name.isEmpty && !name.contains("/") && name != ".." && name != "."
+        !name.isEmpty && !name.contains("/") && !name.contains("\0") && name != ".." && name != "."
     }
 
-    /// The file named `preferred` anywhere under `folder`, else the first regular file (in name order).
-    private static func firstFile(in folder: URL, preferring preferred: String?) -> URL? {
+    private static func regularFiles(in folder: URL) -> [URL] {
         guard let enumerator = FileManager.default.enumerator(
-            at: folder, includingPropertiesForKeys: [.isRegularFileKey], options: [.skipsHiddenFiles]) else { return nil }
+            at: folder, includingPropertiesForKeys: [.isRegularFileKey], options: [.skipsHiddenFiles]) else { return [] }
         var files: [URL] = []
         for case let url as URL in enumerator where (try? url.resourceValues(forKeys: [.isRegularFileKey]))?.isRegularFile == true {
             files.append(url)
         }
-        files.sort { $0.path < $1.path }
+        return files.sorted { $0.path < $1.path }
+    }
+
+    /// The file named `preferred`, else the first one.
+    private static func choose(from files: [URL], preferring preferred: String?) -> URL? {
         if let preferred, let match = files.first(where: { $0.lastPathComponent == preferred }) { return match }
         return files.first
     }
