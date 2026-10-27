@@ -30,6 +30,31 @@ final class NoteTextView: NSTextView {
     /// A copy from this editor that holds pictures, as text and picture pieces in order: what it puts back on paste.
     static let fragmentType = NSPasteboard.PasteboardType("com.aranotch.notes.fragment")
 
+    // MARK: Width
+
+    /// Width autoresizing follows the clip view's frame; in a magnified scroll view the text must be as wide as the
+    /// clip view's bounds instead, or its lines run past the right edge. The clip view sets its bounds after its
+    /// frame, so the text follows its bounds.
+    private var clipObserver: NSObjectProtocol?
+
+    override func viewDidMoveToSuperview() {
+        super.viewDidMoveToSuperview()
+        clipObserver.map(NotificationCenter.default.removeObserver)
+        clipObserver = nil
+        guard let clip = superview as? NSClipView else { return }
+        clip.postsBoundsChangedNotifications = true
+        clipObserver = NotificationCenter.default.addObserver(forName: NSView.boundsDidChangeNotification, object: clip,
+                                                              queue: nil) { [weak self] _ in
+            MainActor.assumeIsolated { self?.fitClipWidth() }
+        }
+        fitClipWidth()
+    }
+
+    func fitClipWidth() {
+        guard let clip = superview as? NSClipView, frame.width != clip.bounds.width else { return }
+        setFrameSize(NSSize(width: clip.bounds.width, height: frame.height))
+    }
+
     // MARK: Keys
 
     override func performKeyEquivalent(with event: NSEvent) -> Bool {

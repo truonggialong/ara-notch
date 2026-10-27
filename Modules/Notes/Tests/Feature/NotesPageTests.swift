@@ -48,6 +48,28 @@ private struct PageHarness {
 }
 
 @MainActor @Suite struct NotesPageTests {
+    /// The note's text grows with the notch's size, like the rest of the page: the editor is laid out at its
+    /// own size and drawn magnified, so lines wrap where they did and pictures still fit the column.
+    @Test func editorFollowsTheNotchsSize() async throws {
+        let h = try await PageHarness()
+        await h.store.openNote(h.note(["Title", "body"]))
+        let handle = NoteEditorHandle()
+        let host = NSHostingView(rootView: NoteEditorView(store: h.store, imageSize: .fitWidth(480)).handle(handle)
+            .environment(\.araScale, 1.2))
+        host.frame = NSRect(x: 0, y: 0, width: 520, height: 300)
+        host.layoutSubtreeIfNeeded()
+        func scrollView(in view: NSView) -> NSScrollView? {
+            if let scroll = view as? NSScrollView { return scroll }
+            return view.subviews.lazy.compactMap(scrollView(in:)).first
+        }
+        let scroll = try #require(scrollView(in: host))
+        let editor = try #require(handle.editor)
+        #expect(abs(scroll.magnification - 1.2) < 0.001)
+        #expect(!scroll.allowsMagnification)   // a pinch does not change it
+        #expect(abs(editor.textView.frame.width - scroll.contentView.bounds.width) < 1)
+        #expect(editor.imageSize == .fitWidth(400))
+    }
+
     /// The editor's header says what became of the note: what is wrong first, then whether it is saved.
     @Test func headerSaysWhetherTheNoteIsSaved() async throws {
         let h = try await PageHarness()

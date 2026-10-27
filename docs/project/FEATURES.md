@@ -215,3 +215,4 @@ Từ 2026-10-26 các giới hạn nằm trong sổ của từng module, mục "L
 - Dựng app: `Scripts/build-app.sh`
 - Tham số kiểm chứng của app: xem `App/Sources/LaunchArguments.swift`
 - Khi chạy thử phải mở app qua `open build/AraNotch.app --args …`. Chạy thẳng tệp trong `Contents/MacOS` từ một terminal thì macOS tính quyền Bluetooth cho terminal đó và dừng app ngay.
+| Ghi chú: chữ to hơn và theo cỡ notch (2026-10-27), chủ dự án báo chữ nội dung quá nhỏ rồi chọn thân bài hiện 15 pt ở cỡ notch mặc định. Trình soạn phóng theo cỡ notch như phần còn lại của trang; thân bài bằng tên ghi chú trong danh sách, đề mục 3 to hơn thân bài, ảnh vẫn vừa cột. Ghi chú lưu vào Notes không đổi | NotesFeature | Modules/Notes/README.md | Test: cỡ chữ theo thang mới, trình soạn phóng đúng tỉ lệ và chữ không tràn mép phải. Chụp app thật ở cỡ Lớn: so bản cũ, thân bài 18,75 và thân bài 15 (chủ dự án chọn bản 15). Chưa xem ở cỡ Nhỏ, Vừa, Rất lớn |

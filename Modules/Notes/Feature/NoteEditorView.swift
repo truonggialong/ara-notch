@@ -1,5 +1,6 @@
 import AppKit
 import Combine
+import NotchShell
 import NotesCore
 import os
 import SwiftUI
@@ -59,7 +60,20 @@ struct NoteEditorView: NSViewRepresentable {
         let coordinator = context.coordinator
         coordinator.onFocusChange = onFocusChange
         if let handle, handle.editor !== coordinator { handle.attach(coordinator) }
-        coordinator.resizeImages(to: imageSize)
+        // The notch's size: the text is laid out at its own size and drawn magnified (sharp, as text is redrawn at the
+        // new size), so its sizes stay the ones read back and lines wrap as they did. A pinch does not change it.
+        let scale = context.environment.araScale
+        if view.magnification != scale {
+            view.magnification = scale
+            coordinator.textView.fitClipWidth()
+        }
+        coordinator.resizeImages(to: Self.unmagnified(imageSize, scale))
+    }
+
+    /// The picture size in the text's own points, given in the page's.
+    static func unmagnified(_ size: NoteImageSize, _ scale: CGFloat) -> NoteImageSize {
+        guard case .fitWidth(let width) = size, scale > 0 else { return size }
+        return .fitWidth((width / scale).rounded(.down))
     }
 
     static func dismantleNSView(_ view: NSScrollView, coordinator: NoteEditorCoordinator) {
