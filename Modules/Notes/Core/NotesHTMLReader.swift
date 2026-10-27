@@ -153,8 +153,10 @@ public enum NotesHTMLReader {
         var text: String
         var style: TextStyle
         var link: URL?
-        /// The pixel size when the run is Notes' bold system font as AraNotch writes headings.
-        var headingSize: Int?
+        /// The innermost `font-size`, in pixels.
+        var size: Int?
+        /// Inside Notes' bold system font, its form for a heading.
+        var boldFont = false
     }
 
     /// An open inline element: what it adds to the style while it is open.
@@ -218,8 +220,8 @@ public enum NotesHTMLReader {
         private mutating func append(_ text: String) {
             let style = stack.reduce(into: TextStyle()) { $0.formUnion($1.style) }
             let link = stack.last(where: { $0.link != nil })?.link
-            let size = stack.contains(where: \.boldFont) && style.contains(.bold) ? stack.last(where: { $0.size != nil })?.size : nil
-            current?.runs.append(Run(text: text, style: style, link: link, headingSize: size))
+            let size = stack.last(where: { $0.size != nil })?.size
+            current?.runs.append(Run(text: text, style: style, link: link, size: size, boldFont: stack.contains(where: \.boldFont)))
         }
 
         private mutating func open(_ name: String, _ attributes: [String: String]) {
@@ -339,11 +341,16 @@ public enum NotesHTMLReader {
             }
         }
 
-        /// Heading level when every run is AraNotch's bold system font at 21, 15 or 13 px.
+        /// Heading level when every run is bold at one size: Notes' bold system font at 21, 15 or 13 px
+        /// (its form for h1–h3), or plain bold at 24, 21 or 18 px (what Notes keeps of AraNotch's headings).
         private static func boldSizeLevel(_ runs: [Run]) -> Int? {
-            let sizes = Set(runs.filter { !$0.text.isEmpty }.map(\.headingSize))
+            let texts = runs.filter { !$0.text.isEmpty }
+            guard !texts.isEmpty, texts.allSatisfy({ $0.style.contains(.bold) }) else { return nil }
+            let sizes = Set(texts.map(\.size))
             guard sizes.count == 1, let size = sizes.first ?? nil else { return nil }
-            return [21: 1, 15: 2, 13: 3][size]
+            if texts.allSatisfy(\.boldFont) { return [21: 1, 15: 2, 13: 3][size] }
+            if !texts.contains(where: \.boldFont) { return [24: 1, 21: 2, 18: 3][size] }
+            return nil
         }
 
         private static func merged(_ runs: [Run]) -> [TextRun] {

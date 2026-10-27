@@ -22,7 +22,14 @@ public enum NotesHTMLWriterError: Error, Equatable {
 ///
 /// A `.code` block is one `<div>` of Courier text, its newlines written as `<br>`, so it reads back
 /// as one block. A `.paragraph` whose runs are all monospaced would read back as `.code`.
+///
+/// Notes turns every font size it gets through HTML below 18 px into 11 px, smaller than text typed
+/// in Notes, and lowers larger sizes by about three. So body text is written at 18 px (Notes keeps
+/// 15 px, a little larger than its own) and headings as bold 28, 24 and 21 px (Notes keeps 24, 21, 18).
 public enum NotesHTMLWriter {
+    static let bodySize = 18
+    static func headingSize(_ level: Int) -> Int { [1: 28, 2: 24, 3: 21][level] ?? 28 }
+
     /// `images[i]` is the image with `attachmentIndex` i. A missing image throws; nothing is ever dropped.
     public static func write(_ document: NoteDocument, images: [Int: NoteImageData]) throws -> String {
         var html = ""
@@ -35,19 +42,18 @@ public enum NotesHTMLWriter {
                 case .checklist: throw NotesHTMLWriterError.unwritableBlock("checklist")
                 }
                 openItem(kind, depth: max(1, min(indent + 1, lists.count + 1)), lists: &lists, html: &html)
-                html += inline(runs) ?? "<br>"
+                html += sized(inline(runs) ?? "<br>", bodySize)
                 continue
             }
             closeLists(&lists, to: 0, html: &html)
             switch block {
             case .paragraph(let runs):
-                html += "<div>" + (inline(runs) ?? "<br>") + "</div>"
+                html += "<div>" + sized(inline(runs) ?? "<br>", bodySize) + "</div>"
             case .heading(let level, let runs):
-                let size = [1: 21, 2: 15, 3: 13][level] ?? 21
                 let body = inline(runs, dropping: .bold) ?? "<br>"
-                html += "<div><b><font face=\".AppleSystemUIFontBold\"><span style=\"font-size: \(size)px\">\(body)</span></font></b></div>"
+                html += "<div><b>" + sized(body, headingSize(level)) + "</b></div>"
             case .code(let text):
-                html += "<div><font face=\"Courier\">\(text.isEmpty ? "<br>" : escape(text))</font></div>"
+                html += "<div><font face=\"Courier\">" + sized(text.isEmpty ? "<br>" : escape(text), bodySize) + "</font></div>"
             case .image(let index):
                 guard let image = images[index], !image.data.isEmpty else { throw NotesHTMLWriterError.missingImage(index) }
                 let mime = image.mimeType.isEmpty ? "image/png" : image.mimeType
@@ -112,6 +118,10 @@ public enum NotesHTMLWriter {
             return html
         }
         return parts.isEmpty ? nil : parts.joined()
+    }
+
+    private static func sized(_ html: String, _ size: Int) -> String {
+        "<span style=\"font-size: \(size)px\">\(html)</span>"
     }
 
     private static func escape(_ text: String) -> String {

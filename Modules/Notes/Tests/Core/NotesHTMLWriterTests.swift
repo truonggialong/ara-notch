@@ -6,6 +6,21 @@ import Testing
     static let png = NoteImageData(data: Data([1, 2, 3, 4]), mimeType: "image/png")
     static let table = "<object><table><tr><td>A</td><td>B</td></tr><tr><td>C</td><td>D</td></tr></table></object>"
 
+    /// What Notes on macOS 27 keeps of the sizes AraNotch writes (seen 2026-10-27).
+    static func keptByNotes(_ html: String) -> String {
+        let kept = [28: 24, 24: 21, 21: 18, 18: 15]
+        var result = ""
+        var rest = Substring(html)
+        while let range = rest.range(of: "font-size: ") {
+            result += rest[..<range.upperBound]
+            rest = rest[range.upperBound...]
+            let digits = rest.prefix(while: \.isNumber)
+            result += String(Int(digits).flatMap { kept[$0] } ?? Int(digits) ?? 0)
+            rest = rest.dropFirst(digits.count)
+        }
+        return result + rest
+    }
+
     @Test func roundTripsEveryWritableBlock() throws {
         let document = NoteDocument(blocks: [
             .heading(level: 1, [TextRun("Title", style: .bold)]),
@@ -35,7 +50,7 @@ import Testing
             .paragraph([TextRun("last")]),
         ])
         let html = try NotesHTMLWriter.write(document, images: [0: Self.png, 2: Self.png])
-        let back = NotesHTMLReader.read(html: html, plainText: document.plainText)
+        let back = NotesHTMLReader.read(html: Self.keptByNotes(html), plainText: document.plainText)
         #expect(back == document)
     }
 
@@ -43,15 +58,25 @@ import Testing
         let document = NoteDocument(blocks: [.code("a\n  b\nc"), .paragraph([TextRun("x")])])
         let html = try NotesHTMLWriter.write(document, images: [:])
         #expect(html.contains("a<br>"))
-        #expect(NotesHTMLReader.read(html: html, plainText: "a\n  b\nc\nx") == document)
+        #expect(NotesHTMLReader.read(html: Self.keptByNotes(html), plainText: "a\n  b\nc\nx") == document)
     }
 
     @Test func writesHeadingsAsAraNotchForms() throws {
         let html = try NotesHTMLWriter.write(NoteDocument(blocks: [
             .heading(level: 1, [TextRun("T")]), .heading(level: 3, [TextRun("S")]),
         ]), images: [:])
-        #expect(html.contains("<div><b><font face=\".AppleSystemUIFontBold\"><span style=\"font-size: 21px\">T</span></font></b></div>"))
-        #expect(html.contains("font-size: 13px\">S</span>"))
+        #expect(html.contains("<div><b><span style=\"font-size: 28px\">T</span></b></div>"))
+        #expect(html.contains("<div><b><span style=\"font-size: 21px\">S</span></b></div>"))
+    }
+
+    /// Below 18 px Notes shows text at 11 px, smaller than its own.
+    @Test func writesBodyTextAtEighteenPixels() throws {
+        let html = try NotesHTMLWriter.write(NoteDocument(blocks: [
+            .paragraph([TextRun("p")]), .paragraph([]), .listItem(.bullet, indent: 0, [TextRun("i")]), .code("c"),
+        ]), images: [:])
+        #expect(html == "<div><span style=\"font-size: 18px\">p</span></div><div><span style=\"font-size: 18px\"><br></span></div>"
+            + "<ul><li><span style=\"font-size: 18px\">i</span></li></ul>"
+            + "<div><font face=\"Courier\"><span style=\"font-size: 18px\">c</span></font></div>")
     }
 
     @Test func groupsListItemsAndMarksDashLists() throws {
@@ -115,6 +140,6 @@ import Testing
         let html = try NotesHTMLWriter.write(NoteDocument(blocks: [
             .listItem(.bullet, indent: -1, [TextRun("a")]), .listItem(.bullet, indent: -3, [TextRun("b")]),
         ]), images: [:])
-        #expect(html == "<ul><li>a</li><li>b</li></ul>")
+        #expect(html == "<ul><li><span style=\"font-size: 18px\">a</span></li><li><span style=\"font-size: 18px\">b</span></li></ul>")
     }
 }

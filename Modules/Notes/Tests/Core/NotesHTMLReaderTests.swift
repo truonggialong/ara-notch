@@ -104,6 +104,33 @@ import Testing
         #expect(NotesHTMLReader.read(html: html, plainText: "S").blocks == [.heading(level: 3, [TextRun("S", style: .bold)])])
     }
 
+    /// What Notes on macOS 27 gave back for AraNotch's headings, body, list and code (2026-10-27).
+    @Test func readsWhatNotesKeepsOfAraNotchSizes() {
+        let html = """
+        <div><b><span style="font-size: 24px">H1</span></b><span style="font-size: 11px"><br></span></div>
+        <div><b><span style="font-size: 21px">H2 </span></b><b><i><span style="font-size: 21px">it</span></i></b><span style="font-size: 11px"><br></span></div>
+        <div><b><span style="font-size: 18px">H3</span></b><span style="font-size: 11px"><br></span></div>
+        <div><span style="font-size: 15px">body </span><b><span style="font-size: 15px">bold</span></b><span style="font-size: 11px"><br></span></div>
+        <div><b><span style="font-size: 15px">all bold</span></b></div>
+        <ul>
+        <li><span style="font-size: 15px">item</span><span style="font-size: 11px"><br></span></li>
+        </ul>
+        <div><font face="Courier"><span style="font-size: 15px"><tt>code</tt></span></font><span style="font-size: 11px"><tt><br></tt></span></div>
+        <div><span style="font-size: 15px"><br></span></div>
+        """
+        let document = NotesHTMLReader.read(html: html, plainText: "H1\nH2 it\nH3\nbody bold\nall bold\nitem\ncode\n")
+        #expect(document.blocks == [
+            .heading(level: 1, [TextRun("H1", style: .bold)]),
+            .heading(level: 2, [TextRun("H2 ", style: .bold), TextRun("it", style: [.bold, .italic])]),
+            .heading(level: 3, [TextRun("H3", style: .bold)]),
+            .paragraph([TextRun("body "), TextRun("bold", style: .bold)]),
+            .paragraph([TextRun("all bold", style: .bold)]),
+            .listItem(.bullet, indent: 0, [TextRun("item")]),
+            .code("code"),
+            .paragraph([]),
+        ])
+    }
+
     @Test func imageDivStaysEmptyParagraphWithoutPlaceholderLine() {
         let html = "<div><br></div><div><span><br></span><span><br></span></div>"
         let document = NotesHTMLReader.read(html: html, plainText: "\n\u{FFFC}")
