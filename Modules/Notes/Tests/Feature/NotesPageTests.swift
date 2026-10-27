@@ -73,6 +73,56 @@ private struct PageHarness {
         #expect(h.store.notes.map(\.id) == [id])
     }
 
+    @Test func cancellingTheDeleteKeepsTheNote() async throws {
+        let h = try await PageHarness()
+        let id = h.note(["Keep me"])
+        await h.store.refresh()
+        let model = NotesPageModel()
+        model.askToDelete(id)
+        #expect(model.deletingID == id)
+        model.cancelDelete()
+        #expect(model.deletingID == nil)
+        #expect(try await h.fake.notes(in: nil).map(\.id) == [id])
+    }
+
+    @Test func confirmingTheDeleteRemovesTheNote() async throws {
+        let h = try await PageHarness()
+        let id = h.note(["Delete me"])
+        let other = h.note(["Stay"])
+        await h.store.refresh()
+        let model = NotesPageModel()
+        model.askToDelete(id)
+        await model.confirmDelete(in: h.store)
+        #expect(model.deletingID == nil)
+        #expect(h.store.notes.map(\.id) == [other])
+    }
+
+    @Test func deletingTheOpenNoteClosesIt() async throws {
+        let h = try await PageHarness()
+        let id = h.note(["Open and deleted"])
+        await h.store.refresh()
+        await h.store.openNote(id)
+        #expect(h.store.open?.id == id)
+        let model = NotesPageModel()
+        model.askToDelete(id)
+        await model.confirmDelete(in: h.store)
+        #expect(h.store.open == nil)
+    }
+
+    @Test func firstToOpenPrefersTheLatestOpenedHere() {
+        func summary(_ id: String, _ age: TimeInterval, locked: Bool = false) -> NoteSummary {
+            NoteSummary(id: id, name: id, folderID: "f", modified: Date(timeIntervalSinceNow: -age), snippet: "",
+                        hasImages: false, isLocked: locked)
+        }
+        let notes = [summary("a", 300), summary("b", 200), summary("c", 100)]
+        #expect(NotesController.firstToOpen(notes, recent: ["b", "a"])?.id == "b")
+        #expect(NotesController.firstToOpen(notes, recent: ["gone", "a"])?.id == "a")
+        #expect(NotesController.firstToOpen(notes, recent: [])?.id == "c")
+        let lockedB = [summary("a", 300), summary("b", 200, locked: true), summary("c", 100)]
+        #expect(NotesController.firstToOpen(lockedB, recent: ["b", "a"])?.id == "a")
+        #expect(NotesController.firstToOpen([summary("x", 1, locked: true)], recent: []) == nil)
+    }
+
     @Test func windowToolbarBoldAppliesToWindowEditor() async throws {
         let h = try await PageHarness()
         await h.store.openNote(h.note(["Title", "body"]))

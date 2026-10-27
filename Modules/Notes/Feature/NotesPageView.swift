@@ -28,6 +28,22 @@ final class NotesPageModel: ObservableObject {
         if keeps != keepsNotchOpen { keepsNotchOpen = keeps }
     }
 
+    func askToDelete(_ id: String) {
+        deletingID = id
+    }
+
+    func cancelDelete() {
+        deletingID = nil
+    }
+
+    /// Deletes the note waiting for it (Notes moves it to Recently Deleted) and lists again.
+    func confirmDelete(in store: NotesStore) async {
+        guard let id = deletingID else { return }
+        deletingID = nil
+        await store.delete(id)
+        await store.refresh()
+    }
+
     /// The page was left: what was open on it closes, and nothing keeps the notch any more.
     func closeWhatIsOpen() {
         isChoosingFolder = false
@@ -38,11 +54,10 @@ final class NotesPageModel: ObservableObject {
     }
 }
 
-/// The Notes page of the notch: the recent notes on the left with search and "+", the open note's editor on the right.
+/// The Notes page of the notch: search, "+" and the notes by date on the left, the open note's editor on the right.
 struct NotesPageView: View {
     @Environment(\.araScale) private var ui
     @ObservedObject var store: NotesStore
-    @ObservedObject var settings: NotesSettings
     @ObservedObject var model: NotesPageModel
 
     var body: some View {
@@ -73,18 +88,7 @@ struct NotesPageView: View {
             if model.hasChecked, !store.fullView {
                 NotesFullViewCard()
             }
-            let listed = Self.listed(store.visibleNotes, recent: settings.recentIDs, isSearching: !store.searchText.isEmpty)
-            if listed.isEmpty {
-                AraEmptyState(icon: store.searchText.isEmpty ? .document : .search,
-                              title: L10n.string(store.searchText.isEmpty ? "notes.empty" : "notes.noResults"))
-            } else {
-                ScrollView(.vertical, showsIndicators: false) {
-                    LazyVStack(spacing: 2 * ui) {
-                        ForEach(listed) { note in row(note) }
-                    }
-                }
-                .araScrollFade()
-            }
+            NoteListColumn(store: store, model: model)
         }
     }
 
@@ -109,58 +113,6 @@ struct NotesPageView: View {
         .padding(.horizontal, 9 * ui)
         .frame(height: 24 * ui)
         .araField()
-    }
-
-    private func row(_ note: NoteSummary) -> some View {
-        Button {
-            if note.isLocked {
-                Task { await store.showInNotes(note.id) }
-            } else {
-                NoteEditorCoordinator.commitAll()   // the open note's last keystrokes go with it
-                Task { await store.openNote(note.id) }
-            }
-        } label: {
-            HStack(spacing: 5 * ui) {
-                VStack(alignment: .leading, spacing: 1 * ui) {
-                    Text(note.name.isEmpty ? L10n.string("notes.untitled") : note.name)
-                        .font(.system(size: AraType.body * ui, weight: .medium))
-                        .lineLimit(1)
-                    Text(Self.time(note.modified))
-                        .font(.system(size: AraType.caption * ui))
-                        .opacity(0.6)
-                }
-                Spacer(minLength: 0)
-                if note.hasImages {
-                    AraIcon.picture.image
-                        .font(.system(size: 10 * ui))
-                        .opacity(0.6)
-                        .help(L10n.string("notes.row.images"))
-                }
-                if note.isLocked {
-                    AraIcon.locked.image
-                        .font(.system(size: 10 * ui))
-                        .opacity(0.6)
-                        .help(L10n.string("notes.row.locked"))
-                }
-            }
-            .padding(.horizontal, 7 * ui)
-            .padding(.vertical, 4 * ui)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .contentShape(Rectangle())
-            .araRow(isSelected: store.open?.id == note.id, radius: 8)
-        }
-        .buttonStyle(AraPressStyle(depth: 0.97))
-    }
-
-    /// The notes opened lately first, in the order they were opened, then the rest newest first.
-    /// A search lists what it found newest first.
-    static func listed(_ notes: [NoteSummary], recent: [String], isSearching: Bool) -> [NoteSummary] {
-        guard !isSearching else { return notes }
-        let rank = Dictionary(recent.enumerated().map { ($0.element, $0.offset) }, uniquingKeysWith: { first, _ in first })
-        let (opened, rest) = notes.reduce(into: ([NoteSummary](), [NoteSummary]())) { result, note in
-            if rank[note.id] != nil { result.0.append(note) } else { result.1.append(note) }
-        }
-        return opened.sorted { rank[$0.id]! < rank[$1.id]! } + rest
     }
 
     static func time(_ date: Date) -> String {

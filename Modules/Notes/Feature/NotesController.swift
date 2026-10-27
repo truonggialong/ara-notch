@@ -75,8 +75,8 @@ public final class NotesController {
     // MARK: Pages and settings
 
     public func makePage() -> NotchPage {
-        NotchPage(id: Self.pageID, titleKey: "notes.page.title", symbolName: "note.text") { [store, settings, model] in
-            NotesPageView(store: store, settings: settings, model: model)
+        NotchPage(id: Self.pageID, titleKey: "notes.page.title", symbolName: "note.text") { [store, model] in
+            NotesPageView(store: store, model: model)
         }
     }
 
@@ -244,12 +244,18 @@ public final class NotesController {
                 guard store.open?.id != noteID else { return }
                 NoteEditorCoordinator.commitAll()
                 await store.openNote(noteID)
-            } else if store.open == nil,
-                      let first = NotesPageView.listed(store.notes, recent: settings.recentIDs, isSearching: false)
-                        .first(where: { !$0.isLocked }) {
+            } else if store.open == nil, let first = Self.firstToOpen(store.notes, recent: settings.recentIDs) {
                 await store.openNote(first.id)
             }
         }
+    }
+
+    /// The note opened when the page shows with none open: the latest one opened here that is still listed and not
+    /// locked, or else the newest one not locked.
+    static func firstToOpen(_ notes: [NoteSummary], recent: [String]) -> NoteSummary? {
+        let open = notes.filter { !$0.isLocked }
+        return recent.lazy.compactMap { id in open.first { $0.id == id } }.first
+            ?? open.max { $0.modified < $1.modified }
     }
 
     /// Refreshes every 30 seconds while the page is showing and no database change can be watched.
