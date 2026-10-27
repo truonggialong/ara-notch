@@ -4,13 +4,15 @@ import UniformTypeIdentifiers
 
 /// A read-only preview drawn in place of a table, a file or a drawing inside the editor text.
 final class NoteAttachmentCell: NSTextAttachmentCell {
-    enum Content {
+    enum Content: Sendable {
         case table([[String]])
         case file(name: String, uti: String)
         case drawing
     }
 
-    private var content: Content = .drawing
+    /// Set once, in `init`; read by `cellSize`, which AppKit declares outside the main actor (it calls it on the
+    /// main thread, as it lays out this text there).
+    nonisolated(unsafe) private var content: Content = .drawing
 
     convenience init(content: Content) {
         self.init(textCell: "")
@@ -21,8 +23,8 @@ final class NoteAttachmentCell: NSTextAttachmentCell {
     override init(imageCell image: NSImage?) { super.init(imageCell: image) }
     required init(coder: NSCoder) { super.init(coder: coder) }
 
-    private static let columnWidth: CGFloat = 72
-    private static let rowHeight: CGFloat = 18
+    nonisolated private static let columnWidth: CGFloat = 72
+    nonisolated private static let rowHeight: CGFloat = 18
     private static let font = NSFont.systemFont(ofSize: 10)
 
     override func cellSize() -> NSSize {
