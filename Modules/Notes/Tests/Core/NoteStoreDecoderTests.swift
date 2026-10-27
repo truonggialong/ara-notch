@@ -399,4 +399,20 @@ import Testing
         #expect(result.attachments == [NoteStoreAttachment(identifier: "9A3CCEDB-3080-404F-875A-A3C58E3006F5", uti: "public.png")])
         #expect(!result.hasUnsupportedFormatting)
     }
+
+    static func real(_ name: String) throws -> DecodedNote {
+        try NoteStoreDecoder.decode(Data(contentsOf: #require(Bundle.module.url(forResource: "Fixtures/\(name)", withExtension: "notedata"))))
+    }
+
+    /// Notes made through HTML on macOS 27 carry a font with a size, and Courier, .AppleSystemUIFont or
+    /// .AppleSystemUIFontBold as its name: that is AraNotch's own formatting, not something a save drops.
+    @Test func realNotesWrittenThroughHTMLAreNotFlagged() throws {
+        #expect(try !Self.real("real-html-written").hasUnsupportedFormatting)
+        #expect(try !Self.real("real-html-headings").hasUnsupportedFormatting)
+        #expect(try !Self.real("real-macos27").hasUnsupportedFormatting)
+    }
+
+    @Test func realColouredWordIsFlagged() throws {
+        #expect(try Self.real("real-html-colour").hasUnsupportedFormatting)
+    }
 }

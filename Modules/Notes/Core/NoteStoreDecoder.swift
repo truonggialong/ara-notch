@@ -36,8 +36,10 @@ public enum NoteStoreDecoderError: Error, Equatable {
 ///
 /// An attribute run: length 1, paragraph_style 2, font 3, font_weight 5, underlined 6, strikethrough 7,
 /// superscript 8, link 9, color 10, attachment_info 12, emphasis_style (highlight) 14. A paragraph style:
-/// style_type 1, alignment 2, indent_amount 4, checklist 5, block_quote 8. Font, superscript, colour, highlight
-/// and an alignment other than 0 (left) are what the reader cannot show nor the writer keep: they are flagged.
+/// style_type 1, alignment 2, indent_amount 4, checklist 5, block_quote 8. A font: name 1, point_size 2, hints 3.
+/// A named font other than the ones AraNotch's own writes come back with, superscript, colour, highlight and an
+/// alignment other than 0 (left) are what the reader cannot show nor the writer keep: they are flagged. A size
+/// alone is not: every note written through HTML carries one.
 public enum NoteStoreDecoder {
     public static func decode(_ data: Data) throws -> DecodedNote {
         let message = try Gzip.decompress(data)
@@ -99,6 +101,7 @@ public enum NoteStoreDecoder {
                 case (7, .varint(let v)): strikethrough = v != 0
                 case (9, .bytes(let b)): link = URL(string: String(decoding: b, as: UTF8.self))
                 case (12, .bytes(let b)): attachment = try Self.parseAttachment(b)
+                case (3, .bytes(let b)): if try Self.isForeignFont(b) { hasUnsupportedFormatting = true }
                 case (3, _), (10, _): hasUnsupportedFormatting = true
                 case (8, .varint(let v)), (14, .varint(let v)): if v != 0 { hasUnsupportedFormatting = true }
                 case (14, _): hasUnsupportedFormatting = true
@@ -123,6 +126,17 @@ public enum NoteStoreDecoder {
                 default: break
                 }
             }
+        }
+
+        /// Font names Notes gives the text AraNotch writes: body, bold headings, code.
+        static let ownFonts: Set<String> = [".AppleSystemUIFont", ".AppleSystemUIFontBold", "Courier"]
+
+        private static func isForeignFont(_ data: Data) throws -> Bool {
+            var reader = ProtobufReader(data)
+            while let (field, value) = try reader.next() {
+                if field == 1, case .bytes(let b) = value, !ownFonts.contains(String(decoding: b, as: UTF8.self)) { return true }
+            }
+            return false
         }
 
         private static func parseAttachment(_ data: Data) throws -> NoteStoreAttachment {
