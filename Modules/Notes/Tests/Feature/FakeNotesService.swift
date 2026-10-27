@@ -24,6 +24,10 @@ final class FakeNotesService: NotesService, @unchecked Sendable {
     private var modDelay: Duration = .zero
     private var makeDelay: Duration = .zero
     private var failAfterWrite = false
+    private var failCreate = false
+    private var failDelete = false
+    /// Deleted notes, as Notes keeps them in Recently Deleted: they can be moved back.
+    private var trash: [String: (NoteSummary, NoteContent)] = [:]
     private var pictures: [Data?] = []
 
     /// What each `<img src>` of the last write held at the moment of writing, as Notes copies it then: the bytes
@@ -186,10 +190,20 @@ final class FakeNotesService: NotesService, @unchecked Sendable {
         set { lock.withLock { makeDelay = newValue } }
     }
 
+    /// The next `create` fails, after its delay.
+    var createFails: Bool {
+        get { lock.withLock { failCreate } }
+        set { lock.withLock { failCreate = newValue } }
+    }
+
     func create(in folderID: String, html: String) async throws -> String {
         count("create")
         if createDelay > .zero { try await Task.sleep(for: createDelay) }
         return try lock.withLock {
+            if failCreate {
+                failCreate = false
+                throw NotesServiceError.script("Notes is busy")
+            }
             guard folderList.contains(where: { $0.id == folderID }) else { throw NotesServiceError.notFound }
             counter += 1
             let id = "x-coredata://FAKE/ICNote/p\(counter)"
@@ -240,11 +254,33 @@ final class FakeNotesService: NotesService, @unchecked Sendable {
         }
     }
 
+    /// The next `delete` fails, deleting nothing.
+    var deleteFails: Bool {
+        get { lock.withLock { failDelete } }
+        set { lock.withLock { failDelete = newValue } }
+    }
+
     func delete(_ noteID: String) async throws {
         try lock.withLock {
-            guard notesByID.removeValue(forKey: noteID) != nil else { throw NotesServiceError.notFound }
-            contentByID[noteID] = nil
+            if failDelete {
+                failDelete = false
+                throw NotesServiceError.script("Notes refused")
+            }
+            guard let summary = notesByID.removeValue(forKey: noteID) else { throw NotesServiceError.notFound }
+            if let content = contentByID.removeValue(forKey: noteID) { trash[noteID] = (summary, content) }
             order.removeAll { $0 == noteID }
+        }
+    }
+
+    func restore(_ noteID: String, to folderID: String) async throws {
+        count("restore")
+        try lock.withLock {
+            guard folderList.contains(where: { $0.id == folderID }),
+                  var (summary, content) = trash.removeValue(forKey: noteID) else { throw NotesServiceError.notFound }
+            summary.folderID = folderID
+            notesByID[noteID] = summary
+            contentByID[noteID] = content
+            order.append(noteID)
         }
     }
 

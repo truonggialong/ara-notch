@@ -78,12 +78,6 @@ public final class NotesController {
             .filter { $0 == nil }
             .sink { [model] _ in model.isEditorFocused = false }
             .store(in: &cancellables)
-        // A note gone from the list (deleted or moved elsewhere) takes its delete question along.
-        store.$notes
-            .sink { [model] notes in
-                if let id = model.deletingID, !notes.contains(where: { $0.id == id }) { model.deletingID = nil }
-            }
-            .store(in: &cancellables)
     }
 
     // MARK: Pages and settings
@@ -109,9 +103,9 @@ public final class NotesController {
 
     // MARK: Actions
 
-    /// Makes an empty note in the default folder and opens it on the notch's Notes page, the caret in it. The page
-    /// shows at once, before Notes made the note; when none could be made (no access yet, no folder) it shows the
-    /// access card, so the command never does nothing. With the page hidden the note opens in Notes instead.
+    /// Makes an empty note in the default folder and opens it on the notch's Notes page, the caret in it at once,
+    /// before Notes made the note (it opens as a draft); when none could be made (no access yet, no folder) the page
+    /// shows the access card, so the command never does nothing. With the page hidden the note opens in Notes instead.
     public func newNote() {
         let isHidden = presenter.isPageHidden()
         isMakingNote = true
@@ -119,14 +113,11 @@ public final class NotesController {
         Task {
             await flush()
             let before = store.open?.generation
-            await store.newNote()
+            await store.newNote(opened: isHidden ? nil : { self.presenter.focusEditor() })
             isMakingNote = false
-            let made = store.open.flatMap { $0.generation != before ? $0.id : nil }
-            if isHidden {
-                if let made { await store.showInNotes(made) } else { presenter.openNotesApp() }
-            } else if made != nil {
-                presenter.focusEditor()
-            }
+            guard isHidden else { return }
+            let made = store.open.flatMap { $0.generation != before && !NotesStore.isDraft($0.id) ? $0.id : nil }
+            if let made { await store.showInNotes(made) } else { presenter.openNotesApp() }
         }
     }
 
@@ -139,9 +130,7 @@ public final class NotesController {
     private func newNoteHere() {
         Task {
             await flush()
-            let before = store.open?.generation
-            await store.newNote(in: store.selectedFolderID)
-            if store.open.map({ $0.generation != before }) == true { presenter.focusEditor() }
+            await store.newNote(in: store.selectedFolderID, opened: { self.presenter.focusEditor() })
         }
     }
 

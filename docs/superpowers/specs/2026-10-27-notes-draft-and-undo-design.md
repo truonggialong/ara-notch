@@ -19,7 +19,7 @@ Nay: `NotesStore.newNote` mở ngay một **bản nháp** (`OpenNote` có id t�
 
 Trước đây: Xoá mở thẻ hỏi "Xoá …?", bấm Xoá mới xoá.
 
-Nay: Xoá (hàng đầu, nút trên dòng, menu chuột phải) xoá ngay. Trên danh sách hiện dải "Đã xoá "<tên>"" với nút **Hoàn tác** trong 8 giây (Esc đóng dải).
+Nay: Xoá (hàng đầu, nút trên dòng, menu chuột phải) xoá ngay. Trên danh sách hiện dải "Đã xoá "<tên>"" với nút **Hoàn tác** trong 10 giây (Esc đóng dải). Ghi chú rời danh sách và trình soạn ngay khi bấm, dải hiện ngay; Notes xoá ở nền (đo trên máy thật: 6 giây, liệt kê lại thêm 15 giây). Tên trên dải là dòng đầu đang gõ.
 
 - Trước khi xoá, phần đang gõ dở của ghi chú đó được lưu (không còn bỏ đi), để Hoàn tác trả lại đủ.
 - Store nhớ ghi chú vừa xoá: id, tên, thư mục (từ lần liệt kê). Hoàn tác gọi `NotesService.restore(_:to:)`: AppleScript `move note id … to folder id …`. Đã thử trên Notes thật (macOS 27): ghi chú từ "Đã xoá gần đây" về lại thư mục cũ, giữ id và nội dung; chỉ `container` của nó báo lỗi -1728, nên thư mục phải nhớ từ trước.

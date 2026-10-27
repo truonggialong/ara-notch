@@ -99,6 +99,8 @@ public protocol NotesService: Sendable {
     func modification(of noteID: String) async throws -> Date
     /// Moves the note to Recently Deleted.
     func delete(_ noteID: String) async throws
+    /// Moves a deleted note (in Recently Deleted, where it keeps its id) back into `folderID`.
+    func restore(_ noteID: String, to folderID: String) async throws
     func createFolder(named: String) async throws -> NoteFolder
     /// Opens the note in the Notes app.
     func show(_ noteID: String) async throws

@@ -4,7 +4,7 @@ import NotesCore
 import SwiftUI
 
 /// The row over the open note: its folder, when it was changed, whether it is saved, and the buttons to show it in
-/// Notes and to delete it (asked about in the card over the list).
+/// Notes and to delete it (undone from the strip over the list).
 struct NoteEditorHeader: View {
     @Environment(\.araScale) private var ui
     @ObservedObject var store: NotesStore
@@ -13,7 +13,7 @@ struct NoteEditorHeader: View {
 
     /// What the header says of the note. The banner under it says why, and what can be done.
     enum Status: Equatable {
-        case saved, saving, viewOnly, notSaved, deleted, loading
+        case saved, saving, viewOnly, notSaved, deleted, loading, creating
 
         var titleKey: String {
             switch self {
@@ -23,6 +23,7 @@ struct NoteEditorHeader: View {
             case .notSaved: "notes.status.notSaved"
             case .deleted: "notes.status.deleted"
             case .loading: "notes.status.loading"
+            case .creating: "notes.status.creating"
             }
         }
 
@@ -31,20 +32,22 @@ struct NoteEditorHeader: View {
             case .saved: "checkmark"
             case .viewOnly: "lock.fill"
             case .notSaved, .deleted: "exclamationmark.triangle.fill"
-            case .saving, .loading: nil
+            case .saving, .loading, .creating: nil
             }
         }
 
         var isTrouble: Bool { self == .notSaved || self == .deleted }
     }
 
-    /// What went wrong comes first, then a read under way, then whether the note can be edited at all.
+    /// What went wrong comes first, then a note Notes is still making, then a read under way, then whether the
+    /// note can be edited at all.
     static func status(open: OpenNote, state: NoteSaveState, isReloading: Bool) -> Status {
         switch state {
         case .deleted: return .deleted
         case .conflict, .failed: return .notSaved
         case .saved, .pending, .saving: break
         }
+        if NotesStore.isDraft(open.id) { return .creating }
         if isReloading { return .loading }
         if open.safety != .editable { return .viewOnly }
         return state == .saved ? .saved : .saving
@@ -84,13 +87,16 @@ struct NoteEditorHeader: View {
             .foregroundStyle(status.isTrouble ? AraPalette.warning : AraPalette.label)
             .accessibilityElement(children: .combine)
             Spacer(minLength: 4 * ui)
-            AraIconButton(.open, look: .bare, size: .small, help: L10n.string("notes.showInNotes")) {
-                NoteEditorCoordinator.commitAll()
-                Task { await store.showInNotes(open.id) }
-            }
-            if status != .deleted {
-                AraIconButton(.delete, look: .bareDanger, size: .small, help: L10n.string("notes.delete")) {
-                    model.askToDelete(open.id)
+            // A draft is not in Notes yet: nothing to show there or to delete.
+            if !NotesStore.isDraft(open.id) {
+                AraIconButton(.open, look: .bare, size: .small, help: L10n.string("notes.showInNotes")) {
+                    NoteEditorCoordinator.commitAll()
+                    Task { await store.showInNotes(open.id) }
+                }
+                if status != .deleted {
+                    AraIconButton(.delete, look: .bareDanger, size: .small, help: L10n.string("notes.delete")) {
+                        Task { await model.delete(open.id, in: store) }
+                    }
                 }
             }
         }

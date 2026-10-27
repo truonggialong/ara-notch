@@ -158,6 +158,10 @@ public final class NotesBridge: NotesService {
         try await run(NotesScripts.delete(noteID: noteID)) { _ in () }
     }
 
+    public func restore(_ noteID: String, to folderID: String) async throws {
+        try await run(NotesScripts.restore(noteID: noteID, folderID: folderID)) { _ in () }
+    }
+
     public func createFolder(named name: String) async throws -> NoteFolder {
         try await run(NotesScripts.createFolder(named: name)) { result in
             guard let id = result.atIndex(1)?.stringValue else { throw NotesServiceError.script("Notes returned no folder id") }

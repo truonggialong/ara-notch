@@ -924,8 +924,6 @@
 "notes.cancel" = "Huỷ";
 "notes.showInNotes" = "Mở trong Notes";
 "notes.delete" = "Xoá";
-"notes.delete.confirm" = "Xoá “%@”?";
-"notes.delete.detail" = "Notes chuyển ghi chú vào Đã xoá gần đây.";
 "notes.group.today" = "Hôm nay";
 "notes.group.yesterday" = "Hôm qua";
 "notes.group.previous7" = "7 ngày trước";
@@ -946,6 +944,9 @@
 "notes.status.notSaved" = "Chưa lưu";
 "notes.status.deleted" = "Đã bị xoá";
 "notes.status.loading" = "Đang tải…";
+"notes.status.creating" = "Đang tạo…";
+"notes.deleted" = "Đã xoá “%@”";
+"notes.undo" = "Hoàn tác";
 "settings.notes.newNote.note" = "Mở một ghi chú mới trong thư mục mặc định của Notes";
 "settings.notes.defaultFolder" = "Thư mục cho ghi chú mới";
 "settings.notes.defaultFolder.note" = "Nơi Ghi chú mới đặt ghi chú";

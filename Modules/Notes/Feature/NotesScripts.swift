@@ -154,6 +154,14 @@ enum NotesScripts {
         """
     }
 
+    /// Notes keeps a deleted note's id in Recently Deleted; moving it to a folder puts it back. Its `container`
+    /// cannot be read there (-1728), so the folder to go back to is the one it was listed in.
+    static func restore(noteID: String, folderID: String) -> String {
+        """
+        tell application "Notes" to move note id \(quoted(noteID)) to folder id \(quoted(folderID))
+        """
+    }
+
     /// {id, name, account name}
     static func createFolder(named name: String) -> String {
         """

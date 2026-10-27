@@ -63,6 +63,10 @@ private struct PageHarness {
         #expect(status(.failed("x")) == .notSaved)
         #expect(status(.deleted) == .deleted)
         #expect(status(.saved, reloading: true) == .loading)
+        var draft = open
+        draft.id = NotesStore.draftPrefix + "1"
+        #expect(NoteEditorHeader.status(open: draft, state: .pending, isReloading: false) == .creating)
+        #expect(NoteEditorHeader.status(open: draft, state: .failed("busy"), isReloading: false) == .notSaved)
         await h.store.openNote(h.note(["Secret"], locked: true))
         let locked = try #require(h.store.open)
         #expect(NoteEditorHeader.status(open: locked, state: .saved, isReloading: false) == .viewOnly)
@@ -106,40 +110,27 @@ private struct PageHarness {
         #expect(h.store.notes.map(\.id) == [id])
     }
 
-    @Test func cancellingTheDeleteKeepsTheNote() async throws {
-        let h = try await PageHarness()
-        let id = h.note(["Keep me"])
-        await h.store.refresh()
-        let model = NotesPageModel()
-        model.askToDelete(id)
-        #expect(model.deletingID == id)
-        model.cancelDelete()
-        #expect(model.deletingID == nil)
-        #expect(try await h.fake.notes(in: nil).map(\.id) == [id])
-    }
-
-    @Test func confirmingTheDeleteRemovesTheNote() async throws {
+    /// A delete happens at once and offers undo; Escape closes the offer, undo brings the note back.
+    @Test func deleteOffersUndo() async throws {
         let h = try await PageHarness()
         let id = h.note(["Delete me"])
         let other = h.note(["Stay"])
         await h.store.refresh()
-        let model = NotesPageModel()
-        model.askToDelete(id)
-        await model.confirmDelete(in: h.store)
-        #expect(model.deletingID == nil)
-        #expect(h.store.notes.map(\.id) == [other])
-    }
-
-    @Test func deletingTheOpenNoteClosesIt() async throws {
-        let h = try await PageHarness()
-        let id = h.note(["Open and deleted"])
-        await h.store.refresh()
         await h.store.openNote(id)
-        #expect(h.store.open?.id == id)
         let model = NotesPageModel()
-        model.askToDelete(id)
-        await model.confirmDelete(in: h.store)
+        await model.delete(id, in: h.store)
         #expect(h.store.open == nil)
+        #expect(h.store.notes.map(\.id) == [other])
+        #expect(model.deleted?.id == id)
+        #expect(model.handleKey(.escape))
+        #expect(model.deleted == nil)
+        #expect(!model.handleKey(.escape))
+        await model.delete(other, in: h.store)
+        #expect(model.deleted?.id == other)
+        await model.undoDelete(in: h.store)
+        #expect(model.deleted == nil)
+        #expect(h.store.notes.map(\.id) == [other])
+        #expect(h.store.open?.id == other)
     }
 
     @Test func firstToOpenPrefersTheLatestOpenedHere() {
@@ -165,12 +156,10 @@ private struct PageHarness {
         #expect(Set(h.store.notes.map(\.id)) == [home, office])
         let model = NotesPageModel()
         model.isChoosingFolder = true
-        model.deletingID = home
         await model.choose(folder: work.id, in: h.store)
         #expect(h.store.selectedFolderID == work.id)
         #expect(h.store.notes.map(\.id) == [office])
         #expect(!model.isChoosingFolder)
-        #expect(model.deletingID == nil)
     }
 
     @Test func choosingAllNotesListsEveryNote() async throws {
@@ -233,9 +222,9 @@ private struct PageHarness {
         #expect(model.isChoosingFolder)
         #expect(model.handleKey(.escape))
         #expect(!model.isChoosingFolder)
-        model.deletingID = "x"
+        model.deleted = DeletedNote(id: "x", name: "x", folderID: nil)
         #expect(model.handleKey(.escape))
-        #expect(model.deletingID == nil)
+        #expect(model.deleted == nil)
         // Nothing open: the notch has the key, and other keys are never taken.
         #expect(!model.handleKey(.escape))
         model.isChoosingFolder = true
@@ -492,6 +481,7 @@ private final class PresenterLog {
         return (controller, log)
     }
 
+    /// The page shows at once, and the caret is put in the new note before Notes made it.
     @Test func newNoteShowsThePageBeforeTheNoteIsMade() async throws {
         let h = try await PageHarness()
         let (controller, log) = controller(h)
@@ -499,7 +489,10 @@ private final class PresenterLog {
         controller.newNote()
         #expect(log.shown == 1)
         #expect(controller.store.open == nil)
-        try await waitUntil("the note was made and opened") { controller.store.open != nil }
+        try await waitUntil("the draft is open") { controller.store.open != nil }
+        #expect(controller.store.isDraft)
+        #expect(log.focused == 1)
+        try await waitUntil("Notes made the note") { !controller.store.isDraft }
         #expect(h.fake.calls("create") == 1)
         #expect(log.focused == 1)
         #expect(log.shown == 1)
@@ -582,13 +575,15 @@ private final class PresenterLog {
             model[keyPath: flag] = false
             #expect(log.keeps.last == false)
         }
-        model.deletingID = "x"
-        #expect(log.keeps.last == true)
         // Two reasons at once: letting go of one keeps the notch.
         model.isChoosingFolder = true
-        model.deletingID = nil
+        model.isAddingFolder = true
+        model.isAddingFolder = false
         #expect(log.keeps.last == true)
         model.isChoosingFolder = false
+        #expect(log.keeps.last == false)
+        // An undo offer does not hold the notch: it waits for the next time the notch opens.
+        model.deleted = DeletedNote(id: "x", name: "x", folderID: nil)
         #expect(log.keeps.last == false)
         // Told only when the answer changes.
         #expect(zip(log.keeps, log.keeps.dropFirst()).allSatisfy { $0 != $1 })
@@ -603,24 +598,9 @@ private final class PresenterLog {
         // The caret is in the note; its editor is then taken away without being told it lost the keyboard.
         controller.model.isEditorFocused = true
         #expect(log.keeps.last == true)
-        controller.model.askToDelete(id)
-        await controller.model.confirmDelete(in: controller.store)
+        await controller.model.delete(id, in: controller.store)
         #expect(controller.store.open == nil)
         #expect(!controller.model.isEditorFocused)
-        #expect(log.keeps.last == false)
-    }
-
-    @Test func aDeleteQuestionGoesWithItsNote() async throws {
-        let h = try await PageHarness()
-        let (controller, log) = controller(h)
-        let id = h.note(["Deleted on the iPhone"])
-        await controller.store.refresh()
-        controller.model.askToDelete(id)
-        #expect(log.keeps.last == true)
-        // Gone elsewhere while the question was up: the next listing drops it, and the question with it.
-        try await h.fake.delete(id)
-        await controller.store.refresh()
-        #expect(controller.model.deletingID == nil)
         #expect(log.keeps.last == false)
     }
 
@@ -631,12 +611,12 @@ private final class PresenterLog {
         controller.model.isChoosingFolder = true
         controller.model.isAddingFolder = true
         controller.model.newFolderName = "Wo"
-        controller.model.deletingID = "x"
+        controller.model.deleted = DeletedNote(id: "x", name: "x", folderID: nil)
         controller.pageShowingChanged(false)
         #expect(!controller.model.isChoosingFolder)
         #expect(!controller.model.isAddingFolder)
         #expect(controller.model.newFolderName.isEmpty)
-        #expect(controller.model.deletingID == nil)
+        #expect(controller.model.deleted == nil)
         #expect(log.keeps.last == false)
     }
 }

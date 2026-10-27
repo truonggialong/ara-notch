@@ -5,7 +5,8 @@ import NotesCore
 import SwiftUI
 
 /// What the Notes page needs beside the store: whether access was looked at yet, what is under way on it (each of
-/// which keeps the notch open), the handle the toolbar acts on the editor through, and the controller's actions.
+/// which keeps the notch open), the note just deleted (offered for undo), the handle the toolbar acts on the editor
+/// through, and the controller's actions.
 @MainActor
 final class NotesPageModel: ObservableObject {
     /// False until the first refresh, so the access card does not flash before Notes answered.
@@ -15,8 +16,12 @@ final class NotesPageModel: ObservableObject {
     @Published var isChoosingFolder = false { didSet { updateKeepsNotchOpen() } }
     @Published var isAddingFolder = false { didSet { updateKeepsNotchOpen() } }
     @Published var newFolderName = ""
-    /// The note whose deletion waits to be confirmed.
-    @Published var deletingID: String? { didSet { updateKeepsNotchOpen() } }
+    /// The note just deleted, offered for undo for `undoTime`. It does not hold the notch open.
+    @Published var deleted: DeletedNote?
+    /// The delete under way: undo waits for it, so the note is in Recently Deleted when it is moved back.
+    private var deleting: Task<DeletedNote?, Never>?
+    static let undoTime: Duration = .seconds(10)
+    private var undoExpiry: Task<Void, Never>?
     /// True while the picture chooser is up: it takes the keyboard from the editor.
     @Published var isChoosingImages = false { didSet { updateKeepsNotchOpen() } }
     @Published private(set) var keepsNotchOpen = false
@@ -25,31 +30,49 @@ final class NotesPageModel: ObservableObject {
     var onNewNote: (() -> Void)?
 
     private func updateKeepsNotchOpen() {
-        let keeps = isEditorFocused || isChoosingFolder || isAddingFolder || deletingID != nil || isChoosingImages
+        let keeps = isEditorFocused || isChoosingFolder || isAddingFolder || isChoosingImages
         if keeps != keepsNotchOpen { keepsNotchOpen = keeps }
     }
 
-    func askToDelete(_ id: String) {
-        deletingID = id
-    }
-
-    func cancelDelete() {
-        deletingID = nil
-    }
-
-    /// Deletes the note waiting for it (Notes moves it to Recently Deleted) and lists again.
-    func confirmDelete(in store: NotesStore) async {
-        guard let id = deletingID else { return }
-        deletingID = nil
-        await store.delete(id)
+    /// Deletes a note: it leaves the page at once and undo is offered for a while, as Notes moves it to Recently
+    /// Deleted. When Notes refuses, the note comes back, the offer goes and a beep tells.
+    func delete(_ id: String, in store: NotesStore) async {
+        NoteEditorCoordinator.commitAll()   // what was just typed goes with it, and comes back with undo
+        let task = Task { await store.delete(id, started: { gone in self.offerUndo(gone) }) }
+        deleting = task
+        let gone = await task.value
+        if deleting == task { deleting = nil }
+        guard gone != nil else {
+            if deleted?.id == id { deleted = nil }
+            NSSound.beep()
+            return
+        }
         await store.refresh()
+    }
+
+    private func offerUndo(_ gone: DeletedNote) {
+        deleted = gone
+        undoExpiry?.cancel()
+        undoExpiry = Task { [weak self] in
+            try? await Task.sleep(for: Self.undoTime)
+            guard !Task.isCancelled, self?.deleted == gone else { return }
+            self?.deleted = nil
+        }
+    }
+
+    /// Puts the note just deleted back; a failure is told by a beep.
+    func undoDelete(in store: NotesStore) async {
+        guard let gone = deleted else { return }
+        deleted = nil
+        undoExpiry?.cancel()
+        if let deleting { _ = await deleting.value }
+        if await !store.undoDelete(gone) { NSSound.beep() }
     }
 
     /// Shows the folder's notes (nil: all notes) and closes the folder list.
     func choose(folder id: String?, in store: NotesStore) async {
         isChoosingFolder = false
         guard store.selectedFolderID != id else { return }
-        deletingID = nil
         store.selectedFolderID = id
         await store.refresh()
     }
@@ -64,8 +87,8 @@ final class NotesPageModel: ObservableObject {
         return true
     }
 
-    /// Escape closes what is open on the page, the innermost first: the folder name, the folder list, the delete
-    /// question. False when nothing was (the notch then closes) and for every other key.
+    /// Escape closes what is open on the page, the innermost first: the folder name, the folder list, the undo offer.
+    /// False when nothing was (the notch then closes) and for every other key.
     func handleKey(_ key: NotchKey) -> Bool {
         guard key == .escape else { return false }
         if isAddingFolder {
@@ -73,8 +96,8 @@ final class NotesPageModel: ObservableObject {
             newFolderName = ""
         } else if isChoosingFolder {
             isChoosingFolder = false
-        } else if deletingID != nil {
-            deletingID = nil
+        } else if deleted != nil {
+            deleted = nil
         } else {
             return false
         }
@@ -86,7 +109,7 @@ final class NotesPageModel: ObservableObject {
         isChoosingFolder = false
         isAddingFolder = false
         newFolderName = ""
-        deletingID = nil
+        deleted = nil
         isEditorFocused = false
     }
 }

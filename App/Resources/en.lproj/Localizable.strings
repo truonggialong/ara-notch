@@ -924,8 +924,6 @@
 "notes.cancel" = "Cancel";
 "notes.showInNotes" = "Open in Notes";
 "notes.delete" = "Delete";
-"notes.delete.confirm" = "Delete “%@”?";
-"notes.delete.detail" = "Notes moves the note to Recently Deleted.";
 "notes.group.today" = "Today";
 "notes.group.yesterday" = "Yesterday";
 "notes.group.previous7" = "Previous 7 Days";
@@ -946,6 +944,9 @@
 "notes.status.notSaved" = "Not saved";
 "notes.status.deleted" = "Deleted";
 "notes.status.loading" = "Loading…";
+"notes.status.creating" = "Creating…";
+"notes.deleted" = "Deleted “%@”";
+"notes.undo" = "Undo";
 "settings.notes.newNote.note" = "Opens a new note in Notes' default folder";
 "settings.notes.defaultFolder" = "Folder for new notes";
 "settings.notes.defaultFolder.note" = "Where New note puts a note";

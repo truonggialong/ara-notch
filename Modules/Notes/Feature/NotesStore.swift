@@ -18,6 +18,14 @@ public struct OpenNote: Equatable {
 
 public enum NoteSaveState: Equatable { case saved, pending, saving, conflict, failed(String), deleted }
 
+/// A note just deleted (in Notes' Recently Deleted), what undo needs to put it back. `folderID` is the folder it was
+/// listed in; nil when it never was, and then it cannot be put back.
+struct DeletedNote: Equatable {
+    var id: String
+    var name: String
+    var folderID: String?
+}
+
 /// The model behind the Notes page and window: folders, notes, the open note and its saving.
 ///
 /// Every write goes through one path (`save`), which writes only when the open note is `.editable`,
@@ -87,6 +95,16 @@ final class NotesStore: ObservableObject {
     /// read with the note.
     private var lockedByID: [String: Bool] = [:]
     private var folderByID: [String: String] = [:]
+    /// Notes making the note the open draft stands for. `flush` waits for it, so what was typed there is written.
+    private var creation: Task<Void, Never>?
+    /// The list row of the note deleted last, put back by undo before Notes is listed again.
+    private var removedSummary: [String: NoteSummary] = [:]
+
+    /// The id of a new note while Notes is still making it: it is open and can be typed in, and nothing is written
+    /// until it has its real id.
+    static let draftPrefix = "draft:"
+    static func isDraft(_ id: String) -> Bool { id.hasPrefix(draftPrefix) }
+    var isDraft: Bool { open.map { Self.isDraft($0.id) } ?? false }
 
     init(service: NotesService, database: NoteDatabase?, cache: NoteImageCache, settings: NotesSettings,
          debounce: Duration = .milliseconds(1500), imageDebounce: Duration = .seconds(5),
@@ -203,7 +221,7 @@ final class NotesStore: ObservableObject {
     /// An edit waiting from an older load of the note is not dropped: `load` writes it first (under its own
     /// SaveGuard base and write count) and reads after it.
     func reloadOpenNote() async {
-        guard let current = open else { return }
+        guard let current = open, !Self.isDraft(current.id) else { return }
         let id = current.id
         // Another note is being opened (a pick, a new note): reading this one again would cancel that.
         if let requested = latestRequestID, requested != id, latestRequest > current.generation {
@@ -518,8 +536,10 @@ final class NotesStore: ObservableObject {
         guard note.safety == .editable else { return }
         note.document = document
         open = note
-        // After a conflict or deletion nothing is written again; the user reloads or makes a new note.
+        // After a conflict or deletion nothing is written again; the user reloads or makes a new note. A draft Notes
+        // could not make keeps its text on screen, and its failure, to be copied.
         guard saveState != .conflict, saveState != .deleted else { return }
+        if Self.isDraft(note.id), creation == nil { return }
         pending = (note, document)
         saveState = .pending
         debounceTask?.cancel()
@@ -547,12 +567,14 @@ final class NotesStore: ObservableObject {
     func flush() async {
         debounceTask?.cancel()
         debounceTask = nil
+        if let creation { await creation.value }
         startSaving()
         while let task = saveTask { await task.value }
     }
 
+    /// A draft's edit waits until Notes made the note (`finishCreating` starts it then).
     private func startSaving() {
-        guard saveTask == nil, pending != nil else { return }
+        guard saveTask == nil, let waiting = pending, !Self.isDraft(waiting.note.id) else { return }
         saveTask = Task { [weak self] in
             await self?.saveLoop()
             self?.saveTask = nil
@@ -699,7 +721,10 @@ final class NotesStore: ObservableObject {
 
     /// Makes a note in `folderID` (nil: the default folder, or the first one) and opens it. `document` re-creates a
     /// note's content, for instance after a conflict; its images come from the open note.
-    func newNote(_ document: NoteDocument? = nil, in folderID: String? = nil) async {
+    ///
+    /// The note opens at once as a draft and `opened` is called then (the page puts the caret in it); Notes makes the
+    /// note meanwhile, which may take seconds. Returns once Notes made it, or failed to.
+    func newNote(_ document: NoteDocument? = nil, in folderID: String? = nil, opened: (() -> Void)? = nil) async {
         let imageFiles = open?.images ?? [:]  // the document's indexes are those of the load open now
         await flush()
         // Right after login Notes may be closed and nothing listed yet: it is started rather than nothing made.
@@ -710,15 +735,54 @@ final class NotesStore: ObservableObject {
             return
         }
         let document = document ?? NoteDocument(blocks: [.paragraph([])])
+        let draftID = Self.draftPrefix + UUID().uuidString
+        let generation = requestLoad(for: draftID)
+        latestRequestID = nil  // nothing is read for it
+        loadStamp[generation] = 0
+        // As a note read back would be: view only without Full Disk Access, or with pictures that cannot be staged.
+        var safety = EditSafety.editable
+        if database != nil, !fullView { safety = safety.adding(.needsFullDiskAccess) }
+        if document.imageCount > 0, !staging.isAvailable { safety = safety.adding(.imagesUnavailable) }
+        folderByID[draftID] = folder.id
+        isReloading = false
+        open = OpenNote(id: draftID, document: document, safety: safety, openedAt: Date(), images: imageFiles,
+                        generation: generation)
+        saveState = .saved
+        opened?()
+        let task = Task { await finishCreating(draftID, generation: generation, document: document, files: imageFiles,
+                                               in: folder.id) }
+        creation = task
+        await task.value
+        if creation == task { creation = nil }
+    }
+
+    /// Has Notes make the draft's note, then gives the draft (open, or only its waiting edit when another note was
+    /// opened meanwhile) the note's id and date, and writes what was typed meanwhile. On failure the draft stays,
+    /// its text on screen, with the failure.
+    private func finishCreating(_ draftID: String, generation: Int, document: NoteDocument, files: [Int: URL],
+                                in folderID: String) async {
         do {
-            let (html, staged) = try await Self.html(for: document, files: imageFiles, staging: staging)
+            let (html, staged) = try await Self.html(for: document, files: files, staging: staging)
             defer { staging.remove(staged) }
-            let id = try await service.create(in: folder.id, html: html)
-            let generation = requestLoad(for: id)
+            let id = try await service.create(in: folderID, html: html)
+            let modified = try await service.modification(of: id)
+            folderByID[id] = folderID
+            folderByID[draftID] = nil
+            if open?.generation == generation {
+                open?.id = id
+                open?.openedAt = modified
+            }
+            if pending?.note.generation == generation {
+                pending?.note.id = id
+                pending?.note.openedAt = modified
+            }
+            addRecent(id)
             await refresh()
-            await load(id, generation: generation)
+            startSaving()
         } catch {
             handle(error, "create")
+            if open?.generation == generation { saveState = .failed(String(describing: error)) }
+            if pending?.note.generation == generation { pending = nil }
         }
     }
 
@@ -739,26 +803,59 @@ final class NotesStore: ObservableObject {
         }
     }
 
-    func delete(_ id: String) async {
-        if pending?.note.id == id {
-            debounceTask?.cancel()
-            debounceTask = nil
-            pending = nil
-        }
-        while let task = saveTask { await task.value }
-        do {
-            try await service.delete(id)
-        } catch NotesServiceError.notFound {
-            // Already gone: drop it here too.
-        } catch {
-            handle(error, "delete")
-            return
-        }
+    /// Deletes a note (Notes moves it to Recently Deleted), after saving what was typed in it, so undo brings it all
+    /// back. The note leaves the list and the editor before Notes is asked, which may take seconds; `started` is
+    /// told then, with what undo needs. Returns that, or nil when Notes did not delete it (the note is listed, and
+    /// opened, again).
+    @discardableResult
+    func delete(_ id: String, started: ((DeletedNote) -> Void)? = nil) async -> DeletedNote? {
+        await flush()
+        let summary = notes.first { $0.id == id }
+        let wasOpen = open?.id == id
+        let typedName = wasOpen ? open?.document.plainText.split(separator: "\n").first
+            .map { $0.replacingOccurrences(of: "\u{FFFC}", with: "").trimmingCharacters(in: .whitespaces) } : nil
+        let name = typedName.flatMap { $0.isEmpty ? nil : $0 } ?? summary?.name ?? ""
+        let deleted = DeletedNote(id: id, name: name, folderID: folderByID[id])
+        removedSummary = summary.map { [id: $0] } ?? [:]
         forget(id)
-        if open?.id == id {
+        if wasOpen {
             open = nil
             saveState = .saved
         }
+        started?(deleted)
+        do {
+            try await service.delete(id)
+        } catch NotesServiceError.notFound {
+            // Already gone.
+        } catch {
+            handle(error, "delete")
+            await refresh()
+            if wasOpen, open == nil { await openNote(id) }
+            return nil
+        }
+        return deleted
+    }
+
+    /// Puts a deleted note back in the folder it was listed in, shows it in the list and, when nothing else is open,
+    /// in the editor, then lists again. False when its folder is not known or Notes refused.
+    func undoDelete(_ deleted: DeletedNote) async -> Bool {
+        guard let folderID = deleted.folderID else { return false }
+        do {
+            try await service.restore(deleted.id, to: folderID)
+        } catch {
+            handle(error, "undo delete")
+            return false
+        }
+        folderByID[deleted.id] = folderID
+        if var summary = removedSummary.removeValue(forKey: deleted.id), selectedFolderID == nil || selectedFolderID == folderID {
+            summary.folderID = folderID
+            lockedByID[deleted.id] = summary.isLocked
+            notes.append(summary)
+            notes.sort { $0.modified > $1.modified }
+        }
+        if open == nil { await openNote(deleted.id) }
+        await refresh()
+        return true
     }
 
     /// Opens a note in the Notes app: for a note AraNotch only shows (locked, or read only).

@@ -50,6 +50,11 @@ extension NotesStore {
 
 /// Waits until `condition` holds, looking every 2 ms; records an issue after `timeout`. Used instead of sleeping for
 /// a call to be under way, so a busy main actor cannot make a test miss its moment.
+/// A value a callback sets, read by the test after.
+@MainActor final class Flag {
+    var value = false
+}
+
 @MainActor
 func waitUntil(_ what: String, timeout: Duration = .seconds(3), _ condition: () -> Bool) async throws {
     let clock = ContinuousClock()
@@ -542,14 +547,16 @@ private struct Harness {
         let h = try await Harness()
         let a = h.plainNote("A")
         await h.store.openNote(a)
-        h.fake.contentDelay = .milliseconds(150)
-        let reads = h.fake.calls("content")
+        h.fake.createDelay = .milliseconds(150)
         let making = Task { await h.store.newNote() }
-        try await waitUntil("the new note is being read") { h.fake.calls("content") > reads }
-        await h.store.reloadOpenNote()
+        try await waitUntil("the new note is being made") { h.fake.calls("create") > 0 }
+        let reads = h.fake.calls("content")
+        await h.store.reloadOpenNote()   // the open note is the draft: nothing in Notes to read yet
+        #expect(h.fake.calls("content") == reads)
         await making.value
         #expect(h.store.open != nil)
         #expect(h.store.open?.id != a)
+        #expect(!h.store.isDraft)
     }
 
     /// A pick of another note that stays on the open one (its save conflicted) must not stop the open note from
@@ -871,6 +878,135 @@ private struct Harness {
         let created = try await h.fake.notes(in: h.folderID)
         #expect(created.count == 1)
         #expect(try await h.fake.content(of: created[0].id).html.contains("again"))
+    }
+
+    // MARK: A new note before Notes made it
+
+    /// "+" opens the note at once, to type in; what is typed before Notes made the note is written to it after.
+    @Test func whatIsTypedBeforeNotesMadeTheNoteIsWrittenToIt() async throws {
+        let h = try await Harness()
+        await h.store.refresh()
+        h.fake.createDelay = .milliseconds(200)
+        let wasDraft = Flag()
+        let making = Task { await h.store.newNote(opened: { wasDraft.value = h.store.isDraft }) }
+        try await waitUntil("the note is being made") { h.fake.calls("create") == 1 }
+        #expect(wasDraft.value)
+        #expect(h.store.open?.safety == .editable)
+        let generation = h.store.open?.generation
+        h.store.edit(generation: generation, NoteDocument(blocks: [p("typed at once")]))
+        try await Task.sleep(for: .milliseconds(50))   // past the debounce: nothing is written before the note exists
+        #expect(h.fake.setBodyCalls == 0)
+        await making.value
+        await h.store.flush()
+        let created = try await h.fake.notes(in: h.folderID)
+        #expect(created.count == 1)
+        let id = try #require(created.first?.id)
+        #expect(h.store.open?.id == id)
+        #expect(h.store.open?.generation == generation)   // the editor keeps its text, caret and undo
+        #expect(try await h.fake.content(of: id).html.contains("typed at once"))
+        #expect(h.store.saveState == .saved)
+        #expect(h.store.folderID(of: id) == h.folderID)
+        #expect(h.settings.recentIDs.first == id)
+    }
+
+    /// Another note picked while the new one is being made: what was typed still reaches the new note.
+    @Test func openingAnotherNoteWhileOneIsMadeKeepsWhatWasTyped() async throws {
+        let h = try await Harness()
+        let a = h.plainNote("A")
+        await h.store.refresh()
+        h.fake.createDelay = .milliseconds(200)
+        let making = Task { await h.store.newNote() }
+        try await waitUntil("the note is being made") { h.fake.calls("create") == 1 }
+        h.store.edit(generation: h.store.open?.generation, NoteDocument(blocks: [p("kept")]))
+        await h.store.openNote(a)
+        await making.value
+        #expect(h.store.open?.id == a)
+        let made = try #require(try await h.fake.notes(in: h.folderID).first { $0.id != a })
+        #expect(try await h.fake.content(of: made.id).html.contains("kept"))
+    }
+
+    /// Notes could not make the note: what was typed stays on screen with the failure, to be copied.
+    @Test func aDraftNotesCouldNotMakeKeepsItsText() async throws {
+        let h = try await Harness()
+        await h.store.refresh()
+        h.fake.createFails = true
+        h.fake.createDelay = .milliseconds(100)
+        let making = Task { await h.store.newNote() }
+        try await waitUntil("the note is being made") { h.fake.calls("create") == 1 }
+        h.store.edit(generation: h.store.open?.generation, NoteDocument(blocks: [p("not lost")]))
+        await making.value
+        await h.store.flush()
+        #expect(h.store.isDraft)
+        #expect(h.store.open?.document.plainText.contains("not lost") == true)
+        guard case .failed = h.store.saveState else { Issue.record("the failure is not shown"); return }
+        #expect(h.fake.setBodyCalls == 0)
+    }
+
+    /// Without Full Disk Access every note is view only, a new one too, from the first moment.
+    @Test func withoutFullDiskAccessADraftIsViewOnly() async throws {
+        let db = FakeDatabase()
+        db.readable = false
+        let h = try await Harness(database: db)
+        await h.store.refresh()
+        let safety = Flag()
+        await h.store.newNote(opened: { safety.value = h.store.open?.safety == .readOnly([.needsFullDiskAccess]) })
+        #expect(safety.value)
+    }
+
+    // MARK: Delete and undo
+
+    /// A delete saves what was typed first; undo puts the note back in its folder and opens it again.
+    @Test func undoPutsADeletedNoteBackAndOpensIt() async throws {
+        let h = try await Harness(debounce: .seconds(30))
+        let id = h.plainNote("Gone")
+        await h.store.refresh()
+        await h.store.openNote(id)
+        h.store.edit(generation: h.store.open?.generation, NoteDocument(blocks: [p("Gone"), p("last words")]))
+        let gone = try #require(await h.store.delete(id))
+        #expect(h.store.open == nil)
+        #expect(gone.id == id)
+        #expect(gone.name == "Gone")
+        #expect(gone.folderID == h.folderID)
+        #expect(try await h.fake.notes(in: nil).isEmpty)
+        #expect(await h.store.undoDelete(gone))
+        #expect(h.store.notes.map(\.id) == [id])
+        #expect(try await h.fake.notes(in: h.folderID).map(\.id) == [id])
+        #expect(h.store.open?.id == id)
+        #expect(try await h.fake.content(of: id).html.contains("last words"))
+    }
+
+    /// The note leaves the list and the editor before Notes deleted it (which may take seconds), named by what is
+    /// typed in it; a refusal brings it back.
+    @Test func aDeleteShowsAtOnceAndARefusalBringsTheNoteBack() async throws {
+        let h = try await Harness()
+        let id = h.plainNote("Listed name")
+        await h.store.refresh()
+        await h.store.openNote(id)
+        h.store.edit(generation: h.store.open?.generation, NoteDocument(blocks: [p("Typed name"), p("body")]))
+        h.fake.deleteFails = true
+        let seen = Flag()
+        var offered: DeletedNote?
+        let gone = await h.store.delete(id, started: { record in
+            seen.value = h.store.open == nil && h.store.notes.isEmpty
+            offered = record
+        })
+        #expect(seen.value)
+        #expect(offered?.name == "Typed name")
+        #expect(gone == nil)
+        #expect(h.store.notes.map(\.id) == [id])
+        #expect(h.store.open?.id == id)
+    }
+
+    /// Without a known folder a note cannot be put back; Notes refusing is a failed undo too.
+    @Test func undoNeedsTheNotesFolder() async throws {
+        let h = try await Harness()
+        let id = h.plainNote()
+        await h.store.refresh()
+        let gone = try #require(await h.store.delete(id))
+        #expect(await h.store.undoDelete(DeletedNote(id: id, name: "", folderID: nil)) == false)
+        #expect(h.fake.calls("restore") == 0)
+        #expect(await h.store.undoDelete(DeletedNote(id: id, name: "", folderID: "x-coredata://FAKE/ICFolder/p999")) == false)
+        #expect(await h.store.undoDelete(gone))
     }
 
     @Test func recentIDsCapAtTwenty() async throws {

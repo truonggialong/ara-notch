@@ -99,4 +99,9 @@ import Testing
         await #expect(throws: NotesServiceError.notFound) { try await fake.content(of: "nope") }
         await #expect(throws: NotesServiceError.notFound) { try await fake.content(of: id) }
     }
+
+    @Test func restoreMovesTheNoteToItsFolder() {
+        let script = NotesScripts.restore(noteID: "x-coredata://A/ICNote/p1", folderID: "x-coredata://A/ICFolder/p2")
+        #expect(script.contains("move note id \"x-coredata://A/ICNote/p1\" to folder id \"x-coredata://A/ICFolder/p2\""))
+    }
 }

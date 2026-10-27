@@ -3,8 +3,8 @@ import NotchShell
 import NotesCore
 import SwiftUI
 
-/// The page's list: the notes found (the folder's, or what the search found) by date, as Notes groups them. A delete
-/// is asked about in a card above the list, never in a system dialog.
+/// The page's list: the notes found (the folder's, or what the search found) by date, as Notes groups them. A note
+/// just deleted is offered for undo in a strip above the list.
 struct NoteListColumn: View {
     @Environment(\.araScale) private var ui
     @ObservedObject var store: NotesStore
@@ -12,8 +12,8 @@ struct NoteListColumn: View {
 
     var body: some View {
         VStack(spacing: 6 * ui) {
-            if let id = model.deletingID, let note = store.notes.first(where: { $0.id == id }) {
-                deleteConfirmation(note)
+            if let deleted = model.deleted {
+                undoStrip(deleted)
             }
             let notes = store.visibleNotes
             if notes.isEmpty {
@@ -35,7 +35,7 @@ struct NoteListColumn: View {
                 .araScrollFade()
             }
         }
-        .animation(AraTheme.settle, value: model.deletingID)
+        .animation(AraTheme.settle, value: model.deleted)
     }
 
     private func title(of group: (titleKey: String, notes: [NoteSummary]), now: Date) -> String {
@@ -46,24 +46,28 @@ struct NoteListColumn: View {
         return String(format: L10n.string("notes.group.month"), month)
     }
 
-    private func deleteConfirmation(_ note: NoteSummary) -> some View {
-        VStack(alignment: .leading, spacing: 5 * ui) {
-            Text(String(format: L10n.string("notes.delete.confirm"),
-                        note.name.isEmpty ? L10n.string("notes.untitled") : note.name))
+    private func undoStrip(_ deleted: DeletedNote) -> some View {
+        HStack(spacing: 8 * ui) {
+            AraIcon.delete.image
+                .font(.system(size: 10 * ui, weight: .semibold))
+                .foregroundStyle(AraPalette.label)
+            Text(String(format: L10n.string("notes.deleted"),
+                        deleted.name.isEmpty ? L10n.string("notes.untitled") : deleted.name))
                 .font(.system(size: AraType.footnote * ui, weight: .semibold))
                 .lineLimit(2)
-            Text(L10n.string("notes.delete.detail"))
-                .font(.system(size: AraType.caption * ui))
-                .opacity(0.68)
-            HStack(spacing: 6 * ui) {
-                Spacer(minLength: 0)
-                AraPillButton(L10n.string("notes.cancel")) { model.cancelDelete() }
-                AraPillButton(L10n.string("notes.delete"), icon: .delete, isDestructive: true) {
-                    Task { await model.confirmDelete(in: store) }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            if deleted.folderID != nil {
+                // The name gives way; the button keeps its word.
+                AraPillButton(L10n.string("notes.undo"), icon: .undo) {
+                    Task { await model.undoDelete(in: store) }
                 }
+                .fixedSize()
+                .layoutPriority(1)
             }
         }
-        .padding(9 * ui)
+        .padding(.leading, 10 * ui)
+        .padding(.trailing, 6 * ui)
+        .padding(.vertical, 6 * ui)
         .frame(maxWidth: .infinity, alignment: .leading)
         .araCard(radius: 10, level: .raised)
     }
@@ -101,7 +105,7 @@ struct NoteListRow: View {
             .buttonStyle(AraPressStyle(depth: 0.97))
             if hover.isHovered {
                 AraIconButton(.delete, look: .bareDanger, size: .small, help: L10n.string("notes.delete")) {
-                    model.askToDelete(note.id)
+                    Task { await model.delete(note.id, in: store) }
                 }
             } else {
                 if note.hasImages {
@@ -130,13 +134,12 @@ struct NoteListRow: View {
             }
             Divider()
             Button(L10n.string("notes.delete"), role: .destructive) {
-                model.askToDelete(note.id)
+                Task { await model.delete(note.id, in: store) }
             }
         }
     }
 
     private func open() {
-        model.cancelDelete()
         if note.isLocked {
             Task { await store.showInNotes(note.id) }
         } else if store.open?.id != note.id {
