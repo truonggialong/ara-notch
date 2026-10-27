@@ -84,10 +84,13 @@ final class NotesStore: ObservableObject {
     }
 
     /// `notes` filtered by `searchText` in the name and snippet, ignoring case and accents.
-    var visibleNotes: [NoteSummary] {
-        let query = Self.fold(searchText.trimmingCharacters(in: .whitespacesAndNewlines))
+    var visibleNotes: [NoteSummary] { Self.filter(notes, searching: searchText) }
+
+    /// The notes whose name or snippet holds `text`, ignoring case and accents; all of them for an empty search.
+    static func filter(_ notes: [NoteSummary], searching text: String) -> [NoteSummary] {
+        let query = fold(text.trimmingCharacters(in: .whitespacesAndNewlines))
         guard !query.isEmpty else { return notes }
-        return notes.filter { Self.fold($0.name).contains(query) || Self.fold($0.snippet).contains(query) }
+        return notes.filter { fold($0.name).contains(query) || fold($0.snippet).contains(query) }
     }
 
     /// Diacritic folding leaves "đ" alone, so it is mapped by hand.
@@ -557,13 +560,14 @@ final class NotesStore: ObservableObject {
 
     // MARK: Creating and deleting
 
-    /// Makes a note in the default folder (or the first one) and opens it. `document` re-creates a note's content,
-    /// for instance after a conflict; its images come from the open note.
-    func newNote(_ document: NoteDocument? = nil) async {
+    /// Makes a note in `folderID` (nil: the default folder, or the first one) and opens it. `document` re-creates a
+    /// note's content, for instance after a conflict; its images come from the open note.
+    func newNote(_ document: NoteDocument? = nil, in folderID: String? = nil) async {
         let imageFiles = open?.images ?? [:]  // the document's indexes are those of the load open now
         await flush()
         if folders.isEmpty { await refresh() }
-        guard let folder = folders.first(where: { $0.id == settings.defaultFolderID }) ?? folders.first else {
+        guard let folder = folders.first(where: { $0.id == folderID }) ?? folders.first(where: { $0.id == settings.defaultFolderID })
+                ?? folders.first else {
             Self.log.error("No folder to make a note in")
             return
         }
@@ -576,6 +580,23 @@ final class NotesStore: ObservableObject {
             await load(id, generation: generation)
         } catch {
             handle(error, "create")
+        }
+    }
+
+    /// Makes a folder (in Notes' default account), lists again and selects it. Returns nil for an empty name or
+    /// when Notes refused.
+    @discardableResult
+    func createFolder(named name: String) async -> NoteFolder? {
+        let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty else { return nil }
+        do {
+            let folder = try await service.createFolder(named: name)
+            selectedFolderID = folder.id
+            await refresh()
+            return folder
+        } catch {
+            handle(error, "create folder")
+            return nil
         }
     }
 

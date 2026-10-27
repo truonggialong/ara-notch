@@ -9,6 +9,8 @@ struct NoteEditorView: NSViewRepresentable {
     let imageSize: NoteImageSize
     /// Told when the text gets or loses the keyboard (the notch stays open meanwhile).
     var onFocusChange: ((Bool) -> Void)?
+    /// What the window's toolbar acts on this editor through.
+    var handle: NoteEditorHandle?
 
     init(store: NotesStore, imageSize: NoteImageSize) {
         self.store = store
@@ -21,6 +23,12 @@ struct NoteEditorView: NSViewRepresentable {
         return copy
     }
 
+    func handle(_ handle: NoteEditorHandle) -> NoteEditorView {
+        var copy = self
+        copy.handle = handle
+        return copy
+    }
+
     func makeCoordinator() -> NoteEditorCoordinator {
         NoteEditorCoordinator(store: store, imageSize: imageSize)
     }
@@ -28,6 +36,7 @@ struct NoteEditorView: NSViewRepresentable {
     func makeNSView(context: Context) -> NSScrollView {
         let coordinator = context.coordinator
         coordinator.onFocusChange = onFocusChange
+        handle?.attach(coordinator)
         let scroll = NSScrollView()
         scroll.drawsBackground = false
         scroll.hasVerticalScroller = true
@@ -46,7 +55,10 @@ struct NoteEditorView: NSViewRepresentable {
     }
 
     func updateNSView(_ view: NSScrollView, context: Context) {
-        context.coordinator.onFocusChange = onFocusChange
+        let coordinator = context.coordinator
+        coordinator.onFocusChange = onFocusChange
+        if let handle, handle.editor !== coordinator { handle.attach(coordinator) }
+        coordinator.resizeImages(to: imageSize)
     }
 
     static func dismantleNSView(_ view: NSScrollView, coordinator: NoteEditorCoordinator) {
@@ -58,7 +70,7 @@ struct NoteEditorView: NSViewRepresentable {
 /// Keeps one text view and the store's open note in step. The text is built from one load of the note
 /// (`OpenNote.generation`); every edit is sent with that generation, and a new load rebuilds the text.
 @MainActor
-final class NoteEditorCoordinator: NSObject, NSTextViewDelegate, NoteTextViewHost {
+final class NoteEditorCoordinator: NSObject, NSTextViewDelegate, NSTextStorageDelegate, NoteTextViewHost {
     /// Every live editor, so their unsent edits can be handed to the store before it saves.
     private static let live = NSHashTable<NoteEditorCoordinator>.weakObjects()
 
@@ -68,18 +80,29 @@ final class NoteEditorCoordinator: NSObject, NSTextViewDelegate, NoteTextViewHos
     }
 
     let store: NotesStore
-    let imageSize: NoteImageSize
+    /// How pictures are drawn; the window's editor follows its column's width.
+    private(set) var imageSize: NoteImageSize
     let textView: NoteTextView
     lazy var popover = FormatPopover(editor: self)
     var onFocusChange: ((Bool) -> Void)?
+    weak var handle: NoteEditorHandle?
 
     /// The load the text was built from; nil while no note is open.
     private(set) var generation: Int?
     /// The document the text was built from: what table attachments are looked up in.
     private var loadedDocument = NoteDocument(blocks: [])
+    /// The document the text shows: what it was built from, or what it last sent. When the open note's document
+    /// is another one (an edit from the other editor on the same load), the text catches up with it.
+    private var shownDocument: NoteDocument?
+    private var needsCatchUp = false
     private var commitScheduled = false
     private var isRebuilding = false
     private var isStripping = false
+    /// A block format replaces whole paragraphs: their marks go with them, so the change is not widened.
+    private var isFormattingBlocks = false
+    private var isResizingImages = false
+    /// Pictures already read, so a rebuild of the same note does not read its files again.
+    private var imageCache: [URL: NSImage] = [:]
     private var cancellables: Set<AnyCancellable> = []
 
     init(store: NotesStore, imageSize: NoteImageSize) {
@@ -102,6 +125,7 @@ final class NoteEditorCoordinator: NSObject, NSTextViewDelegate, NoteTextViewHos
         textView.textContainerInset = NSSize(width: 4, height: 6)
         textView.linkTextAttributes = [.foregroundColor: NSColor.linkColor, .underlineStyle: NSUnderlineStyle.single.rawValue,
                                        .cursor: NSCursor.pointingHand]
+        textView.textStorage?.delegate = self
         Self.live.add(self)
         apply(store.open, store.saveState)
         // The values come before the store's properties change, so they are taken from the sink, not the store.
@@ -113,20 +137,39 @@ final class NoteEditorCoordinator: NSObject, NSTextViewDelegate, NoteTextViewHos
     // MARK: Following the store
 
     private func apply(_ open: OpenNote?, _ state: NoteSaveState) {
-        if open?.generation != generation { rebuild(open) }
-        let editable = open?.safety == .editable && state != .conflict && state != .deleted
+        if open?.generation != generation {
+            rebuild(open)
+        } else if let open, open.document != shownDocument, !commitScheduled {
+            scheduleCatchUp()
+        }
+        let editable = Self.isEditable(open, state)
         if textView.isEditable != editable {
             textView.isEditable = editable
             if !editable { popover.hide() }
         }
+        handle?.refresh()
+    }
+
+    /// Whether a note in this state may be typed in (and formatted from the toolbar).
+    static func isEditable(_ open: OpenNote?, _ state: NoteSaveState) -> Bool {
+        open?.safety == .editable && state != .conflict && state != .deleted
     }
 
     private func rebuild(_ open: OpenNote?) {
         commitScheduled = false   // an edit not sent yet belonged to the load being replaced
+        needsCatchUp = false
         popover.hide()
         generation = open?.generation
         loadedDocument = open?.document ?? NoteDocument(blocks: [])
-        let images = (open?.images ?? [:]).compactMapValues { NSImage(contentsOf: $0) }
+        shownDocument = open?.document
+        let files = open?.images ?? [:]
+        imageCache = imageCache.filter { url, _ in files.values.contains(url) }
+        let images = files.compactMapValues { url -> NSImage? in
+            if let image = imageCache[url] { return image }
+            let image = NSImage(contentsOf: url)
+            imageCache[url] = image
+            return image
+        }
         isRebuilding = true
         defer { isRebuilding = false }
         textView.textStorage?.setAttributedString(
@@ -139,7 +182,37 @@ final class NoteEditorCoordinator: NSObject, NSTextViewDelegate, NoteTextViewHos
                 ?? NoteAttributedText.typingAttributes(for: .paragraph))
     }
 
+    /// The other editor of the same load sent an edit: this text shows it soon, or at once when it gets the keyboard,
+    /// so nothing typed here sends the older text back.
+    private func scheduleCatchUp() {
+        guard !needsCatchUp else { return }
+        needsCatchUp = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in self?.catchUp() }
+    }
+
+    private func catchUp() {
+        guard needsCatchUp else { return }
+        needsCatchUp = false
+        guard !commitScheduled, let open = store.open, open.generation == generation, open.document != shownDocument else { return }
+        let selection = textView.selectedRange()
+        rebuild(open)
+        let length = textView.textStorage?.length ?? 0
+        let caret = NSRange(location: min(selection.location, length), length: 0)
+        textView.setSelectedRange(Self.caretOutOfMark(caret, from: caret, in: textView))
+    }
+
     // MARK: Sending edits
+
+    /// Undo and redo change the text without telling the delegate (`textDidChange`); what they change is sent
+    /// all the same. Only they: any other storage change (rebuilding, resizing pictures) is not an edit.
+    nonisolated func textStorage(_ textStorage: NSTextStorage, didProcessEditing editedMask: NSTextStorageEditActions,
+                                 range editedRange: NSRange, changeInLength delta: Int) {
+        MainActor.assumeIsolated {
+            guard let undo = textView.undoManager, undo.isUndoing || undo.isRedoing,
+                  !isRebuilding, !isResizingImages, generation != nil else { return }
+            scheduleCommit()
+        }
+    }
 
     func textDidChange(_ notification: Notification) {
         guard !isRebuilding, !isStripping else { return }
@@ -163,7 +236,9 @@ final class NoteEditorCoordinator: NSObject, NSTextViewDelegate, NoteTextViewHos
         guard commitScheduled else { return }
         commitScheduled = false
         guard let generation, let storage = textView.textStorage else { return }
-        store.edit(NoteAttributedText.document(from: storage, original: loadedDocument), generation: generation)
+        let document = NoteAttributedText.document(from: storage, original: loadedDocument)
+        shownDocument = document
+        store.edit(document, generation: generation)
     }
 
     /// A U+FFFC that is not an indexed attachment (a bare attachment, or the character alone) could not be
@@ -200,6 +275,7 @@ final class NoteEditorCoordinator: NSObject, NSTextViewDelegate, NoteTextViewHos
     func textViewDidChangeSelection(_ notification: Notification) {
         textView.typingAttributes = NoteAttributedText.cleanTypingAttributes(textView.typingAttributes)
         popover.selectionChanged()
+        handle?.refresh()
     }
 
     func textView(_ textView: NSTextView, willChangeSelectionFromCharacterRange oldRange: NSRange,
@@ -293,7 +369,7 @@ final class NoteEditorCoordinator: NSObject, NSTextViewDelegate, NoteTextViewHos
     func textView(_ textView: NSTextView, shouldChangeTextIn range: NSRange, replacementString: String?) -> Bool {
         // nil: only attributes change (formatting), which never touches a mark. While bare attachments are taken
         // out, nothing is widened.
-        guard !isStripping, let storage = textView.textStorage, let replacementString else { return true }
+        guard !isStripping, !isFormattingBlocks, let storage = textView.textStorage, let replacementString else { return true }
         let widened = Self.widenedOverMarks(range, in: storage)
         guard widened != range else { return true }
         // Typed text only (paste and drop widen before they ask): plain characters, without U+FFFC.
@@ -358,6 +434,63 @@ final class NoteEditorCoordinator: NSObject, NSTextViewDelegate, NoteTextViewHos
         textView.didChangeText()
         textView.setSelectedRange(range)
         popover.refresh()
+        handle?.refresh()
+        return true
+    }
+
+    /// Turns the paragraphs of the selection into a block kind (the window's toolbar), as one undoable change.
+    @discardableResult
+    func apply(_ block: BlockFormat) -> Bool {
+        guard textView.isEditable, let storage = textView.textStorage else { return false }
+        let selection = textView.selectedRange()
+        let string = storage.string as NSString
+        let location = min(selection.location, string.length)
+        let paragraphs = string.paragraphRange(for: NSRange(location: location, length: min(selection.length, string.length - location)))
+        guard paragraphs.length > 0 else { return startBlock(block) }
+        let changed = NSTextStorage(attributedString: storage.attributedSubstring(from: paragraphs))
+        NoteFormatting.apply(block, to: changed, range: NSRange(location: 0, length: changed.length))
+        guard !changed.isEqual(to: storage.attributedSubstring(from: paragraphs)) else { return true }
+        isFormattingBlocks = true
+        let allowed = textView.shouldChangeText(in: paragraphs, replacementString: changed.string)
+        isFormattingBlocks = false
+        guard allowed else { return false }
+        storage.replaceCharacters(in: paragraphs, with: changed)
+        let newSelection: NSRange
+        if selection.length == 0 {
+            let moved = location + changed.length - paragraphs.length
+            let caret = NSRange(location: min(max(moved, paragraphs.location), paragraphs.location + changed.length), length: 0)
+            newSelection = Self.caretOutOfMark(caret, from: caret, in: textView)
+        } else {
+            let end = paragraphs.location + changed.length - (changed.string.hasSuffix("\n") ? 1 : 0)
+            newSelection = Self.caretOutOfMark(NSRange(location: paragraphs.location, length: end - paragraphs.location),
+                                               from: selection, in: textView)
+        }
+        textView.setSelectedRange(newSelection)
+        textView.didChangeText()
+        if storage.length > 0 {
+            let at = min(newSelection.location, storage.length - 1)
+            textView.typingAttributes = NoteAttributedText.cleanTypingAttributes(storage.attributes(at: at, effectiveRange: nil))
+        }
+        popover.refresh()
+        handle?.refresh()
+        return true
+    }
+
+    /// A block kind on an empty last line: what is typed next takes it; a bullet gets its mark now.
+    private func startBlock(_ block: BlockFormat) -> Bool {
+        let current = NoteAttributedText.kind(of: textView.typingAttributes)
+        var kind = block.kind
+        if (block == .bulletList || block == .codeBlock), current == kind { kind = .paragraph }
+        if kind == .bullet {
+            let attributes = NoteAttributedText.blockAttributes(kind: .bullet)
+            var decoration = attributes
+            decoration[NoteAttribute.decoration] = true
+            replace(textView.selectedRange(), with: NSAttributedString(string: "• ", attributes: decoration))
+            textView.typingAttributes = NoteAttributedText.cleanTypingAttributes(attributes)
+        } else {
+            textView.typingAttributes = NoteAttributedText.typingAttributes(for: kind)
+        }
+        handle?.refresh()
         return true
     }
 
@@ -401,6 +534,27 @@ final class NoteEditorCoordinator: NSObject, NSTextViewDelegate, NoteTextViewHos
 
     // MARK: Images
 
+    /// Draws the pictures at another size (the window's column was resized) without touching the text.
+    func resizeImages(to size: NoteImageSize) {
+        guard size != imageSize else { return }
+        imageSize = size
+        guard let storage = textView.textStorage, storage.length > 0 else { return }
+        var resized: [NSRange] = []
+        storage.enumerateAttribute(.attachment, in: NSRange(location: 0, length: storage.length)) { value, range, _ in
+            guard let attachment = value as? NSTextAttachment, let image = attachment.image,
+                  storage.attribute(NoteAttribute.attachmentKind, at: range.location, effectiveRange: nil) as? String == "image"
+            else { return }
+            attachment.bounds = CGRect(origin: .zero, size: NoteAttributedText.imageDrawSize(image.size, size))
+            resized.append(range)
+        }
+        guard !resized.isEmpty else { return }
+        isResizingImages = true
+        defer { isResizingImages = false }
+        storage.beginEditing()
+        for range in resized { storage.edited(.editedAttributes, range: range, changeInLength: 0) }
+        storage.endEditing()
+    }
+
     func imageLine(for data: Data, fileExtension: String) -> NSAttributedString? {
         guard textView.isEditable, let index = store.addImage(data, fileExtension: fileExtension) else { return nil }
         let image = NSImage(data: data).map { [index: $0] } ?? [:]
@@ -411,6 +565,7 @@ final class NoteEditorCoordinator: NSObject, NSTextViewDelegate, NoteTextViewHos
     // MARK: Focus and scrolling
 
     func focusChanged(_ isFocused: Bool) {
+        if isFocused { catchUp() }
         if !isFocused {
             commitNow()
             if !popover.isEditingLink { popover.hide() }

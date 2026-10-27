@@ -1,7 +1,21 @@
 import AppKit
 
 enum NoteFormat: CaseIterable { case bold, italic, underline, strikethrough, monospaced, link, clear }
-enum BlockFormat { case title, heading, subheading, body, bulletList, codeBlock }
+enum BlockFormat: CaseIterable {
+    case title, heading, subheading, body, bulletList, codeBlock
+
+    /// The kind of paragraph the format makes.
+    var kind: NoteBlockKind {
+        switch self {
+        case .title: .h1
+        case .heading: .h2
+        case .subheading: .h3
+        case .body: .paragraph
+        case .bulletList: .bullet
+        case .codeBlock: .code
+        }
+    }
+}
 
 /// The Telegram-style commands of the editor: a style is removed when the whole selection has it, otherwise added to all of it.
 enum NoteFormatting {
@@ -114,15 +128,7 @@ enum NoteFormatting {
     // MARK: Blocks
 
     static func apply(_ f: BlockFormat, to text: NSTextStorage, range: NSRange) {
-        let target: NoteBlockKind
-        switch f {
-        case .title: target = .h1
-        case .heading: target = .h2
-        case .subheading: target = .h3
-        case .body: target = .paragraph
-        case .bulletList: target = .bullet
-        case .codeBlock: target = .code
-        }
+        let target = f.kind
         let string = text.string as NSString
         let range = clamp(range, string.length)
         guard string.length > 0 else { return }

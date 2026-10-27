@@ -2,7 +2,7 @@ import AppKit
 import NotesCore
 
 /// How wide or tall pictures are drawn in the text.
-public enum NoteImageSize { case thumbnail, fitWidth(CGFloat) }   // thumbnail: at most 64 pt tall
+public enum NoteImageSize: Equatable { case thumbnail, fitWidth(CGFloat) }   // thumbnail: at most 64 pt tall
 
 /// The custom attributes the editor text carries so a note can be read back from it.
 enum NoteAttribute {
@@ -196,7 +196,7 @@ enum NoteAttributedText {
         return result
     }
 
-    private static func imageDrawSize(_ natural: NSSize?, _ mode: NoteImageSize) -> NSSize {
+    static func imageDrawSize(_ natural: NSSize?, _ mode: NoteImageSize) -> NSSize {
         guard let natural, natural.width > 0, natural.height > 0 else {
             switch mode {
             case .thumbnail: return NSSize(width: 96, height: 64)

@@ -11,6 +11,8 @@ public final class NotesController {
     private static let pageID = "notes"
     /// The page asks for a taller sheet than the usual one, for the editor.
     private static let sheetHeight: CGFloat = 300
+    /// Without Full Disk Access nothing tells AraNotch of changes made in Notes: the open window lists again this often.
+    static let windowRefreshInterval: TimeInterval = 30
 
     let store: NotesStore
     private let settings: NotesSettings
@@ -20,10 +22,9 @@ public final class NotesController {
     private var watcher: NoteStoreWatcher?
     private var cancellables: Set<AnyCancellable> = []
     private var isPageShowing = false
-
-    /// Opens the Notes window on a note (nil: the open one). Set by the window (Task 11); until then the note
-    /// is shown on the notch page.
-    var onShowWindow: ((String?) -> Void)?
+    private var window: NotesWindowController?
+    private(set) var isWindowShowing = false
+    private var refreshTimer: Timer?
 
     public convenience init(settings: NotesSettings, notch: NotchController) {
         let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
@@ -80,16 +81,31 @@ public final class NotesController {
         }
     }
 
-    /// Opens the Notes window on a note. Until the window exists (Task 11) the note opens on the notch page.
+    /// Opens the Notes window, on a note when one is given (nil: the open note, or else the latest one).
     public func showWindow(noteID: String? = nil) {
-        if let onShowWindow {
-            onShowWindow(noteID)
-            return
-        }
-        notch.selectPage(id: Self.pageID)
-        notch.open()
-        if let noteID, store.open?.id != noteID {
-            Task { await store.openNote(noteID) }
+        let controller = window ?? makeWindow()
+        controller.setHiddenFromCapture(notch.settings.hidesFromCapture)
+        controller.show()
+        windowShowingChanged(true, noteID: noteID)
+    }
+
+    private func makeWindow() -> NotesWindowController {
+        let controller = NotesWindowController(store: store, page: model)
+        controller.onClose = { [weak self] in self?.windowShowingChanged(false) }
+        controller.model.onNewNote = { [weak self] in self?.newNoteInWindow() }
+        notch.settings.$hidesFromCapture
+            .removeDuplicates()
+            .sink { [weak controller] isHidden in controller?.setHiddenFromCapture(isHidden) }
+            .store(in: &cancellables)
+        window = controller
+        return controller
+    }
+
+    /// "+ Note" in the window: a note in the folder shown there.
+    private func newNoteInWindow() {
+        Task {
+            await flush()
+            await store.newNote(in: store.selectedFolderID)
         }
     }
 
@@ -109,7 +125,10 @@ public final class NotesController {
         // With Full Disk Access, Notes' own writes show while the page is up.
         store.$fullView
             .removeDuplicates()
-            .sink { [weak self] fullView in self?.watch(fullView) }
+            .sink { [weak self] fullView in
+                self?.watch(fullView)
+                self?.updateRefreshTimer(fullView: fullView)
+            }
             .store(in: &cancellables)
     }
 
@@ -127,31 +146,66 @@ public final class NotesController {
         guard isShowing != isPageShowing else { return }
         isPageShowing = isShowing
         if isShowing {
-            loadPage()
+            load(launching: true)
         } else {
             notch.setKeepsOpen(false, forPage: Self.pageID)
             Task { await flush() }
         }
     }
 
-    /// The page's view appeared: lists again, starting Notes only when the page is really showing.
+    /// The page's view appeared: lists again, starting Notes only when the page or the window is really showing.
     func pageAppeared() {
-        loadPage()
+        load(launching: isPageShowing || isWindowShowing)
     }
 
-    private func loadPage() {
-        let launching = isPageShowing
+    /// The window was shown or closed. Showing it counts as the page really showing: Notes is started if closed.
+    /// Closing it saves what was typed.
+    func windowShowingChanged(_ isShowing: Bool, noteID: String? = nil) {
+        isWindowShowing = isShowing
+        updateRefreshTimer(fullView: store.fullView)
+        if isShowing {
+            load(launching: true, noteID: noteID)
+        } else {
+            Task { await flush() }
+        }
+    }
+
+    /// Lists again, then opens `noteID`, or (none given and nothing open) the latest note opened here or else the
+    /// newest one, when it can be opened.
+    private func load(launching: Bool, noteID: String? = nil) {
         Task {
             await refreshAfterChange(launchingNotes: launching)
             model.hasChecked = true
-            // Something to show: the latest note opened here, or else the newest one, when it can be opened.
-            if store.open == nil, store.access == .granted,
-               let first = NotesPageView.listed(store.notes, recent: settings.recentIDs, isSearching: false)
-                .first(where: { !$0.isLocked }) {
+            guard store.access == .granted else { return }
+            if let noteID {
+                guard store.open?.id != noteID else { return }
+                NoteEditorCoordinator.commitAll()
+                await store.openNote(noteID)
+            } else if store.open == nil,
+                      let first = NotesPageView.listed(store.notes, recent: settings.recentIDs, isSearching: false)
+                        .first(where: { !$0.isLocked }) {
                 await store.openNote(first.id)
             }
         }
     }
+
+    /// Refreshes every 30 seconds while the window is up and no database change can be watched.
+    private func updateRefreshTimer(fullView: Bool) {
+        guard isWindowShowing, !fullView else {
+            refreshTimer?.invalidate()
+            refreshTimer = nil
+            return
+        }
+        guard refreshTimer == nil else { return }
+        refreshTimer = Timer.scheduledTimer(withTimeInterval: Self.windowRefreshInterval, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                Task { await self.refreshAfterChange(launchingNotes: false) }
+            }
+        }
+    }
+
+    var isRefreshingOnTimer: Bool { refreshTimer != nil }
 
     private func watch(_ fullView: Bool) {
         guard fullView, watcher == nil, let watchURL else {
@@ -162,7 +216,7 @@ public final class NotesController {
             return
         }
         watcher = NoteStoreWatcher(url: watchURL) { [weak self] in
-            guard let self, self.isPageShowing else { return }
+            guard let self, self.isPageShowing || self.isWindowShowing else { return }
             Task { await self.refreshAfterChange(launchingNotes: false) }
         }
     }
