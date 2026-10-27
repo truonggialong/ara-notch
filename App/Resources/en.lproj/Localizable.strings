@@ -364,11 +364,11 @@
 "settings.agents.statusLine.note" = "Replaces Claude Code's status line, keeping a backup";
 "settings.agents.statusLine.foreign" = "You use another status line in Claude Code";
 "settings.agents.account" = "Read limits from the Claude account";
-"settings.agents.account.note" = "Reads Claude Code's sign-in from the keychain (macOS asks you once) and asks Anthropic every 5 minutes, like /usage. Works with the Claude app's Code tab too";
+"settings.agents.account.note" = "Reads Claude Code's sign-in from the keychain the way Claude Code does (no password asked) and asks Anthropic every 5 minutes, like /usage. Works with the Claude app's Code tab too";
 "settings.agents.account.reading" = "Asking the Claude account…";
 "settings.agents.account.read" = "Updated at %@, every 5 minutes";
 "settings.agents.account.noLogin" = "No Claude Code sign-in in the keychain: run claude in Terminal and sign in once";
-"settings.agents.account.refused" = "macOS did not allow the keychain read: turn this off and on, then choose Always Allow";
+"settings.agents.account.refused" = "macOS did not allow the keychain read: unlock the keychain, then turn this off and on";
 "settings.agents.account.expired" = "Claude Code's sign-in has expired: run claude in Terminal once to renew it";
 "settings.agents.account.failed" = "Anthropic did not answer (code %d); trying again in 5 minutes";
 "settings.agents.codex" = "Follow Codex";

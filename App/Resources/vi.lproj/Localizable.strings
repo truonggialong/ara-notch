@@ -364,11 +364,11 @@
 "settings.agents.statusLine.note" = "Thay dòng trạng thái của Claude Code, có giữ bản sao lưu";
 "settings.agents.statusLine.foreign" = "Bạn đang dùng một dòng trạng thái khác trong Claude Code";
 "settings.agents.account" = "Lấy giới hạn từ tài khoản Claude";
-"settings.agents.account.note" = "Đọc đăng nhập Claude Code trong Keychain (macOS hỏi bạn một lần), mỗi 5 phút hỏi Anthropic như lệnh /usage. Chạy cả với tab Code của app Claude";
+"settings.agents.account.note" = "Đọc đăng nhập Claude Code trong Keychain như chính Claude Code (không hỏi mật khẩu), mỗi 5 phút hỏi Anthropic như lệnh /usage. Chạy cả với tab Code của app Claude";
 "settings.agents.account.reading" = "Đang hỏi tài khoản Claude…";
 "settings.agents.account.read" = "Đã cập nhật lúc %@, mỗi 5 phút một lần";
 "settings.agents.account.noLogin" = "Không thấy đăng nhập Claude Code trong Keychain: chạy claude trong Terminal và đăng nhập một lần";
-"settings.agents.account.refused" = "macOS chưa cho đọc Keychain: tắt rồi bật lại, chọn Luôn cho phép";
+"settings.agents.account.refused" = "macOS chưa cho đọc Keychain: mở khoá Keychain rồi tắt và bật lại";
 "settings.agents.account.expired" = "Đăng nhập Claude Code đã hết hạn: chạy claude trong Terminal một lần để nó tự gia hạn";
 "settings.agents.account.failed" = "Anthropic chưa trả lời được (mã %d), sẽ thử lại sau 5 phút";
 "settings.agents.codex" = "Theo dõi Codex";

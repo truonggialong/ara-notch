@@ -248,7 +248,7 @@ public final class AgentController {
         }
         let list = sessions.list.map { "\($0.isCodex ? "codex" : "claude") \($0.project) \($0.state)" }
         return ([usage("claude", viewModel.claudeUsage), usage("codex", viewModel.codexUsage),
-                 "status line: \(viewModel.statusLineState)", "sessions: \(list.count)"] + list).joined(separator: "\n")
+                 "status line: \(viewModel.statusLineState)", "claude account: \(viewModel.claudeAccountState)", "sessions: \(list.count)"] + list).joined(separator: "\n")
     }
 
     /// The sessions and their states, as a tile of the overview page.
