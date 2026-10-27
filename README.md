@@ -4,27 +4,27 @@
 
 A macOS app that turns the MacBook notch into a small control panel: clipboard, now playing, timers, calendar and reminders, notes, a file shelf, screen capture, quick translate and the state of coding agents.
 
-## Mới trong bản 0.30.1 · New in 0.30.1
+## Mới trong bản 0.31.0 · New in 0.31.0
 
-- **Chữ ghi chú to hơn, dễ đọc hơn:** nội dung ghi chú trên notch to hơn trước, đề mục cũng to hơn chữ thường rõ ràng. Chữ còn to theo cỡ notch bạn chọn trong Cài đặt, như mọi thứ khác trên trang. Ghi chú trong Apple Notes không đổi.
+- **Nhạc trên notch đóng đẹp và gọn hơn:** khi đang phát nhạc, notch chỉ còn ảnh bìa bên trái và sóng nhạc bên phải, ngắn hơn trước nhiều. Sóng nhạc và một vạch tiến độ nhỏ phát sáng ngay dưới camera mang màu lấy từ ảnh bìa của bài.
+- **Tạm dừng vẫn thấy:** khi bạn dừng nhạc, sóng xẹp thành chấm và ảnh bìa mờ đi thay vì biến mất. Sau 5 phút không phát lại thì tự ẩn.
+- **Điều khiển ngay trên notch đóng:** rê chuột vào ảnh bìa, sóng nhạc hay vạch tiến độ thì notch không mở ra; sóng biến thành nút tạm dừng, vạch to ra kèm giờ để bấm hay kéo mà tua. Rê vào giữa notch thì notch mở như thường.
 
-Bản 0.30.0 trước đó cho gõ ngay khi bấm "+" và xoá ghi chú kèm nút Hoàn tác.
-
-Ghi chú dùng chính Apple Notes. Lần đầu, AraNotch xin quyền điều khiển Notes; để sửa ghi chú, cấp thêm **Full Disk Access** trong System Settings › Privacy & Security.
+Bản 0.30.1 trước đó làm chữ ghi chú trên notch to và dễ đọc hơn.
 
 ---
 
-- **Larger, easier-to-read note text:** a note's text on the notch is larger than before, and headings stand out clearly from the body. The text also grows with the notch size you pick in Settings, like everything else on the page. Your notes in Apple Notes are unchanged.
+- **A neater, prettier player on the closed notch:** while music plays, the notch shows just the artwork on the left and the bars on the right, much shorter than before. The bars and a small glowing progress line right under the camera take their colours from the track's artwork.
+- **Still there when paused:** when you pause, the bars lie flat and the artwork dims instead of disappearing. After 5 minutes without playing, it goes away.
+- **Controls right on the closed notch:** hover the artwork, the bars or the progress line and the notch stays closed; the bars turn into a pause button and the line grows, with times, so you can click or drag to seek. Hover the middle of the notch to open it as usual.
 
-The 0.30.0 release before it let you type as soon as you press "+" and delete a note with an Undo button.
-
-Notes are your Apple Notes. The first time, AraNotch asks to control Notes; to edit notes, also give it **Full Disk Access** in System Settings › Privacy & Security.
+The 0.30.1 release before it made note text on the notch larger and easier to read.
 
 ## Tính năng · Features
 
 - **Tổng quan:** những gì cần xem nhanh trên một trang, bạn tự chọn ô nào, ở đâu, cỡ nào.
 - **Clipboard:** nhớ mọi thứ bạn chép (chữ, liên kết, màu, ảnh, tệp), tìm lại nhanh kể cả chữ trong ảnh, ghim vào board, khoá board bằng mật mã. Cửa sổ Thư viện để xem và sắp xếp tất cả.
-- **Nhạc:** bài đang phát, điều khiển phát nhạc, chọn loa hay tai nghe, lời bài hát.
+- **Nhạc:** bài đang phát, điều khiển phát nhạc ngay cả trên notch đóng, chọn loa hay tai nghe, lời bài hát.
 - **Hẹn giờ:** nhiều bộ hẹn giờ cùng lúc, có mức sẵn và nhãn.
 - **Lịch và lời nhắc:** ngày của bạn theo giờ, ba ngày tới, thêm sự kiện và lời nhắc, ước tính thời gian làm.
 - **Tệp:** thả tệp lên notch để giữ tạm, nén, đổi định dạng hay đổi cỡ ảnh.
@@ -40,7 +40,7 @@ Notes are your Apple Notes. The first time, AraNotch asks to control Notes; to e
 
 - **Overview:** what you want at a glance on one page; you choose which tiles, where, and how large.
 - **Clipboard:** keeps everything you copy (text, links, colours, pictures, files), finds it again (even the text inside pictures), pins it to boards, and locks boards with a passcode. A Library window to browse and sort it all.
-- **Music:** what is playing, playback controls, picking speakers or headphones, lyrics.
+- **Music:** what is playing, playback controls even on the closed notch, picking speakers or headphones, lyrics.
 - **Timers:** several at once, with presets and labels.
 - **Calendar and reminders:** your day hour by hour, the next three days, adding events and reminders, time estimates.
 - **Files:** drop files on the notch to keep them at hand, compress them, convert them or resize pictures.
