@@ -986,3 +986,5 @@
 "downloads.done" = "Downloaded";
 "downloads.title" = "Downloads";
 "notch.resting.files.download" = "Downloads";
+"glance.offline" = "Offline";
+"glance.version" = "Version %@";

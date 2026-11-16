@@ -60,6 +60,8 @@ public struct AraSign {
     public enum Icon {
         case symbol(String)
         case image(NSImage)
+        /// One of the notch's own pictures, in the colour given.
+        case pictogram(AraPictogram, AraNoticeColor)
     }
 
     /// A value set apart at the end of a row.
@@ -226,6 +228,8 @@ struct AraBriefSide: View {
                     Image(nsImage: image).resizable().scaledToFill()
                         .frame(width: 16, height: 16)
                         .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
+                case let .pictogram(p, color):
+                    AraPictogramView(p, size: 16).foregroundStyle(color.color)
                 }
             }
             .frame(width: AraSign.iconWidth)
@@ -536,6 +540,9 @@ struct AraSignView: View {
                         .scaledToFill()
                         .frame(width: AraSign.iconWidth, height: AraSign.iconWidth)
                         .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
+                case let .pictogram(p, color):
+                    AraPictogramView(p, size: AraSign.iconWidth)
+                        .foregroundStyle(color.color)
                 }
             }
             .frame(width: AraSign.iconWidth)

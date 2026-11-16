@@ -348,7 +348,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         capture.onNotice = { [weak controller] symbol, message in
             controller?.present(NotchLiveActivity(
                 id: "capture.notice", priority: 2, duration: 2.5,
-                sign: AraSign(icon: .symbol(symbol), mark: L10n.string("sign.capture"), rows: [AraSign.Row(message)])))
+                glance: AraGlance(.symbol(symbol), value: .text(message)), detail: message))
         }
         clipboard.cutOutSubject = { [weak capture] data, completion in
             if let capture {

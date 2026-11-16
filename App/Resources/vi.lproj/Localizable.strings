@@ -986,3 +986,5 @@
 "downloads.done" = "Đã tải xong";
 "downloads.title" = "Tải xuống";
 "notch.resting.files.download" = "Tải xuống";
+"glance.offline" = "Mất mạng";
+"glance.version" = "Bản %@";

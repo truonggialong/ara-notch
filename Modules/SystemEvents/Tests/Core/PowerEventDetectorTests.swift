@@ -72,3 +72,13 @@ private func events(_ snapshots: [PowerSnapshot]) -> [[PowerEvent]] {
         #expect(events([desktop, desktop]) == [[], []])
     }
 }
+
+@Suite struct BatteryCellsTests {
+    @Test func aFifthACellAndOneWhileAnyChargeIsLeft() {
+        #expect(BatteryCells.lit(percent: 64) == 3)
+        #expect(BatteryCells.lit(percent: 100) == 5)
+        #expect(BatteryCells.lit(percent: 18) == 1)
+        #expect(BatteryCells.lit(percent: 5) == 1)
+        #expect(BatteryCells.lit(percent: 0) == 0)
+    }
+}

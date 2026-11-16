@@ -147,11 +147,11 @@ public final class MediaController {
 
     /// Says beside the closed notch that an app started playing something it gives no name for.
     private func announce(_ app: SoundingApp) {
+        // The app's own icon, and a few words for why the speakers are on.
         notch.present(NotchLiveActivity(
             id: Self.activityID, priority: 1, duration: 3, pageID: "media",
-            sign: AraSign(
-                icon: .image(app.icon), mark: L10n.string("page.media.title"),
-                rows: [AraSign.Row(app.name, detail: L10n.string("sign.media.sounding"))])))
+            glance: AraGlance(.image(app.icon), value: .text(L10n.string("sign.media.sounding"))),
+            detail: "\(app.name) · \(L10n.string("sign.media.sounding"))"))
     }
 
     private func refreshOutputs() {
@@ -403,12 +403,11 @@ public final class MediaController {
             announcedApps[bundleID] = Date()
         }
         let title = track.title.isEmpty ? (source?.name ?? "") : track.title
+        // The cover on the left and the track's name on the right: the name is the news.
         notch.present(NotchLiveActivity(
             id: Self.activityID, priority: 1, duration: 3, pageID: "media",
-            sign: AraSign(
-                icon: artwork.map { .image($0) } ?? .symbol("music.note"),
-                mark: source?.name ?? L10n.string("page.media.title"),
-                rows: [AraSign.Row(title, detail: track.artist)])))
+            glance: AraGlance(artwork.map { .image($0) } ?? .pictogram(.note), color: .sky, value: .text(title)),
+            detail: [title, track.artist ?? ""].filter { !$0.isEmpty }.joined(separator: " — ")))
     }
 
     private func seek(toFraction fraction: Double) {

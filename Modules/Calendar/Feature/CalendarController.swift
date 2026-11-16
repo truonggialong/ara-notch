@@ -652,23 +652,11 @@ public final class CalendarController {
         countdownEventID = meeting.id
         let start = Self.clock.string(from: meeting.start)
         let left = MeetingCountdown.left(until: meeting.start, from: now)
-        let tint = meeting.tint.map { Color(red: Double(($0 >> 16) & 0xFF) / 255, green: Double(($0 >> 8) & 0xFF) / 255, blue: Double($0 & 0xFF) / 255) }
-            ?? AraPalette.tint(.mustard).line
-        var activity = NotchLiveActivity(id: Self.countdownID, priority: 2, duration: 0, pageID: "calendar") {
-            HStack(spacing: 5) {
-                Circle().fill(tint).frame(width: 7, height: 7)
-                Text(start)
-                    .font(.system(size: 12, weight: .semibold))
-                    .monospacedDigit()
-            }
-            .accessibilityLabel(meeting.title)
-        } trailing: {
-            Text(left)
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(AraPalette.ink.opacity(0.85))
-                .araRollingDigits(left)
-        }
-        activity.peek = meeting.title
+        // Its time beside the calendar's picture, and its name: which meeting, and when.
+        let activity = NotchLiveActivity(
+            id: Self.countdownID, priority: 2, duration: 0, pageID: "calendar",
+            glance: AraGlance(.calendarClock, color: .sky, leading: start, value: .text(meeting.title)),
+            detail: "\(meeting.title) · \(left)")
         notch.setRestingActivity(activity, id: Self.countdownID)
     }
 
@@ -676,11 +664,12 @@ public final class CalendarController {
         let minutes = String(
             format: L10n.string("calendar.alert.minutes"), MeetingAlertPlanner.minutesUntil(meeting, from: now))
         let title = meeting.title
+        // Its time beside the calendar's picture, its name on the right: what and when at a glance.
         notch.present(NotchLiveActivity(
             id: Self.activityID, priority: 3, duration: 10, pageID: "calendar",
-            sign: AraSign(
-                tone: .attention, icon: .symbol("calendar"), mark: L10n.string("page.calendar.title"),
-                rows: [AraSign.Row(title, detail: minutes, badge: .digits(Self.clock.string(from: meeting.start)))])))
+            glance: AraGlance(
+                .calendarClock, color: .sky, motion: .pulse, leading: Self.clock.string(from: meeting.start), value: .text(title)),
+            detail: "\(title) · \(minutes)"))
     }
 
     /// "14:30": when a meeting starts, for its notice.
@@ -839,7 +828,8 @@ public final class CalendarController {
             tone: .plain, icon: .symbol("checkmark.circle.fill"), mark: L10n.string("calendar.done.mark"),
             title: L10n.string("calendar.done.title"), subtitle: reminder.title,
             rows: [AraSign.Row(L10n.string("calendar.done.undo"))])
-        showNotice(sign, id: "calendar.done", for: 5) { [weak self] in
+        let closed = AraGlance(.undo, color: .done, value: .text(L10n.string("calendar.done.undo")))
+        showNotice(sign, id: "calendar.done", for: 5, closed: closed) { [weak self] in
             guard let self else { return }
             let reopened = self.completedReminders.first { $0.id == reminder.id } ?? reminder
             self.reopen(reopened)
@@ -849,7 +839,10 @@ public final class CalendarController {
     /// Shows a notice at the foot of the open page and, should the notch close before its
     /// time is up, as a sign out of the closed notch. A click on either does `action` and puts
     /// both away.
-    private func showNotice(_ sign: AraSign, id: String, for seconds: TimeInterval, action: (@MainActor () -> Void)? = nil) {
+    /// - Parameter closed: how the closed notch says it, when not as the sign.
+    private func showNotice(
+        _ sign: AraSign, id: String, for seconds: TimeInterval, closed: AraGlance? = nil, action: (@MainActor () -> Void)? = nil
+    ) {
         endPageNotice()
         let clicked: @MainActor () -> Void = { [weak self] in
             self?.endPageNotice()
@@ -863,7 +856,11 @@ public final class CalendarController {
         }
         RunLoop.main.add(timer, forMode: .common)
         pageNoticeTimer = timer
-        notch.present(NotchLiveActivity(id: id, priority: 2, duration: seconds, sign: sign, onClick: clicked))
+        if let closed {
+            notch.present(NotchLiveActivity(id: id, priority: 2, duration: seconds, glance: closed, onClick: clicked))
+        } else {
+            notch.present(NotchLiveActivity(id: id, priority: 2, duration: seconds, sign: sign, onClick: clicked))
+        }
     }
 
     private func endPageNotice() {
@@ -891,7 +888,7 @@ public final class CalendarController {
         }
         showNotice(
             AraSign(
-                tone: .danger, icon: .symbol("exclamationmark.triangle.fill"), mark: L10n.string("calendar.done.mark"),
+                tone: .danger, icon: .pictogram(.crack, .warning), mark: L10n.string("calendar.done.mark"),
                 title: L10n.string("calendar.failed.\(action.rawValue)"),
                 rows: [AraSign.Row(reason)]),
             id: "calendar.failed", for: 6)

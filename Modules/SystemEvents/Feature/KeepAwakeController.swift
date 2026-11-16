@@ -69,17 +69,11 @@ public final class KeepAwakeController {
         }
         let left = session.left(at: now)
         onChange?(left)
-        var activity = NotchLiveActivity(id: Self.restingID, priority: 1, duration: 0, pageID: "tools") {
-            Image(systemName: "cup.and.saucer.fill")
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(Color(red: 0.98, green: 0.80, blue: 0.22))
-                .accessibilityLabel(L10n.string("tools.awake"))
-        } trailing: {
-            Text(left)
-                .font(.system(size: 12, weight: .semibold))
-                .araRollingDigits(left)
-        }
-        activity.peek = L10n.string("tools.awake")
+        // The yellow cup and a ring that empties as the time runs out; full without an end.
+        let activity = NotchLiveActivity(
+            id: Self.restingID, priority: 1, duration: 0, pageID: "tools",
+            glance: AraGlance(.cup, color: .awake, value: .ring(session.remaining(at: now))),
+            detail: "\(L10n.string("tools.awake")) · \(left)")
         notch.setRestingActivity(activity, id: Self.restingID)
     }
 }

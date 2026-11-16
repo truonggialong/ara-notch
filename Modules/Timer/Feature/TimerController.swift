@@ -190,12 +190,12 @@ public final class TimerController {
     private func finished(_ entry: TimerBoard.Entry) {
         let label = entry.label
         AraHaptics.play(.finish)
+        // An orange bell that rings, and the label the timer was given, if any: which one ended.
         notch.present(NotchLiveActivity(
             id: Self.finishedActivityID, priority: 3, duration: 6, pageID: "timer",
-            sign: AraSign(
-                tone: .attention, icon: .symbol("bell.fill"), mark: L10n.string("page.timer.title"),
-                rows: [AraSign.Row(
-                    L10n.string("timer.finished.short"), detail: label.isEmpty ? nil : label)])))
+            glance: AraGlance(
+                .bell, color: .timer, motion: .shake, value: label.isEmpty ? .ring(1) : .text(label), valueColor: .timer),
+            detail: [L10n.string("timer.finished.short"), label].filter { !$0.isEmpty }.joined(separator: " · ")))
         if settings.soundEnabled {
             NSSound(named: "Glass")?.play()
         }

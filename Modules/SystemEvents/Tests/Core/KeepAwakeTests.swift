@@ -13,7 +13,8 @@ import Testing
         let third = KeepAwakeSession.next(after: second, now: now)
         #expect(third?.ends == now.addingTimeInterval(120 * 60))
         let endless = KeepAwakeSession.next(after: third, now: now)
-        #expect(endless == KeepAwakeSession(ends: nil))
+        #expect(endless?.ends == nil)
+        #expect(endless?.remaining(at: now) == 1)
         #expect(KeepAwakeSession.next(after: endless, now: now) == nil)
     }
 
@@ -28,5 +29,12 @@ import Testing
         #expect(KeepAwakeSession(ends: nil).left(at: now) == "∞")
         #expect(KeepAwakeSession(ends: now).isOver(at: now))
         #expect(!KeepAwakeSession(ends: nil).isOver(at: now))
+    }
+
+    @Test func theRingEmptiesAsTheTimeRunsOut() {
+        let session = KeepAwakeSession.next(after: nil, now: now)!
+        #expect(session.remaining(at: now) == 1)
+        #expect(session.remaining(at: now.addingTimeInterval(15 * 60)) == 0.5)
+        #expect(session.remaining(at: now.addingTimeInterval(99 * 60)) == 0)
     }
 }

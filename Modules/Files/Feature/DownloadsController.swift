@@ -68,9 +68,8 @@ public final class DownloadsController {
         guard finished, !name.isEmpty else { return }
         notch.present(NotchLiveActivity(
             id: "files.downloaded", priority: 2, duration: 3,
-            sign: AraSign(
-                icon: .symbol("arrow.down.circle.fill"), mark: L10n.string("downloads.done"),
-                rows: [AraSign.Row(name)])))
+            glance: AraGlance(.download, color: .done, value: .text(name)),
+            detail: "\(L10n.string("downloads.done")) · \(name)"))
     }
 
     private func refresh() {
@@ -82,17 +81,12 @@ public final class DownloadsController {
         lastShown = Int(tally.fraction * 100)
         let fraction = tally.fraction
         let label = tally.label
-        var activity = NotchLiveActivity(id: Self.restingID, priority: 1, duration: 0) {
-            AraProgressRing(fraction: fraction)
-                .frame(width: 14, height: 14)
-                .foregroundStyle(AraPalette.tint(.sky).line)
-                .accessibilityLabel(L10n.string("downloads.title"))
-        } trailing: {
-            Text(label)
-                .font(.system(size: 12, weight: .semibold))
-                .araRollingDigits(label, countsDown: false)
-        }
-        activity.peek = tally.items.values.map(\.name).sorted().joined(separator: ", ")
+        // The tray with its arrow, and a ring that fills: the share done, without numbers.
+        let names = tally.items.values.map(\.name).sorted().joined(separator: ", ")
+        let activity = NotchLiveActivity(
+            id: Self.restingID, priority: 1, duration: 0,
+            glance: AraGlance(.download, color: .sky, value: .ring(fraction)),
+            detail: "\(L10n.string("downloads.title")) \(label) · \(names)")
         notch.setRestingActivity(activity, id: Self.restingID)
     }
 }

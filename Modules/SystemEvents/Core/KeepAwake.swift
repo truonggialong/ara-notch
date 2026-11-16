@@ -5,9 +5,18 @@ import Foundation
 public struct KeepAwakeSession: Equatable, Sendable {
     /// When it ends; nil for a session without an end.
     public var ends: Date?
+    /// How long it was set for; nil without an end.
+    public var length: TimeInterval?
 
-    public init(ends: Date?) {
+    public init(ends: Date?, length: TimeInterval? = nil) {
         self.ends = ends
+        self.length = length
+    }
+
+    /// How much of it is left, 0…1, for a ring that empties; a full ring without an end.
+    public func remaining(at now: Date) -> Double {
+        guard let ends, let length, length > 0 else { return 1 }
+        return min(max(ends.timeIntervalSince(now) / length, 0), 1)
     }
 
     /// The lengths a click steps through, in minutes; nil is without an end.
@@ -17,13 +26,17 @@ public struct KeepAwakeSession: Equatable, Sendable {
     /// The length running is read from what is left, so a session started at an hour and now
     /// at 40 minutes goes on to two hours.
     public static func next(after current: KeepAwakeSession?, now: Date) -> KeepAwakeSession? {
-        guard let current else { return KeepAwakeSession(ends: now.addingTimeInterval(TimeInterval(steps[0]! * 60))) }
+        guard let current else {
+            let length = TimeInterval(steps[0]! * 60)
+            return KeepAwakeSession(ends: now.addingTimeInterval(length), length: length)
+        }
         guard let ends = current.ends else { return nil }
         let left = ends.timeIntervalSince(now) / 60
         guard let index = steps.firstIndex(where: { $0.map { Double($0) >= left - 0.5 } ?? true }),
               index + 1 < steps.count
         else { return nil }
-        return KeepAwakeSession(ends: steps[index + 1].map { now.addingTimeInterval(TimeInterval($0 * 60)) })
+        let length = steps[index + 1].map { TimeInterval($0 * 60) }
+        return KeepAwakeSession(ends: length.map { now.addingTimeInterval($0) }, length: length)
     }
 
     public func isOver(at now: Date) -> Bool {

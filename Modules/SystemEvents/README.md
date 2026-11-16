@@ -79,3 +79,4 @@ Mỗi dòng: ngày — lỗi hoặc thay đổi — test đã thêm — commit.
 
 - 2026-10-26 — tái cấu trúc theo module (nhánh `refactor/feature-modules`): widget dùng `WidgetSize`, `WidgetAlert`.
 - 2026-11-16 — N2: giữ máy thức (`KeepAwakeSession`, `KeepAwakeController`): mỗi lần bấm nút trên trang Công cụ đi qua 30 phút, 1 giờ, 2 giờ, vô hạn rồi tắt; giữ cả màn hình thức bằng `IOPMAssertion`; cốc vàng và giờ còn lại nằm cạnh notch (id `keepAwake`, ưu tiên 1) — `KeepAwakeTests`, thử tay bằng chuột giả lập và `pmset -g assertions`.
+- 2026-11-16 — thông báo hệ thống bằng hình: sạc, rút sạc, pin đầy là năm ô pin (`BatteryCells`); pin yếu và mất mạng có chữ đỏ; Caps Lock là phím và đèn cam; Bluetooth là hình thiết bị và tên; các mức là thanh không số (`SystemActivities.Level`); giữ máy thức là cốc vàng và vòng thời gian còn lại (`KeepAwakeSession.remaining`) — `BatteryCellsTests`, `KeepAwakeTests`.
