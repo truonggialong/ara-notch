@@ -523,6 +523,7 @@
 "icon.muted" = "Đang tắt";
 "icon.recording" = "Đang ghi";
 "icon.paused" = "Đang tạm dừng";
+"icon.awake" = "Đang giữ máy thức";
 "icon.confirm" = "Xong";
 "clipboard.search.short" = "Tìm";
 "icon.openLink" = "Mở liên kết";
@@ -977,3 +978,11 @@
 "settings.layout.hint" = "Kéo một nút sang chỗ khác để đổi chỗ. Bấm + để thêm nút, bấm vào nút để đổi hoặc bỏ.";
 "settings.layout.remove" = "Bỏ nút này";
 "settings.layout.add" = "Thêm nút";
+"settings.calendar.countdown" = "Đếm ngược tới cuộc họp";
+"settings.calendar.countdown.note" = "Giờ họp và số phút còn lại nằm cạnh notch đóng, từ lúc này đến khi họp";
+"notch.resting.calendar.countdown" = "Cuộc họp";
+"tools.awake" = "Giữ máy thức";
+"notch.resting.keepAwake" = "Giữ máy thức";
+"downloads.done" = "Đã tải xong";
+"downloads.title" = "Tải xuống";
+"notch.resting.files.download" = "Tải xuống";

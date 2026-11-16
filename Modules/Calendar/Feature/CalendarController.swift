@@ -593,6 +593,7 @@ public final class CalendarController {
         }
         refreshTimeline()
 
+        refreshCountdown(now: now)
         planner.leadMinutes = settings.leadMinutes
         if settings.meetingAlerts {
             // Several meetings at once: the earliest is the one shown.
@@ -607,9 +608,12 @@ public final class CalendarController {
         wakeTimer?.invalidate()
         wakeTimer = nil
         let lead = TimeInterval(settings.leadMinutes * 60)
+        let countdown = TimeInterval(settings.countdownMinutes * 60)
+        // While a countdown shows, once a minute, so its minutes stay right.
+        let nextMinute = countdownEventID == nil ? nil : now.addingTimeInterval(60 - now.timeIntervalSince1970.truncatingRemainder(dividingBy: 60))
         let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: Calendar.current.startOfDay(for: now))
-        let moments = events.flatMap { [$0.start.addingTimeInterval(-lead), $0.start, $0.end] }
-            + allReminders.compactMap(\.due) + [tomorrow].compactMap { $0 }
+        let moments = events.flatMap { [$0.start.addingTimeInterval(-lead), $0.start.addingTimeInterval(-countdown), $0.start, $0.end] }
+            + allReminders.compactMap(\.due) + [tomorrow, nextMinute].compactMap { $0 }
         guard let next = moments.filter({ $0 > now }).min() else { return }
 
         // Half a second late, so the moment has surely passed when the timer fires.
@@ -627,6 +631,45 @@ public final class CalendarController {
         timer.tolerance = 1
         RunLoop.main.add(timer, forMode: .common)
         wakeTimer = timer
+    }
+
+    // MARK: - The meeting counted down to beside the notch
+
+    private static let countdownID = "calendar.countdown"
+    /// The meeting whose countdown rests beside the notch now.
+    private var countdownEventID: String?
+
+    /// Rests the next meeting's start time and the minutes left beside the closed notch,
+    /// from the lead the user chose until it starts.
+    private func refreshCountdown(now: Date) {
+        guard let meeting = MeetingCountdown.next(events: events, now: now, leadMinutes: settings.countdownMinutes) else {
+            if countdownEventID != nil {
+                countdownEventID = nil
+                notch.setRestingActivity(nil, id: Self.countdownID)
+            }
+            return
+        }
+        countdownEventID = meeting.id
+        let start = Self.clock.string(from: meeting.start)
+        let left = MeetingCountdown.left(until: meeting.start, from: now)
+        let tint = meeting.tint.map { Color(red: Double(($0 >> 16) & 0xFF) / 255, green: Double(($0 >> 8) & 0xFF) / 255, blue: Double($0 & 0xFF) / 255) }
+            ?? AraPalette.tint(.mustard).line
+        var activity = NotchLiveActivity(id: Self.countdownID, priority: 2, duration: 0, pageID: "calendar") {
+            HStack(spacing: 5) {
+                Circle().fill(tint).frame(width: 7, height: 7)
+                Text(start)
+                    .font(.system(size: 12, weight: .semibold))
+                    .monospacedDigit()
+            }
+            .accessibilityLabel(meeting.title)
+        } trailing: {
+            Text(left)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(AraPalette.ink.opacity(0.85))
+                .araRollingDigits(left)
+        }
+        activity.peek = meeting.title
+        notch.setRestingActivity(activity, id: Self.countdownID)
     }
 
     private func announce(_ meeting: AgendaEvent, now: Date) {

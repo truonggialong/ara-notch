@@ -1,0 +1,39 @@
+import Foundation
+
+/// Keeping the Mac awake for a while, or until turned off. One click on the tool steps through
+/// the lengths: off, 30 minutes, an hour, two hours, until turned off, and off again.
+public struct KeepAwakeSession: Equatable, Sendable {
+    /// When it ends; nil for a session without an end.
+    public var ends: Date?
+
+    public init(ends: Date?) {
+        self.ends = ends
+    }
+
+    /// The lengths a click steps through, in minutes; nil is without an end.
+    public static let steps: [Int?] = [30, 60, 120, nil]
+
+    /// The session after a click: the next length from the one running, or off after the last.
+    /// The length running is read from what is left, so a session started at an hour and now
+    /// at 40 minutes goes on to two hours.
+    public static func next(after current: KeepAwakeSession?, now: Date) -> KeepAwakeSession? {
+        guard let current else { return KeepAwakeSession(ends: now.addingTimeInterval(TimeInterval(steps[0]! * 60))) }
+        guard let ends = current.ends else { return nil }
+        let left = ends.timeIntervalSince(now) / 60
+        guard let index = steps.firstIndex(where: { $0.map { Double($0) >= left - 0.5 } ?? true }),
+              index + 1 < steps.count
+        else { return nil }
+        return KeepAwakeSession(ends: steps[index + 1].map { now.addingTimeInterval(TimeInterval($0 * 60)) })
+    }
+
+    public func isOver(at now: Date) -> Bool {
+        ends.map { $0 <= now } ?? false
+    }
+
+    /// "1:45" hours and minutes left, "29′" under an hour, "∞" without an end.
+    public func left(at now: Date) -> String {
+        guard let ends else { return "∞" }
+        let minutes = max(0, Int((ends.timeIntervalSince(now) / 60).rounded(.up)))
+        return minutes >= 60 ? String(format: "%d:%02d", minutes / 60, minutes % 60) : "\(minutes)\u{2032}"
+    }
+}

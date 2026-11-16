@@ -95,3 +95,4 @@ Mỗi dòng: ngày — lỗi hoặc thay đổi — test đã thêm — commit.
 
 - 2026-10-26 — tái cấu trúc theo module (nhánh `refactor/feature-modules`): widget dùng `WidgetSize`.
 - 2026-11-16 — cỡ riêng 544 × 240 (vẫn cao thêm theo ngày); danh sách giờ mờ ở mép — thử tay bằng ảnh chụp.
+- 2026-11-16 — N1: đếm ngược tới cuộc họp cạnh notch đóng (chấm màu lịch, giờ họp, số phút còn lại), từ 15/30/60/120 phút trước, mặc định 60 (`MeetingCountdown`, khoá `calendar.countdownMinutes`, Cài đặt › Thông báo); thứ nằm yên id `calendar.countdown`, ưu tiên 2 — `AgendaTests`, thử bằng `--simulate-agenda`.

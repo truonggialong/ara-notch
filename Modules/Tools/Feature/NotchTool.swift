@@ -21,6 +21,6 @@ public struct NotchTool: Identifiable {
     static let looks: [String: (icon: AraIcon, hue: AraHue)] = [
         "capture": (.captureRegion, .peach), "scroll": (.captureScroll, .peach), "text": (.readText, .mustard),
         "color": (.pickColor, .lilac), "translate": (.translate, .sky), "panel": (.clipboard, .peach),
-        "library": (.grid, .sage), "note": (.newNote, .mint),
+        "library": (.grid, .sage), "note": (.newNote, .mint), "awake": (.awake, .mustard),
     ]
 }

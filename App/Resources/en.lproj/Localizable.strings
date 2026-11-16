@@ -523,6 +523,7 @@
 "icon.muted" = "Off";
 "icon.recording" = "Recording";
 "icon.paused" = "Paused";
+"icon.awake" = "Keeping awake";
 "icon.confirm" = "Done";
 "clipboard.search.short" = "Search";
 "icon.openLink" = "Open the link";
@@ -977,3 +978,11 @@
 "settings.layout.hint" = "Drag a button to another place to move it. Click + to add one; click a button to change or remove it.";
 "settings.layout.remove" = "Remove this button";
 "settings.layout.add" = "Add a button";
+"settings.calendar.countdown" = "Count down to meetings";
+"settings.calendar.countdown.note" = "The start time and minutes left rest beside the closed notch from this long before";
+"notch.resting.calendar.countdown" = "Meeting";
+"tools.awake" = "Keep awake";
+"notch.resting.keepAwake" = "Keep awake";
+"downloads.done" = "Downloaded";
+"downloads.title" = "Downloads";
+"notch.resting.files.download" = "Downloads";

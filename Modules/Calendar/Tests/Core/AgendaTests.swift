@@ -19,6 +19,26 @@ private func event(_ id: String, _ title: String, _ start: Date, _ end: Date, al
 }
 
 @Suite struct AgendaTests {
+    @Test func theCountdownIsTheNextTimedMeetingWithinTheLead() {
+        let now = Date(timeIntervalSince1970: 1_000_000)
+        func event(_ id: String, in minutes: Double, allDay: Bool = false) -> AgendaEvent {
+            AgendaEvent(
+                id: id, title: id, start: now.addingTimeInterval(minutes * 60), end: now.addingTimeInterval(minutes * 60 + 1800),
+                isAllDay: allDay, calendarName: "Work", location: nil)
+        }
+        let events = [event("later", in: 90), event("soon", in: 20), event("allday", in: 5, allDay: true), event("past", in: -5)]
+        #expect(MeetingCountdown.next(events: events, now: now, leadMinutes: 60)?.id == "soon")
+        #expect(MeetingCountdown.next(events: events, now: now, leadMinutes: 15) == nil)
+        #expect(MeetingCountdown.next(events: events, now: now, leadMinutes: 0) == nil)
+        #expect(MeetingCountdown.next(events: events, now: now, leadMinutes: 120)?.id == "soon")
+    }
+
+    @Test func minutesLeftAreRoundedUpAndHoursWritten() {
+        let now = Date(timeIntervalSince1970: 0)
+        #expect(MeetingCountdown.left(until: now.addingTimeInterval(11 * 60 + 5), from: now) == "12\u{2032}")
+        #expect(MeetingCountdown.left(until: now.addingTimeInterval(65 * 60), from: now) == "1g05")
+    }
+
     private let events = [
         event("late", "Họp tối", at(20), at(21)),
         event("past", "Họp sáng", at(8), at(9)),

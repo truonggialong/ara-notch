@@ -33,6 +33,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var controller: NotchController?
     private var clipboard: ClipboardController?
     private var systemEvents: SystemEventsController?
+    private var keepAwake: KeepAwakeController?
+    private var downloads: DownloadsController?
     private var timer: TimerController?
     private var media: MediaController?
     private var files: FilesController?
@@ -94,11 +96,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             pasteboard: arguments.pasteboardName.map { NSPasteboard(name: NSPasteboard.Name($0)) } ?? .general)
         let systemEvents = SystemEventsController(
             settings: AlertSettings(store: AlertSettingsStore(defaults: .standard)), notch: controller)
+        let keepAwake = KeepAwakeController(notch: controller)
         let timer = TimerController(
             settings: TimerSettings(store: TimerSettingsStore(defaults: .standard)), notch: controller)
         let media = MediaController(
             settings: MediaSettings(store: MediaSettingsStore(defaults: .standard)), notch: controller)
         let files = FilesController()
+        let downloads = DownloadsController(notch: controller)
         let agents = AgentController(
             settings: AgentSettings(store: AgentSettingsStore(defaults: .standard)), notch: controller,
             eventsFile: arguments.agentEventsFile, claudeSettingsFile: arguments.claudeSettingsFile,
@@ -154,10 +158,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             tool("panel") { [weak clipboard] in clipboard?.showPanel() },
             tool("library") { [weak clipboard] in clipboard?.showLibrary() },
             tool("note") { [weak notes] in notes?.newNote() },
+            // Each click steps the length on (30 minutes, an hour, two, without end) and then
+            // off; the notch stays open to show it.
+            NotchTool(id: "awake") { [weak keepAwake] in keepAwake?.step() },
         ]
         // The overview's quick tools are the four used most: capture, read text, pick a colour, translate.
         let toolsPage = ToolsController(tools: tools, quickToolIDs: ["capture", "text", "color", "translate"])
         controller.register(page: toolsPage.makePage())
+        keepAwake.onChange = { [toolsPage] left in
+            toolsPage.setState(left.map { NotchToolState(tone: .awake, badge: $0) }, forTool: "awake")
+        }
         overview.setTiles([
             .media: media.makeOverviewTile(), .calendar: calendar.makeOverviewTile(), .timer: timer.makeOverviewTile(),
             .clipboard: clipboard.makeOverviewTile(), .agents: agents.makeOverviewTile(),
@@ -436,6 +446,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self.controller = controller
         self.clipboard = clipboard
         self.systemEvents = systemEvents
+        self.keepAwake = keepAwake
+        self.downloads = downloads
+        downloads.start()
         self.timer = timer
         self.media = media
         self.files = files

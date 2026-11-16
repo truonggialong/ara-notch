@@ -119,6 +119,25 @@ public struct MeetingAlertPlanner: Sendable {
     }
 }
 
+/// The meeting counted down to beside the closed notch: the next timed one that starts within
+/// the lead, until it starts.
+public enum MeetingCountdown {
+    public static func next(events: [AgendaEvent], now: Date, leadMinutes: Int) -> AgendaEvent? {
+        guard leadMinutes > 0 else { return nil }
+        let lead = TimeInterval(leadMinutes * 60)
+        return events
+            .filter { !$0.isAllDay && $0.start > now && $0.start.timeIntervalSince(now) <= lead }
+            .min { ($0.start, $0.id) < ($1.start, $1.id) }
+    }
+
+    /// "12'": minutes left, rounded up; "1g05" from an hour on.
+    public static func left(until start: Date, from now: Date) -> String {
+        let minutes = max(1, Int((start.timeIntervalSince(now) / 60).rounded(.up)))
+        guard minutes >= 60 else { return "\(minutes)\u{2032}" }
+        return String(format: "%dg%02d", minutes / 60, minutes % 60)
+    }
+}
+
 /// A reminder as the notch shows it.
 public struct AgendaReminder: Equatable, Identifiable, Sendable {
     public let id: String
@@ -172,14 +191,25 @@ public struct CalendarSettingsStore {
         public static let leadMinutes = "calendar.leadMinutes"
         public static let showsLunarDate = "calendar.showsLunarDate"
         public static let estimates = "calendar.estimates"
+        public static let countdownMinutes = "calendar.countdownMinutes"
     }
 
     public static let leadChoices = [1, 5, 10, 15]
+    /// How long before a meeting its countdown rests beside the notch; 0 is off.
+    public static let countdownChoices = [15, 30, 60, 120]
+    public static let standardCountdown = 60
 
     private let defaults: UserDefaults
 
     public init(defaults: UserDefaults) {
         self.defaults = defaults
+    }
+
+    /// Minutes before a meeting its time and the minutes left rest beside the closed notch;
+    /// 0 for never.
+    public var countdownMinutes: Int {
+        get { defaults.object(forKey: Key.countdownMinutes) as? Int ?? Self.standardCountdown }
+        nonmutating set { defaults.set(newValue, forKey: Key.countdownMinutes) }
     }
 
     /// Announce a meeting beside the notch shortly before it starts.
