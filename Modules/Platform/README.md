@@ -138,6 +138,8 @@ Không cần quyền nào. `PointerMonitor` theo dõi chuột toàn cục không
 - `Modules/Platform/NotchShell/PointerMonitor.swift` — Reports pointer movement, clicks and scrolling, whichever app they are delivered to.
 - `Modules/Platform/NotchShell/ShellSettings.swift` — Observable settings for the shell; every change is written through to the store.
 - `Modules/Platform/NotchShell/ShortcutCenter.swift` — The app's global shortcuts in one place: which keys they are (the user can change or remove each one), what they do, and whether the system accepted them.
+- `Modules/Platform/NotchCore/ScrollLayout.swift` — Mép cuộn còn nội dung (`ScrollEdges`), cách xếp khay hàng đều hoặc cuộn ngang (`RailLayout`), cú bấm thông báo có hiệu lực (`NoticeClick`), giá trị thanh trượt và lăn chuột (`SliderValue`).
+- `Modules/Platform/NotchShell/Design/AraRail.swift` — Mép cuộn mờ (`araScrollEdgeFade`), khay hàng đều hoặc cuộn ngang (`AraRail`), chữ số lăn theo chiều đếm (`araRollingDigits`).
 
 ## Lỗi và giới hạn đã biết
 

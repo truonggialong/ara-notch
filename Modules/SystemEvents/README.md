@@ -64,6 +64,8 @@ Bluetooth (thông báo thiết bị); Trợ năng (bắt phím âm lượng và 
 - `Modules/SystemEvents/Feature/NetworkMonitor.swift` — Reports whether the Mac has a usable network connection.
 - `Modules/SystemEvents/Feature/PowerMonitor.swift` — Reads the battery and charger state and reports changes.
 - `Modules/SystemEvents/Feature/SystemEventsController.swift` — Events that can be injected for automated checks, without touching the real system state.
+- `Modules/SystemEvents/Core/KeepAwake.swift` — Một phiên giữ máy thức: các mức 30 phút, 1 giờ, 2 giờ, vô hạn, và thời gian còn lại (`KeepAwakeSession`).
+- `Modules/SystemEvents/Feature/KeepAwakeController.swift` — Giữ máy và màn hình thức bằng `IOPMAssertion`, đặt cốc vàng và giờ còn lại cạnh notch.
 
 ## Lỗi và giới hạn đã biết
 

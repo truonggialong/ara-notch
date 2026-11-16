@@ -49,6 +49,8 @@ Không cần quyền.
 - `Modules/Files/Core/FileActions.swift` — The image formats files can be converted to.
 - `Modules/Files/Core/FileDropTile.swift` — The actions shown as places to drop while files are dragged over the Files page: letting go over one adds the files and does it at once.
 - `Modules/Files/Feature/FilesController.swift` — State the Files page renders from.
+- `Modules/Files/Core/Downloads.swift` — Các tệp đang tải vào thư mục Tải về, gộp thành một vòng tiến độ và nhãn (`DownloadTally`).
+- `Modules/Files/Feature/DownloadsController.swift` — Theo dõi tiến độ tải mà trình duyệt công bố (`Progress.addSubscriber`), đặt vòng tiến độ cạnh notch, báo một dòng khi tải xong.
 
 ## Lỗi và giới hạn đã biết
 

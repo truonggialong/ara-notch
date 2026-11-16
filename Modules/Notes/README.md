@@ -118,6 +118,9 @@ Ghi chú định dạng chữ kiểu Telegram (bôi chữ là có menu nổi, c�
 - `Modules/Notes/DESIGN.md` — thiết kế (có phần sửa ngày 2026-10-27).
 - `docs/superpowers/specs/2026-10-27-notes-in-notch-design.md`, `docs/superpowers/plans/2026-10-27-notes-in-notch.md` — thiết kế và kế hoạch bỏ cửa sổ Ghi chú.
 - `Modules/Notes/PLAN.md` — kế hoạch làm (có phần sửa ngày 2026-10-27).
+- `Modules/Notes/Core/NoteImageFormat.swift` — Nhận ra loại ảnh từ vài byte đầu, vì Notes cất ảnh nhận qua HTML trong tệp không đuôi.
+- `Modules/Notes/Feature/NoteImageStaging.swift` — Đặt ảnh của ghi chú đang viết vào chỗ Notes đọc được (thư mục của AraNotch trong group container của Notes).
+- `Modules/Notes/Feature/NotesSelfTest.swift` — Tự kiểm trang Ghi chú khi không có người (`--self-test-notes <report>`): gửi phím và chuột qua app, ghi từng bước ra báo cáo.
 
 ## Lỗi và giới hạn đã biết
 
