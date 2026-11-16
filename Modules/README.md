@@ -98,6 +98,7 @@ Ngoại lệ có chủ ý: `ShortcutAction` trong `NotchCore` liệt kê phím t
 
 ## Quy trình sửa lỗi
 
+0. **Mở nhánh của module.** `Scripts/new-branch.sh <Module> <việc>` tạo nhánh `<module>/<việc>` từ `main`. Mọi commit của việc này nằm trên nhánh đó; không commit thẳng vào `main`, và chỉ gộp vào `main` khi chủ dự án bảo.
 1. **Tìm module.** Đọc bảng trên và sổ của module nghi ngờ (mục "Tệp" và "Giao diện công khai"). Nếu lỗi nằm ở chỗ hai module gặp nhau, module sở hữu là bên có hành vi sai, không phải bên dễ sửa hơn.
 2. **Tái hiện bằng test** trong bộ test của module đó (xem mục "Test" của sổ). Module không có bộ test cho phần đó thì đưa phần logic vào `<X>Core` để test được, hoặc ghi rõ cách tái hiện bằng tay.
 3. **Sửa trong module đó.** Không sửa vòng ở module khác để che lỗi. Nếu bắt buộc phải đổi giao diện công khai mà module khác đang dùng (một hàm `public`, một khoá lưu, một case của `ShortcutAction`), dừng lại và báo chủ dự án trước.
@@ -110,6 +111,7 @@ Ngoại lệ có chủ ý: `ShortcutAction` trong `NotchCore` liệt kê phím t
 
 ## Thêm hay đổi một module
 
+- Tính năng mới cũng làm trên nhánh riêng: `Scripts/new-branch.sh <X> <việc>` (module chưa có thư mục thì dùng `app`).
 - Tính năng mới: tạo `Modules/<X>/Core`, `Modules/<X>/Feature`, `Modules/<X>/Tests/Core`, khai báo trong `Package.swift` (`core("<X>")`, `feature("<X>")`, `tests("<X>", "Core", …)` và thêm `<X>` vào `features`), nối ở `AppDelegate`, thêm một dòng vào bảng trên, thêm `<X>` vào `Scripts/test-module.sh`, viết `Modules/<X>/README.md` theo mẫu của các sổ khác.
 - Mỗi sổ có các mục: Vai trò; Target và thư mục; Phụ thuộc và ai dùng; Giao diện công khai; Ghi chú cho người sửa; Dữ liệu lưu; Quyền hệ thống; Test; Tệp; Lỗi và giới hạn đã biết; Nhật ký sửa lỗi.
 - Đổi tệp, thêm hàm `public`, thêm khoá lưu: cập nhật sổ của module trong cùng commit. Tệp mới thiếu trong mục "Tệp" làm `Scripts/check-module-maps.sh` báo lỗi.

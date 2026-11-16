@@ -24,6 +24,12 @@
 
 Cập nhật sổ module (nhật ký sửa lỗi, giới hạn, tệp, API), `docs/project/FEATURES.md` khi có tính năng mới, và thêm một vòng vào `docs/project/HISTORY.md`.
 
+## Nhánh: không làm thẳng trên main
+
+- Mỗi lần bảo trì hay nâng cấp làm trên một nhánh riêng tách từ `main`, đặt tên theo module: `<module>/<việc>` (chữ thường, ví dụ `calendar/dem-nguoc-hop`, `clipboard/sua-ghim`). Việc trên nhiều module dùng `app/<việc>`, tài liệu chung `docs/<việc>`, phát hành `release/<phiên bản>`.
+- Mở nhánh bằng `Scripts/new-branch.sh <Module> <việc>`; có phiên khác đang làm trên cùng thư mục thì thêm `--worktree` để làm trong một thư mục riêng.
+- Không commit thẳng vào `main`: hook `Scripts/hooks/pre-commit` chặn việc đó (`git config core.hooksPath Scripts/hooks`). Chỉ gộp nhánh vào `main` khi chủ dự án bảo gộp.
+
 ## GitHub
 
 - `origin` là repo công khai `truonggialong/ara-notch`, và `main` ở máy nối tiếp `origin/main`. Lịch sử cũ trước ngày 2026-10-26 chỉ nằm trong nhánh `archive/full-history` ở máy. Không đẩy nhánh đó lên.
