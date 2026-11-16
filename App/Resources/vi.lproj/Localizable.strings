@@ -958,3 +958,17 @@
 "settings.notes.fullDisk.note" = "Cần để sửa danh sách và hiện đủ ảnh";
 "settings.notes.fullDisk.granted" = "Đã cấp";
 "settings.notes.permission.open" = "Cho phép…";
+
+/* Notch: nút tròn, lưới trang, hoạt động cạnh notch, nền */
+"notch.explore" = "Mọi trang";
+"notch.explore.back" = "Quay lại trang";
+"notch.close" = "Đóng notch";
+"notch.resting.title" = "Hiện cạnh notch";
+"notch.resting.auto" = "Tự chọn";
+"notch.resting.both" = "Cả hai";
+"notch.resting.capslock.on" = "Caps Lock";
+"settings.material" = "Nền notch khi mở";
+"settings.material.note" = "Dải cạnh camera luôn đen. Bật Giảm trong suốt của macOS thì nền đen.";
+"settings.material.black" = "Đen";
+"settings.material.glass" = "Kính tối";
+"settings.material.liquid" = "Liquid Glass";

@@ -294,6 +294,14 @@ struct GeneralSettingsSection: View {
                     Text(L10n.string("settings.notchSize.\(size.rawValue)")).tag(size)
                 }
             }
+            Picker(selection: $settings.material) {
+                ForEach(NotchMaterial.allCases, id: \.self) { material in
+                    Text(L10n.string("settings.material.\(material.rawValue)")).tag(material)
+                }
+            } label: {
+                Text(L10n.string("settings.material"))
+                AraSettingsNote(L10n.string("settings.material.note"))
+            }
             Picker(L10n.string("settings.displayMode"), selection: $settings.displayMode) {
                 ForEach(DisplayMode.allCases, id: \.self) { mode in
                     Text(L10n.string("settings.displayMode.\(mode.rawValue)")).tag(mode)

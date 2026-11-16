@@ -64,3 +64,4 @@ Không cần quyền.
 Mỗi dòng: ngày — lỗi hoặc thay đổi — test đã thêm — commit.
 
 - 2026-10-26 — tái cấu trúc theo module (nhánh `refactor/feature-modules`): widget dùng `WidgetSize`, `WidgetAlert`.
+- 2026-11-16 — bộ đếm đang chạy nằm cạnh notch dưới dạng thứ nằm yên (`setRestingActivity`, id `timer`) thay cho hoạt động gửi lại mỗi giây, để chọn được giữa nó và nhạc hoặc gộp cả hai — thử tay.

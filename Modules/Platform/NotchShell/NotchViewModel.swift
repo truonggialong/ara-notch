@@ -29,7 +29,36 @@ final class NotchViewModel: ObservableObject {
     /// The room on each side of the notch for the activity showing: its own, grown with the
     /// notch's edge, or the usual.
     var shownActivitySideWidth: CGFloat {
-        activity?.sideWidth.map { ($0 * edgeScale).rounded() } ?? activitySideWidth
+        if let fixed = activity?.sideWidth, companion == nil {
+            return (fixed * edgeScale).rounded()
+        }
+        return measuredSideWidth ?? activitySideWidth
+    }
+
+    /// The room each side of the closed notch takes for what shows there, measured from the
+    /// content itself (`ActivityWings`); nil before it is measured.
+    @Published var measuredSideWidth: CGFloat?
+    /// Shown with the activity, on the left of the camera, when the user chose two resting
+    /// things to see together.
+    @Published var companion: NotchLiveActivity?
+
+    /// The grid of every page is showing instead of a page.
+    @Published var isExploring = false
+    /// What the open notch is laid on.
+    @Published var material: NotchMaterial = .standard
+    /// The round buttons around the open notch.
+    @Published var orbit = OrbitLayout.standard
+    /// The last change of the open notch's size made it larger: it springs with a bounce.
+    @Published var lastChangeGrew = true
+    /// The resting things true now, for the user to choose which shows beside the notch.
+    @Published var restingOptions: [RestingOption] = []
+    /// What the user chose to show beside the closed notch.
+    @Published var restingChoice = RestingSelection()
+
+    struct RestingOption: Identifiable, Equatable {
+        let id: String
+        let title: String
+        let symbolName: String
     }
 
     /// The strip under the hardware notch for the activity showing beside it, grown with the
@@ -54,4 +83,19 @@ final class NotchViewModel: ObservableObject {
     var pages: [String: NotchPage] = [:]
     var onOpenSettings: (() -> Void)?
     var onTogglePin: (() -> Void)?
+    var onClose: (() -> Void)?
+    var onOrbit: ((OrbitAction) -> Void)?
+    var onChooseResting: ((RestingSelection.Choice?) -> Void)?
+    var onSelectPage: ((String) -> Void)?
+
+    /// The keys of the Explore grid, by page id.
+    var exploreLetters: [String: Character] {
+        let pages = registry.pages
+        let letters = ExploreKeys.letters(for: pages.map { L10n.string($0.titleKey) })
+        var result: [String: Character] = [:]
+        for (page, letter) in zip(pages, letters) {
+            result[page.id] = letter
+        }
+        return result
+    }
 }

@@ -958,3 +958,17 @@
 "settings.notes.fullDisk.note" = "Needed to edit lists and to show every picture";
 "settings.notes.fullDisk.granted" = "Granted";
 "settings.notes.permission.open" = "Allow…";
+
+/* Notch: round buttons, page grid, things beside the notch, backdrop */
+"notch.explore" = "All pages";
+"notch.explore.back" = "Back to the page";
+"notch.close" = "Close the notch";
+"notch.resting.title" = "Show beside the notch";
+"notch.resting.auto" = "Automatic";
+"notch.resting.both" = "Both";
+"notch.resting.capslock.on" = "Caps Lock";
+"settings.material" = "Open notch background";
+"settings.material.note" = "The strip beside the camera stays black. With Reduce Transparency on, the background is black.";
+"settings.material.black" = "Black";
+"settings.material.glass" = "Dark glass";
+"settings.material.liquid" = "Liquid Glass";

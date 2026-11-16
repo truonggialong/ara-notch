@@ -166,15 +166,15 @@ public final class TimerController {
         }
         guard let soonest = viewModel.board.soonest(at: now) else {
             stopTicking()
-            notch.dismissActivity(id: Self.activityID)
+            notch.setRestingActivity(nil, id: Self.activityID)
             return
         }
 
-        // Re-presented every second with a short life: it refreshes the text, and if the
-        // ticking ever stopped the activity would vanish instead of showing a stale time.
+        // Rests beside the notch while a countdown runs, set again every second with the new
+        // time. Resting, it can be chosen over the music, or shown with it, one on each side.
         let text = TimerFormat.clock(soonest.timer.remaining(at: now))
         let progress = soonest.timer.progress(at: now)
-        notch.present(NotchLiveActivity(id: Self.activityID, priority: 1, duration: 2.5, pageID: "timer") {
+        notch.setRestingActivity(NotchLiveActivity(id: Self.activityID, priority: 1, duration: 0, pageID: "timer") {
             // A ring that fills as the time runs out.
             AraProgressRing(fraction: progress)
                 .frame(width: 15, height: 15)
@@ -182,7 +182,7 @@ public final class TimerController {
             Text(text)
                 .font(.system(size: 12, weight: .semibold))
                 .monospacedDigit()
-        })
+        }, id: Self.activityID)
     }
 
     private func finished(_ entry: TimerBoard.Entry) {

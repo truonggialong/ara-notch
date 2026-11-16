@@ -59,11 +59,16 @@ Những gì app gọi (hàm `public` của controller; các kiểu `public` khá
 - **Ngoại lệ có chủ ý:** `ShortcutAction` (danh mục phím tắt toàn cục, có tên hành động của Clipboard, Translate, Capture) nằm ở đây, vì việc kiểm tra trùng phím cần thấy mọi phím. Thêm một phím tắt toàn cục mới cho tính năng = thêm một case ở đây; đó là thay đổi giao diện công khai của nền tảng, phải báo trước.
 - `NotchController` là đầu mối mà tính năng dùng: `register(page:)`, `present(_:)`, `setRestingActivity`, `setSheetHeight`, `setKeepsOpen`, `setBeingEdited`, `shortcuts`.
 - Hoạt động bên notch có thể có một dải dưới camera (`NotchLiveActivity.setBottom(height:hoveredHeight:_:)`): notch đóng nhô xuống thêm chừng ấy, vì chỗ camera không có điểm ảnh. Với `keepsSides = true`, hai cánh và dải đó là của hoạt động: rê chuột vào đó notch không mở, panel nhận chuột để view của hoạt động tự xử lý bấm và kéo, view đọc `\.notchActivityIsHovered`; rê vào giữa (chỗ camera) thì mở như thường. Vùng tính trong `NotchActivityZones` (NotchCore).
+- Notch mở (2026-11-16, theo Vorssaint): không còn hàng tab. Dải cạnh camera chứa tên trang bên trái (`NotchPage.bandLeading` thay được) và nút riêng của trang bên phải (`headerAccessory`). Quanh notch có các nút tròn (`OrbitLayout`, lưu ở `shell.orbitSlots`), vẽ trong `NotchChrome.swift`; cửa sổ notch rộng hơn notch một khoảng `OrbitLayout.windowMargin` cho nút và độ nảy của lò xo, và vùng chuột của notch mở gồm cả nút (`NotchGeometry.openHitRect(size:reach:)`). Bấm một nút tròn thì notch chờ con trỏ quay lại (`stateMachine.hold()`), vì notch có thể đổi cỡ dưới nút vừa bấm.
+- Mỗi trang có thể có cỡ riêng (`NotchPage.sheetSize`, tính bằng `PageSize.open`); trang không nói gì vẫn mở 640 × 200 trên tờ gốc. Lưới "Mọi trang" (`NotchExploreGrid`) có phím ⌥⌘ + chữ cái (`ExploreKeys`) khi notch giữ bàn phím.
+- Thứ nằm cạnh notch đóng: người dùng chọn một thứ hoặc "Cả hai" trong lưới "Mọi trang" (`RestingSelection`, lưu ở `shell.restingChoice`); khi gộp, thứ phụ nằm bên trái camera, thứ chính bên phải, và dải dưới camera của thứ chính bị bỏ. Hai cánh rộng vừa nội dung (`ActivityWings`, đo bằng `sideMeasure` trong `NotchRootView`).
+- Nền notch mở: Đen, Kính tối (mặc định) hoặc Liquid Glass (`NotchMaterial`, `shell.material`); dải cạnh camera luôn đen; Giảm trong suốt thì đen. Hình notch che nội dung phải là `outline` (luôn đặc), không phải `shape` (trong suốt khi nền kính), nếu không nội dung tàng hình.
+- Lò xo: mở nảy (0,44 s, độ nảy 0,25), đóng không nảy (0,30 s) (`NotchMotion`).
 - Bộ widget dùng chung: `WidgetSize`, `WidgetAlert`, `WidgetMeasure`, `WidgetPalette` (`NotchCore`), `AraWidget` và `\.araTileSize` (`NotchShell/Design`).
 
 ## Dữ liệu lưu
 
-- UserDefaults `shell.*`: `openOnHover`, `hoverDelay`, `hapticsEnabled`, `pageOrder`, `hiddenPages`, `startPage`, `hidesFromCapture`, `swipeToOpen`, `swipeSensitivity`, `interactionPadding`, `displayMode`, `hidesInFullScreen`, `pillStyle`, `notchSize`, `appearance`, `hasSeenWelcome` (`ShellSettingsStore`).
+- UserDefaults `shell.*`: `openOnHover`, `hoverDelay`, `hapticsEnabled`, `pageOrder`, `hiddenPages`, `startPage`, `hidesFromCapture`, `swipeToOpen`, `swipeSensitivity`, `interactionPadding`, `displayMode`, `hidesInFullScreen`, `pillStyle`, `notchSize`, `appearance`, `hasSeenWelcome`, `material`, `orbitSlots`, `restingChoice` (`ShellSettingsStore`).
 - UserDefaults `shortcut.<action>` cho từng `ShortcutAction` (`ShortcutStore`); hàng phím số lưu ở khoá do tính năng khai báo (`NumberRow.storageKey`).
 - Khoá cũ chỉ còn để dọn hoặc chuyển dữ liệu: `recentNames.event|reminder|timer` và `calendar.pageSize` bị xoá mỗi lần mở app (`RetiredSettings` trong `Pickers.swift`); `clipboard.panelAppearance` vẫn được đọc làm giá trị dự phòng khi chưa có `shell.appearance` (`ShellSettingsStore.appearance`).
 
@@ -86,6 +91,7 @@ Không cần quyền nào. `PointerMonitor` theo dõi chuột toàn cục không
 - `Modules/Platform/NotchCore/LiveActivityQueue.swift` — A request to show something beside the closed notch for a while.
 - `Modules/Platform/NotchCore/NotchActivityZones.swift` — Where the pointer is on a closed notch showing an activity that keeps its sides for itself: the middle opens the notch, the sides and the strip under it are the activity's.
 - `Modules/Platform/NotchCore/NotchDropLayout.swift` — A notice that drops out of the closed notch: the notch grows downwards into a sign, one piece with it, instead of showing something on either side.
+- `Modules/Platform/NotchCore/NotchLayoutModel.swift` — Nền notch, lò xo, nút tròn, cỡ trang, cánh notch, lựa chọn thứ cạnh notch, phím lưới trang.
 - `Modules/Platform/NotchCore/NotchGeometry.swift` — How the notch is drawn on a display that has no hardware notch.
 - `Modules/Platform/NotchCore/NotchStateMachine.swift` — Decides when the notch opens and closes.
 - `Modules/Platform/NotchCore/PageRegistry.swift` — Identity and tab appearance of one notch page.
@@ -120,6 +126,7 @@ Không cần quyền nào. `PointerMonitor` theo dõi chuột toàn cục không
 - `Modules/Platform/NotchShell/InputMethodKeys.swift`
 - `Modules/Platform/NotchShell/L10n.swift` — Looks up user-facing strings in the app bundle's `Localizable.strings`.
 - `Modules/Platform/NotchShell/NSScreen+Descriptor.swift`
+- `Modules/Platform/NotchShell/NotchChrome.swift` — Nền kính, nút tròn quanh notch, lưới Mọi trang, chip chọn thứ cạnh notch.
 - `Modules/Platform/NotchShell/NotchController.swift` — Owns the notch window and connects pointer input to the state machine.
 - `Modules/Platform/NotchShell/NotchLiveActivity.swift` — Something shown beside the closed notch for a short while: one view to the left of the notch and one to the right.
 - `Modules/Platform/NotchShell/NotchPage.swift` — A page shown inside the open notch: its tab descriptor plus the view to display.
@@ -160,3 +167,4 @@ Mỗi dòng: ngày — lỗi hoặc thay đổi — test đã thêm — commit.
 - 2026-10-26 — tái cấu trúc theo module (nhánh `refactor/feature-modules`): bỏ tên Overview khỏi nền tảng (`PageRegistry.order(_:leading:)`, `NotchController(leadingPageID:)`); `OverviewTileSize` → `WidgetSize`, `OverviewAlert` → `WidgetAlert`; hàng phím số thành khái niệm chung `NumberRow`, `ShortcutCenter.setNumberRow`; chuỗi `settings.shortcuts.quickPaste.refused` → `settings.shortcuts.numberRow.refused`.
 - 2026-10-26 — thêm test cho việc `ShortcutCenter` truyền mọi hàng phím số đã khai báo làm `others`: hai hàng không dùng chung phím bổ trợ, `numberRow(using:)` tìm đúng hàng (`ShortcutCenterNumberRowTests`, có `isRecording` để không đăng ký phím thật). Khi tạm truyền `others: []`, test thất bại.
 - 2026-10-28 — thêm cho hoạt động bên notch: dải dưới camera (`setBottom(height:hoveredHeight:_:)`), `keepsSides` (hai cánh và dải nhận chuột, không mở notch), môi trường `notchActivityIsHovered`; dùng cho nhạc ở notch đóng — `NotchActivityZonesTests` (6 test).
+- 2026-11-16 — đợt 1 của bản thiết kế lại theo Vorssaint: nút tròn quanh notch, lưới Mọi trang, gộp hai thứ cạnh notch, lò xo mở nảy đóng không nảy, nền kính; bỏ hàng tab. Lỗi tìm khi thử tay: nội dung tàng hình trên nền kính (mặt nạ trong suốt), notch tự đóng sau khi bấm nút tròn (cỡ đổi dưới con trỏ) — `NotchLayoutModelTests`.

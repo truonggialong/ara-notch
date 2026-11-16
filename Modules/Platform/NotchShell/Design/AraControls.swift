@@ -15,7 +15,7 @@ public struct AraPressStyle: ButtonStyle {
     @Environment(\.araScale) private var ui
     var depth: CGFloat
 
-    public init(depth: CGFloat = 0.9) {
+    public init(depth: CGFloat = 0.965) {
         self.depth = depth
     }
 
@@ -33,7 +33,7 @@ public struct AraPressStyle: ButtonStyle {
         var body: some View {
             configuration.label
                 .scaleEffect(configuration.isPressed && !reduceMotion ? depth : 1)
-                .opacity(configuration.isPressed ? 0.75 : 1)
+                .opacity(configuration.isPressed ? 0.8 : 1)
                 .animation(AraTheme.press, value: configuration.isPressed)
         }
     }
@@ -120,6 +120,7 @@ public struct AraIconButton: View {
 
 /// The drawing of an icon button, for controls that are not plain buttons, such as menus.
 public struct AraIconFace: View {
+    @Environment(\.araOnNotch) private var onNotch
     @Environment(\.araScale) private var ui
     let icon: AraIcon
     var look: AraButtonLook
@@ -170,7 +171,7 @@ public struct AraIconFace: View {
         } else if look == .bare || look == .bareDanger {
             Circle().fill(isHovered ? AraPalette.hoverWash : .clear)
         } else {
-            Circle().fill(AraPalette.well)
+            Circle().fill(AraPalette.well(onNotch: onNotch))
                 .overlay { Circle().fill(isHovered ? AraPalette.hoverWash : .clear) }
         }
     }
@@ -178,6 +179,7 @@ public struct AraIconFace: View {
 
 /// A button with an icon and a few words, for the rare action an icon alone cannot say.
 public struct AraPillButton: View {
+    @Environment(\.araOnNotch) private var onNotch
     @Environment(\.araScale) private var ui
     let icon: AraIcon?
     let title: String
@@ -228,7 +230,7 @@ public struct AraPillButton: View {
             Capsule().fill(AraPalette.accent(in: hue))
                 .opacity(hover.isHovered ? 0.86 : 1)
         } else {
-            Capsule().fill(AraPalette.well)
+            Capsule().fill(AraPalette.well(onNotch: onNotch))
                 .overlay { Capsule().fill(hover.isHovered ? AraPalette.hoverWash : .clear) }
         }
     }
@@ -236,6 +238,7 @@ public struct AraPillButton: View {
 
 /// One choice among a few, such as a preset: a quiet pill, filled with the page's colour when chosen.
 public struct AraChip<Label: View>: View {
+    @Environment(\.araOnNotch) private var onNotch
     @Environment(\.araScale) private var ui
     var isSelected: Bool
     let action: () -> Void
@@ -260,7 +263,7 @@ public struct AraChip<Label: View>: View {
                 .frame(height: 24 * ui)
                 .background {
                     // Where the page has no colour of its own, the chosen tag is the one orange.
-                    Capsule().fill(isSelected ? (hue.map { AraPalette.tint($0).line } ?? AraPalette.brand) : AraPalette.well)
+                    Capsule().fill(isSelected ? (hue.map { AraPalette.tint($0).line } ?? AraPalette.brand) : AraPalette.well(onNotch: onNotch))
                         .overlay { Capsule().fill(hover.isHovered && !isSelected ? AraPalette.hoverWash : .clear) }
                 }
                 .contentShape(Capsule())

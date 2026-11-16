@@ -42,6 +42,7 @@ struct AraSurfaceModifier<S: InsettableShape>: ViewModifier {
     var hue: AraHue?
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.araHue) private var surroundingHue
+    @Environment(\.araOnNotch) private var onNotch
 
     /// The palette the surface and what is on it are drawn with.
     private var scheme: ColorScheme {
@@ -59,9 +60,16 @@ struct AraSurfaceModifier<S: InsettableShape>: ViewModifier {
             .environment(\.araHue, hue ?? surroundingHue)
             .environment(\.colorScheme, scheme)
             .background {
-                shape.fill(tint?.fill ?? (level == .raised ? AraPalette.well : AraPalette.card))
-                    .environment(\.colorScheme, scheme)
-                    .allowsHitTesting(false)
+                if onNotch, tint == nil, level != .selected {
+                    // On the notch: white of a few strengths over black or glass, never a grey
+                    // of its own, so glass shows through.
+                    shape.fill(Color.white.opacity(level == .raised ? AraNotchWhite.hover : AraNotchWhite.card))
+                        .allowsHitTesting(false)
+                } else {
+                    shape.fill(tint?.fill ?? (level == .raised ? AraPalette.well : AraPalette.card))
+                        .environment(\.colorScheme, scheme)
+                        .allowsHitTesting(false)
+                }
             }
     }
 }
@@ -115,12 +123,13 @@ struct AraRoundedSurface: ViewModifier {
 
 struct AraFieldModifier: ViewModifier {
     @Environment(\.araScale) private var ui
+    @Environment(\.araOnNotch) private var onNotch
 
     func body(content: Content) -> some View {
         content
             .foregroundStyle(AraPalette.ink)
             .background {
-                Capsule().fill(AraPalette.card)
+                Capsule().fill(onNotch ? Color.white.opacity(AraNotchWhite.card) : AraPalette.card)
                     .overlay { Capsule().strokeBorder(AraPalette.line, lineWidth: AraTheme.outline * ui) }
                     .allowsHitTesting(false)
             }

@@ -19,6 +19,9 @@ public struct ShellSettingsStore {
         public static let notchSize = "shell.notchSize"
         public static let appearance = "shell.appearance"
         public static let hasSeenWelcome = "shell.hasSeenWelcome"
+        public static let material = "shell.material"
+        public static let orbitSlots = "shell.orbitSlots"
+        public static let restingChoice = "shell.restingChoice"
         /// Where the look of the clipboard panel alone used to be kept.
         static let legacyPanelAppearance = "clipboard.panelAppearance"
     }
@@ -154,6 +157,30 @@ public struct ShellSettingsStore {
     public var displayMode: DisplayMode {
         get { (defaults.object(forKey: Key.displayMode) as? String).flatMap(DisplayMode.init) ?? .all }
         nonmutating set { defaults.set(newValue.rawValue, forKey: Key.displayMode) }
+    }
+
+    /// What the open notch is laid on.
+    public var material: NotchMaterial {
+        get { (defaults.object(forKey: Key.material) as? String).flatMap(NotchMaterial.init) ?? .standard }
+        nonmutating set { defaults.set(newValue.rawValue, forKey: Key.material) }
+    }
+
+    /// The round buttons around the open notch.
+    public var orbitLayout: OrbitLayout {
+        get { OrbitLayout(stored: defaults.object(forKey: Key.orbitSlots) as? [String]) }
+        nonmutating set { defaults.set(newValue.stored, forKey: Key.orbitSlots) }
+    }
+
+    /// Which resting thing the user chose to see beside the closed notch, or two together.
+    public var restingChoice: RestingSelection {
+        get { RestingSelection(stored: defaults.object(forKey: Key.restingChoice) as? String) }
+        nonmutating set {
+            if let stored = newValue.stored {
+                defaults.set(stored, forKey: Key.restingChoice)
+            } else {
+                defaults.removeObject(forKey: Key.restingChoice)
+            }
+        }
     }
 
     private func bool(forKey key: String, default defaultValue: Bool) -> Bool {
