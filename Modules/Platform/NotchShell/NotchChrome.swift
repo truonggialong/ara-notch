@@ -247,10 +247,10 @@ private struct OrbitButton: View {
                         .overlay(Circle().strokeBorder(Color.white.opacity(isOn ? 0.6 : 0.16), lineWidth: 0.75))
                 }
                 .contentShape(Circle())
-                .scaleEffect(hover.isHovered ? 1.04 : 1)
+                .scaleEffect(hover.isHovered ? AraTheme.hoverLift : 1)
                 .animation(AraTheme.hover, value: hover.isHovered)
         }
-        .buttonStyle(AraPressStyle(depth: 0.94))
+        .buttonStyle(AraPressStyle())
         .onHover { hover.isHovered = $0 }
         .araTooltip(title, isHovered: hover.isHovered)
         .accessibilityLabel(title)
@@ -400,10 +400,10 @@ private struct ExploreTile: View {
                 }
             }
             .contentShape(Rectangle())
-            .scaleEffect(hover.isHovered ? 1.022 : 1)
+            .scaleEffect(hover.isHovered ? AraTheme.hoverLift : 1)
             .animation(AraTheme.hover, value: hover.isHovered)
         }
-        .buttonStyle(AraPressStyle(depth: 0.965))
+        .buttonStyle(AraPressStyle())
         .onHover { hover.isHovered = $0 }
         .accessibilityLabel(L10n.string(descriptor.titleKey))
     }
@@ -457,6 +457,6 @@ private struct RestingChooser: View {
             .background(Capsule().fill(isOn ? Color.white : Color.white.opacity(AraNotchWhite.card)))
             .contentShape(Capsule())
         }
-        .buttonStyle(AraPressStyle(depth: 0.965))
+        .buttonStyle(AraPressStyle())
     }
 }

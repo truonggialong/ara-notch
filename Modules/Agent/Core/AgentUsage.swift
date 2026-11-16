@@ -20,6 +20,27 @@ public struct UsageWindow: Equatable, Sendable {
     }
 }
 
+public extension UsageWindow {
+    static let fiveHourLength: TimeInterval = 5 * 3600
+    static let sevenDayLength: TimeInterval = 7 * 24 * 3600
+
+    /// How much of the window has gone by, 0…1: the use at which the limit would be reached
+    /// just as the window resets. Nil when the reset is not known.
+    func pace(length: TimeInterval, at now: Date) -> Double? {
+        guard let resetsAt, length > 0 else { return nil }
+        return min(max(1 - resetsAt.timeIntervalSince(now) / length, 0), 1)
+    }
+
+    /// How close to the limit: quiet below 80%, a warning from 80%, danger from 95%.
+    var level: UsageLevel {
+        usedPercent >= 95 ? .danger : usedPercent >= 80 ? .warning : .normal
+    }
+}
+
+public enum UsageLevel: Equatable, Sendable {
+    case normal, warning, danger
+}
+
 /// An agent's rate limits as last reported: the five-hour window and the weekly one.
 public struct AgentUsage: Equatable, Sendable {
     public var fiveHour: UsageWindow?

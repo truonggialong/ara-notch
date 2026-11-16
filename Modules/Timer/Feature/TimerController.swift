@@ -183,7 +183,7 @@ public final class TimerController {
         } trailing: {
             Text(text)
                 .font(.system(size: 12, weight: .semibold))
-                .monospacedDigit()
+                .araRollingDigits(text)
         }, id: Self.activityID)
     }
 

@@ -63,3 +63,14 @@ public enum SliderValue {
         return min(max((x - endZone) / (width - 2 * endZone), 0), 1)
     }
 }
+
+public extension SliderValue {
+    /// How much a turn of the wheel or a swipe over a slider moves it: a notch of a mouse wheel
+    /// is a twentieth; a trackpad moves it with the fingers. Up is more, whichever way the Mac
+    /// scrolls. A swipe more sideways than up or down is not for the slider: nil.
+    static func wheelStep(deltaX: Double, deltaY: Double, isPrecise: Bool, isInverted: Bool) -> Double? {
+        guard abs(deltaY) > abs(deltaX), deltaY != 0 else { return nil }
+        let up = isInverted ? -deltaY : deltaY
+        return isPrecise ? max(min(up * 0.004, 0.1), -0.1) : (up > 0 ? 0.05 : -0.05)
+    }
+}

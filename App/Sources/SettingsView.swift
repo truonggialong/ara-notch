@@ -249,6 +249,8 @@ struct GeneralSettingsSection: View {
     @ObservedObject var settings: ShellSettings
     @ObservedObject var loginItem: LoginItem
     @ObservedObject var updater: AppUpdater
+    /// Every page, for the round buttons that open one.
+    let pages: [PageDescriptor]
 
     /// "0.12.0 (24)": the version in use.
     private static var version: String {
@@ -289,19 +291,8 @@ struct GeneralSettingsSection: View {
                 AraSettingsNote(L10n.string("settings.hoverDelay.note"))
             }
             .disabled(!settings.openOnHover)
-            Picker(L10n.string("settings.notchSize"), selection: $settings.notchSize) {
-                ForEach(NotchSize.allCases, id: \.self) { size in
-                    Text(L10n.string("settings.notchSize.\(size.rawValue)")).tag(size)
-                }
-            }
-            Picker(selection: $settings.material) {
-                ForEach(NotchMaterial.allCases, id: \.self) { material in
-                    Text(L10n.string("settings.material.\(material.rawValue)")).tag(material)
-                }
-            } label: {
-                Text(L10n.string("settings.material"))
-                AraSettingsNote(L10n.string("settings.material.note"))
-            }
+            // The notch as it will look: its round buttons, its size, its background.
+            NotchLayoutEditor(settings: settings, pages: pages)
             Picker(L10n.string("settings.displayMode"), selection: $settings.displayMode) {
                 ForEach(DisplayMode.allCases, id: \.self) { mode in
                     Text(L10n.string("settings.displayMode.\(mode.rawValue)")).tag(mode)

@@ -79,7 +79,7 @@ struct AraSettingsChip: View {
             }
             .contentShape(Capsule())
         }
-        .buttonStyle(AraPressStyle(depth: 0.95))
+        .buttonStyle(AraPressStyle())
         .accessibilityAddTraits(isOn.wrappedValue ? .isSelected : [])
         .animation(AraTheme.hover, value: isOn.wrappedValue)
     }

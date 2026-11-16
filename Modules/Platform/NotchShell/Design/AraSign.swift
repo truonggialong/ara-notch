@@ -636,7 +636,7 @@ public struct AraSignBanner: View {
             .clipShape(RoundedRectangle(cornerRadius: 12 * ui, style: .continuous))
             .contentShape(RoundedRectangle(cornerRadius: 12 * ui, style: .continuous))
         }
-        .buttonStyle(AraPressStyle(depth: 0.97))
+        .buttonStyle(AraPressStyle())
         .environment(\.colorScheme, .dark)
     }
 }

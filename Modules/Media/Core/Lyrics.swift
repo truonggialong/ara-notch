@@ -42,6 +42,15 @@ public struct Lyrics: Equatable, Sendable {
         lines.last { $0.time <= position }
     }
 
+    /// How far through the line being sung the singer is, 0…1: from the line's start to the
+    /// next line's, or a few seconds for the last one. Nil before the first line.
+    public func progress(at position: TimeInterval) -> Double? {
+        guard let line = line(at: position) else { return nil }
+        let end = next(after: position)?.time ?? line.time + 4
+        guard end > line.time else { return 1 }
+        return min(max((position - line.time) / (end - line.time), 0), 1)
+    }
+
     /// The line that comes after the one being sung.
     public func next(after position: TimeInterval) -> Line? {
         lines.first { $0.time > position }

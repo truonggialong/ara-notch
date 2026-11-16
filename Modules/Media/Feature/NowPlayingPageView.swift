@@ -74,6 +74,9 @@ struct NowPlayingPageView: View {
         HStack(alignment: .center, spacing: 12 * ui) {
             artworkCard
                 .frame(width: 78 * ui, height: 78 * ui)
+                // Paused, the cover settles back a little.
+                .scaleEffect(track.isPlaying ? 1 : 0.94)
+                .animation(.spring(duration: 0.4, bounce: 0.2), value: track.isPlaying)
             VStack(alignment: .leading, spacing: 5 * ui) {
                 VStack(alignment: .leading, spacing: 2 * ui) {
                     HStack(spacing: 6 * ui) {
@@ -110,12 +113,25 @@ struct NowPlayingPageView: View {
                 }
                 // The line being sung, when the user has lyrics on and the service knows the song.
                 if let lyrics = model.lyrics {
-                    TimelineView(.periodic(from: .now, by: 0.5)) { timeline in
-                        let words = track.position(at: timeline.date).flatMap { lyrics.line(at: $0)?.text } ?? ""
-                        Text(words.isEmpty ? "♪" : words)
+                    TimelineView(.periodic(from: .now, by: 0.1)) { timeline in
+                        let position = track.position(at: timeline.date)
+                        let words = position.flatMap { lyrics.line(at: $0)?.text } ?? ""
+                        let sung = position.flatMap { lyrics.progress(at: $0) } ?? 0
+                        // Karaoke: the words light up from the left as they are sung.
+                        let text = Text(words.isEmpty ? "♪" : words)
                             .font(.system(size: 12 * ui, weight: .semibold))
-                            .foregroundStyle(AraPalette.tint(.sky).ink)
                             .lineLimit(1)
+                        text
+                            .foregroundStyle(AraPalette.ink.opacity(0.35))
+                            .overlay(alignment: .leading) {
+                                text
+                                    .foregroundStyle(lyricColor)
+                                    .mask(alignment: .leading) {
+                                        GeometryReader { area in
+                                            Rectangle().frame(width: area.size.width * (track.isPlaying ? sung : 1))
+                                        }
+                                    }
+                            }
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .id(words)
                             .transition(.opacity)
@@ -131,6 +147,24 @@ struct NowPlayingPageView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background { artworkTint }
+    }
+
+    /// The artwork's colour, stretched faintly behind the player; none for grey artwork.
+    @ViewBuilder
+    private var artworkTint: some View {
+        if let tint = model.tint {
+            RadialGradient(
+                colors: [Color(red: tint.red, green: tint.green, blue: tint.blue).opacity(0.28), .clear],
+                center: .leading, startRadius: 0, endRadius: 260 * ui)
+                .padding(-14 * ui)
+                .allowsHitTesting(false)
+                .animation(.easeInOut(duration: 0.5), value: tint)
+        }
+    }
+
+    private var lyricColor: Color {
+        model.tint.map { Color(red: $0.red, green: $0.green, blue: $0.blue) } ?? AraPalette.tint(.sky).ink
     }
 
     /// Other apps that are sending sound while the track plays, as small icons that bring
@@ -246,7 +280,7 @@ struct NowPlayingPageView: View {
         return HStack(spacing: 8 * ui) {
             Text(shown.map(NowPlaying.clock) ?? "–:––")
             if track.duration ?? 0 > 0 {
-                AraSlider(value: fraction) { model.scrubFraction = $0 } onEnded: { model.onSeek?($0) }
+                AraSlider(value: fraction, respondsToWheel: false) { model.scrubFraction = $0 } onEnded: { model.onSeek?($0) }
             } else {
                 AraProgressLine(fraction: fraction)
             }
@@ -306,7 +340,7 @@ private struct SoundingAppCard: View {
     let action: () -> Void
 
     var body: some View {
-        AraHoverLift(scale: 1.03) { isHovered in
+        AraHoverLift() { isHovered in
             Button(action: action) {
                 HStack(spacing: 10 * ui) {
                     Image(nsImage: app.icon)
@@ -325,7 +359,7 @@ private struct SoundingAppCard: View {
                 .araCard(level: isHovered ? .raised : .plate)
                 .contentShape(RoundedRectangle(cornerRadius: AraTheme.cardRadius * ui, style: .continuous))
             }
-            .buttonStyle(AraPressStyle(depth: 0.97))
+            .buttonStyle(AraPressStyle())
             .araTooltip(String(format: L10n.string("page.agents.open"), app.name), isHovered: isHovered)
         }
     }

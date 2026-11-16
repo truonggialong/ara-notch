@@ -8,7 +8,11 @@ import SwiftUI
 @MainActor
 final class MediaViewModel: ObservableObject {
     @Published var track: NowPlaying?
-    @Published var artwork: NSImage?
+    @Published var artwork: NSImage? {
+        didSet { tint = artwork.flatMap { TrackColors.from(pixels: ArtworkPixels.sample($0)) }?.first }
+    }
+    /// The artwork's strongest colour, which tints the player; nil for grey artwork or none.
+    @Published private(set) var tint: TrackColors.RGB?
     /// The timed words of the track, when lyrics are on and were found.
     @Published var lyrics: Lyrics?
     @Published var isEnabled = true

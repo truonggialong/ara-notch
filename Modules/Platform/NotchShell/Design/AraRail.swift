@@ -104,3 +104,25 @@ public struct AraRail<Item: Identifiable, Cell: View>: View {
         }
     }
 }
+
+public extension View {
+    /// Digits that do not jump: all as wide as each other, and rolling into the next reading,
+    /// down while they count down and up while they count up. With Reduce Motion they change
+    /// in place.
+    func araRollingDigits<V: Equatable>(_ value: V, countsDown: Bool = true) -> some View {
+        modifier(AraRollingDigits(value: value, countsDown: countsDown))
+    }
+}
+
+struct AraRollingDigits<V: Equatable>: ViewModifier {
+    let value: V
+    let countsDown: Bool
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func body(content: Content) -> some View {
+        content
+            .monospacedDigit()
+            .contentTransition(reduceMotion ? .identity : .numericText(countsDown: countsDown))
+            .animation(reduceMotion ? nil : .snappy(duration: 0.28), value: value)
+    }
+}

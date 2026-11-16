@@ -461,10 +461,10 @@ struct AgentPageView: View {
         HStack(spacing: 8 * ui) {
             AraLabel(name)
             if let window = usage.fiveHour?.current(at: now) {
-                usageMeter(L10n.string("page.agents.usage.fiveHour"), window, now: now)
+                usageMeter(L10n.string("page.agents.usage.fiveHour"), window, length: UsageWindow.fiveHourLength, now: now)
             }
             if let window = usage.sevenDay?.current(at: now) {
-                usageMeter(L10n.string("page.agents.usage.sevenDay"), window, now: now)
+                usageMeter(L10n.string("page.agents.usage.sevenDay"), window, length: UsageWindow.sevenDayLength, now: now)
             }
             // Both windows reset since the last report: what is used now is not known.
             if usage.fiveHour?.current(at: now) == nil, usage.sevenDay?.current(at: now) == nil {
@@ -490,16 +490,23 @@ struct AgentPageView: View {
         }
     }
 
-    private func usageMeter(_ label: String, _ window: UsageWindow, now: Date) -> some View {
-        UsageMeter(label: label, window: window, now: now)
+    private func usageMeter(_ label: String, _ window: UsageWindow, length: TimeInterval, now: Date) -> some View {
+        UsageMeter(label: label, window: window, length: length, now: now)
     }
 
     @ViewBuilder
     private var sessionList: some View {
         if model.sessions.isEmpty {
-            AraEmptyState(
-                icon: .agents,
-                title: L10n.string(model.hooksInstalled ? "page.agents.empty" : "page.agents.notInstalled"))
+            if model.hooksInstalled {
+                AraEmptyState(icon: .agents, title: L10n.string("page.agents.empty"))
+            } else {
+                AraEmptyState(
+                    icon: .agents, title: L10n.string("page.agents.notInstalled.short"),
+                    actionTitle: L10n.string("page.agents.install")
+                ) {
+                    model.onInstallHooks?()
+                }
+            }
         } else {
             ScrollView(showsIndicators: false) {
                 // Redrawn every half minute so the "… ago" times stay right.
@@ -521,13 +528,13 @@ struct AgentPageView: View {
     @ViewBuilder
     private func row(_ session: AgentSession, now: Date) -> some View {
         if let hostApp = session.hostApp {
-            AraHoverLift(scale: 1.012) { isHovered in
+            AraHoverLift() { isHovered in
                 Button {
                     model.onOpenHost?(hostApp)
                 } label: {
                     rowContent(session, now: now, isHovered: isHovered)
                 }
-                .buttonStyle(AraPressStyle(depth: 0.98))
+                .buttonStyle(AraPressStyle())
                 .araTooltip(
                     String(format: L10n.string("page.agents.open"), FileManager.default.displayName(atPath: hostApp)),
                     isHovered: isHovered)
@@ -695,19 +702,36 @@ struct UsageMeter: View {
     @Environment(\.araScale) private var ui
     let label: String
     let window: UsageWindow
+    /// The length of the window, for the mark of where use would be on pace.
+    let length: TimeInterval
     let now: Date
 
+    /// The bar in the page's colour, orange from 80% and red from 95%, with a green mark at
+    /// the use that would reach the limit just as the window resets: a bar past the mark is
+    /// running ahead of the limit.
     var body: some View {
         let fraction = min(max(window.usedPercent / 100, 0), 1)
-        let color = window.usedPercent >= 90 ? AraPalette.danger : window.usedPercent >= 70 ? AraPalette.warning : AraPalette.value
+        let color: Color = switch window.level {
+        case .normal: AraPalette.tint(.lilac).line
+        case .warning: AraPalette.brand
+        case .danger: AraPalette.danger
+        }
+        let width = 40 * ui
         HStack(spacing: 4 * ui) {
             Text(label)
                 .foregroundStyle(AraPalette.ink.opacity(0.55))
             ZStack(alignment: .leading) {
                 Capsule().fill(AraPalette.track)
-                Capsule().fill(color).frame(width: 34 * fraction)
+                Capsule().fill(color).frame(width: max(5 * ui, width * fraction))
+                if let pace = window.pace(length: length, at: now) {
+                    Capsule()
+                        .fill(Color(red: 0.36, green: 0.86, blue: 0.62))
+                        .frame(width: 2 * ui, height: 9 * ui)
+                        .offset(x: min(max(width * pace - 1 * ui, 0), width - 2 * ui))
+                }
             }
-            .frame(width: 34 * ui, height: 4 * ui)
+            .frame(width: width, height: 5 * ui)
+            .animation(.easeOut(duration: 0.3), value: window.usedPercent)
             Text("\(Int(window.usedPercent.rounded()))%")
                 .monospacedDigit()
         }

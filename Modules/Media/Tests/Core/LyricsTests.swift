@@ -3,6 +3,14 @@ import Testing
 @testable import MediaCore
 
 @Suite struct LyricsTests {
+    @Test func theSungShareRunsFromALineToTheNext() {
+        let lyrics = Lyrics(synced: "[00:10.00] one\n[00:20.00] two")
+        #expect(lyrics.progress(at: 5) == nil)
+        #expect(lyrics.progress(at: 15) == 0.5)
+        #expect(lyrics.progress(at: 22) == 0.5)
+        #expect(lyrics.progress(at: 40) == 1)
+    }
+
     private let sample = """
     [ti:Blinding Lights]
     [00:13.50] Yeah

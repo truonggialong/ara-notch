@@ -191,8 +191,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let settingsWindow = SettingsWindowController(tabs: [
             SettingsTab(
                 id: "general", titleKey: "settings.section.general", symbolName: "gearshape",
-                searchPrefixes: ["settings.permissions", "welcome.permission.", "settings.openGesture", "settings.hoverDelay", "settings.notchSize", "settings.displayMode", "settings.pillStyle", "settings.hidesInFullScreen", "settings.appearance", "settings.language", "settings.launchAtLogin", "settings.updates", "update."],
-                content: AnyView(GeneralSettingsSection(settings: shellSettings, loginItem: LoginItem(), updater: updater))),
+                searchPrefixes: ["settings.permissions", "welcome.permission.", "settings.openGesture", "settings.hoverDelay", "settings.notchSize", "settings.material", "settings.layout", "settings.displayMode", "settings.pillStyle", "settings.hidesInFullScreen", "settings.appearance", "settings.language", "settings.launchAtLogin", "settings.updates", "update."],
+                content: AnyView(GeneralSettingsSection(settings: shellSettings, loginItem: LoginItem(), updater: updater, pages: controller.allPages))),
             SettingsTab(
                 id: "pages", titleKey: "settings.section.pages", symbolName: "square.grid.2x2",
                 searchPrefixes: ["settings.pages", "settings.overview", "settings.media.enabled", "settings.media.lyrics", "settings.calendar.lunar", "settings.notes.defaultFolder", "settings.notes.automation", "settings.notes.fullDisk", "settings.notes.permission"],

@@ -58,3 +58,4 @@ Mỗi dòng: ngày — lỗi hoặc thay đổi — test đã thêm — commit.
 
 - 2026-10-26 — tái cấu trúc theo module (nhánh `refactor/feature-modules`): tách từ `App/Sources/Pages.swift`; thêm `ToolsController` và bộ test đầu tiên.
 - 2026-11-16 — tám nút xếp bằng `AraRail`: hàng đều, hàng cuối ở giữa, cuộn ngang khi notch thấp — thử tay bằng ảnh chụp.
+- 2026-11-16 — nút tròn 40 pt có nhãn hai dòng, một màu; màu chỉ cho trạng thái đang bật (`NotchToolState`: đỏ, vàng, cam) kèm số thay biểu tượng (`ToolsController.setState(_:forTool:)`); cỡ trang 480 × 200 (D4) — thử tay bằng ảnh chụp.

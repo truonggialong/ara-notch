@@ -38,4 +38,12 @@ import Testing
         #expect(SliderValue.fraction(at: 50, width: 100, endZone: 6) == 0.5)
         #expect(SliderValue.fraction(at: 5, width: 10, endZone: 6) == 0.5)
     }
+
+    @Test func theWheelMovesASliderByATwentiethAndSidewaysSwipesLeaveIt() {
+        #expect(SliderValue.wheelStep(deltaX: 0, deltaY: 1, isPrecise: false, isInverted: false) == 0.05)
+        #expect(SliderValue.wheelStep(deltaX: 0, deltaY: 3, isPrecise: false, isInverted: true) == -0.05)
+        #expect(SliderValue.wheelStep(deltaX: 8, deltaY: 2, isPrecise: true, isInverted: false) == nil)
+        #expect(SliderValue.wheelStep(deltaX: 0, deltaY: 0, isPrecise: true, isInverted: false) == nil)
+        #expect(SliderValue.wheelStep(deltaX: 0, deltaY: 500, isPrecise: true, isInverted: false) == 0.1)
+    }
 }

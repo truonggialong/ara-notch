@@ -160,7 +160,7 @@ struct LibraryView: View {
             .araRow(isSelected: isSelected)
             .contentShape(Rectangle())
         }
-        .buttonStyle(AraPressStyle(depth: 0.97))
+        .buttonStyle(AraPressStyle())
     }
 
     /// A kind of clip is listed in that kind's colour; everything else in the window's.

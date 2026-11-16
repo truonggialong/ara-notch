@@ -90,3 +90,4 @@ Mỗi dòng: ngày — lỗi hoặc thay đổi — test đã thêm — commit.
 
 - 2026-10-27 — macOS hỏi mật khẩu máy mỗi khi có bản dựng mới, và lặp lại mỗi 5 phút nếu bấm Từ chối: đọc đăng nhập Claude qua `/usr/bin/security` thay cho `SecItemCopyMatching` — `ClaudeAccountReaderTests` — nhánh `fix/keychain-prompts`.
 - 2026-10-26 — tái cấu trúc theo module (nhánh `refactor/feature-modules`): widget dùng `WidgetSize`, `WidgetAlert`.
+- 2026-11-16 — thanh hạn mức màu tím của trang, cam từ 80%, đỏ từ 95%, có vạch xanh ở mức dùng vừa đủ tới lúc đặt lại (`UsageWindow.pace(length:at:)`, `level`); trang trống khi chưa cài hook có nút "Cài hook" (D10, D8) — `AgentUsageTests`.

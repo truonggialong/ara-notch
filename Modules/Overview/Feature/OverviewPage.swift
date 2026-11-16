@@ -232,7 +232,7 @@ private struct AddTileButton: View {
             }
             .contentShape(Rectangle())
         }
-        .buttonStyle(AraPressStyle(depth: 0.97))
+        .buttonStyle(AraPressStyle())
         .onHover { hover.isHovered = $0 }
     }
 }

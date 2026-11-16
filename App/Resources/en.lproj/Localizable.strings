@@ -972,3 +972,8 @@
 "settings.material.black" = "Black";
 "settings.material.glass" = "Dark glass";
 "settings.material.liquid" = "Liquid Glass";
+"page.agents.notInstalled.short" = "Not following Claude Code sessions yet";
+"page.agents.install" = "Install hooks";
+"settings.layout.hint" = "Drag a button to another place to move it. Click + to add one; click a button to change or remove it.";
+"settings.layout.remove" = "Remove this button";
+"settings.layout.add" = "Add a button";
