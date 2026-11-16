@@ -196,6 +196,8 @@ public final class MediaController {
             }
             return true
         }
+        // Music opens small: the cover, the title and the controls.
+        page.sheetSize = CGSize(width: 320, height: 138)
         return page
     }
 
@@ -259,6 +261,7 @@ public final class MediaController {
             lyricsKey = nil
             if viewModel.lyrics != nil {
                 viewModel.lyrics = nil
+                notch.setSheetHeight(nil, forPage: "media")
             }
             return
         }
@@ -267,6 +270,7 @@ public final class MediaController {
         lyricsKey = key
         lyricsTask?.cancel()
         viewModel.lyrics = nil
+        notch.setSheetHeight(nil, forPage: "media")
         guard let request = LyricsService.request(
             title: track.title, artist: track.artist, album: track.album, duration: track.duration)
         else { return }
@@ -277,6 +281,8 @@ public final class MediaController {
             let lyrics = LyricsService.lyrics(from: data)
             guard let self, self.lyricsKey == key else { return }
             self.viewModel.lyrics = lyrics
+            // The line being sung needs a row of its own: the page grows a little for it.
+            self.notch.setSheetHeight(lyrics == nil ? nil : 156, forPage: "media")
         }
     }
 

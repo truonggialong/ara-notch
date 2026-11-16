@@ -98,6 +98,8 @@ public final class TimerController {
             }
             return true
         }
+        // The dial keeps the usual height; the row beside it needs less than the usual width.
+        page.sheetSize = CGSize(width: 480, height: 200)
         return page
     }
 

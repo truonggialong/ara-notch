@@ -232,11 +232,14 @@ public final class CalendarController {
 
 
     public func makePage() -> NotchPage {
-        NotchPage(
+        var page = NotchPage(
             id: "calendar", titleKey: "page.calendar.title", symbolName: "calendar", hue: .mustard
         ) { [viewModel, settings] in
             CalendarPageView(model: viewModel, settings: settings)
         }
+        // The month and the day side by side; taller when the day asks for it.
+        page.sheetSize = CGSize(width: 544, height: 240)
+        return page
     }
 
     /// The meeting notice, for Settings › Notices.

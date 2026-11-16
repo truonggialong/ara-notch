@@ -1,3 +1,4 @@
+import NotchCore
 import AppKit
 import SwiftUI
 
@@ -383,7 +384,9 @@ public struct AraSlider: View {
         .onHover { hover.isHovered = $0 }
     }
 
+    /// The value under the pointer. The last few points at each end count as the end, so
+    /// a slider reaches nothing and everything without the pointer having to hit its edge.
     private static func fraction(at x: CGFloat, width: CGFloat) -> Double {
-        width > 0 ? Double(min(max(x / width, 0), 1)) : 0
+        SliderValue.fraction(at: Double(x), width: Double(width), endZone: 6)
     }
 }

@@ -153,6 +153,10 @@ struct NotchRootView: View {
 
     private static let touchSwell = CGSize(width: 6, height: 3)
 
+    static let wingSwap = AnyTransition.asymmetric(
+        insertion: .opacity.animation(.easeOut(duration: 0.14).delay(0.12)),
+        removal: .opacity.animation(.easeIn(duration: 0.1)))
+
     /// How the notch grows into a notice and back.
     static let noticeMotion = Animation.timingCurve(0.22, 0.8, 0.3, 1, duration: 0.3)
     /// What is on a notice fades before the plate shrinks back.
@@ -233,7 +237,9 @@ struct NotchRootView: View {
             .environment(\.notchActivityIsHovered, model.isActivityHovered)
             .foregroundStyle(AraPalette.ink)
             .lineLimit(1)
-            .transition(.opacity)
+            // Through black: what leaves is gone in the first half, what comes arrives in
+            // the second, so two texts never show over each other in the same place.
+            .transition(Self.wingSwap)
             .id(activity.request.id + (model.companion?.request.id ?? ""))
         }
     }
@@ -350,8 +356,10 @@ struct NotchRootView: View {
                 } else if let leading = page?.bandLeading {
                     leading()
                 } else if let page {
+                    // A narrow page keeps only its icon here: its name cut short reads worse.
                     bandTitle(
-                        symbol: page.descriptor.symbolName, title: L10n.string(page.descriptor.titleKey), hue: page.hue,
+                        symbol: page.descriptor.symbolName,
+                        title: side >= 100 * grow ? L10n.string(page.descriptor.titleKey) : nil, hue: page.hue,
                         glyph: AraGlyph(pageID: page.id))
                 }
                 Spacer(minLength: 0)
@@ -376,7 +384,7 @@ struct NotchRootView: View {
         .environment(\.araScale, grow)
     }
 
-    private func bandTitle(symbol: String, title: String, hue: AraHue?, glyph: AraGlyph?) -> some View {
+    private func bandTitle(symbol: String, title: String?, hue: AraHue?, glyph: AraGlyph?) -> some View {
         let grow = model.edgeScale
         return HStack(spacing: 6 * grow) {
             Group {
@@ -387,10 +395,12 @@ struct NotchRootView: View {
                 }
             }
             .foregroundStyle(hue.map { AraPalette.tint($0).line } ?? AraPalette.ink.opacity(0.8))
-            Text(title)
-                .font(.system(size: 12 * grow, weight: .medium))
-                .foregroundStyle(AraPalette.ink.opacity(0.62))
-                .lineLimit(1)
+            if let title {
+                Text(title)
+                    .font(.system(size: 12 * grow, weight: .medium))
+                    .foregroundStyle(AraPalette.ink.opacity(0.62))
+                    .lineLimit(1)
+            }
         }
     }
 

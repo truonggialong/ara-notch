@@ -167,6 +167,110 @@ public struct AraSign {
     }
 }
 
+// MARK: - One line beside the notch
+
+extension AraSign {
+    /// What a notice with nothing to ask says in one line beside the closed notch: on the left
+    /// its icon and who speaks (or the row's name, when the row has a line under it), on the
+    /// right what happened. Nil for a notice that keeps the full sign: one that warns, wants
+    /// the user, or says more than one thing.
+    struct Brief: Equatable {
+        var left: String
+        var right: String
+        var level: Double?
+        var badge: Badge?
+        /// The room on each side of the notch, in the layout's points.
+        var sideWidth: CGFloat
+    }
+
+    static let briefMaxText: CGFloat = 110
+    static let briefLevelWidth: CGFloat = 44
+
+    var brief: Brief? {
+        guard NoticeForm.choose(
+            warns: tone == .attention || tone == .danger, hasTitle: title != nil, rows: rows.count, offersAction: false
+        ) == .line else { return nil }
+        let row = rows.first
+        var left = mark
+        var right = row?.label ?? ""
+        if let row, let detail = row.detail, !detail.isEmpty {
+            left = row.label
+            right = detail
+        }
+        func measure(_ text: String) -> CGFloat {
+            guard !text.isEmpty else { return 0 }
+            let font = NSFont.systemFont(ofSize: 12, weight: .semibold)
+            return min(ceil((text as NSString).size(withAttributes: [.font: font]).width), Self.briefMaxText)
+        }
+        let leftWidth = Self.iconWidth + 6 + measure(left)
+        var rightWidth = measure(right)
+        if row?.level != nil { rightWidth += (rightWidth > 0 ? 6 : 0) + Self.briefLevelWidth }
+        if let badge = row?.badge { rightWidth += (rightWidth > 0 ? 6 : 0) + Self.badgeWidth(badge) }
+        let side = min(max(leftWidth, rightWidth) + 2 * ActivityWings.padding + 4, 150)
+        return Brief(left: left, right: right, level: row?.level, badge: row?.badge, sideWidth: side.rounded(.up))
+    }
+}
+
+/// The left of a one-line notice: its icon and who speaks.
+struct AraBriefSide: View {
+    let icon: AraSign.Icon
+    let text: String
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Group {
+                switch icon {
+                case .symbol(let name):
+                    Image(systemName: name).font(.system(size: 12, weight: .semibold))
+                case .image(let image):
+                    Image(nsImage: image).resizable().scaledToFill()
+                        .frame(width: 16, height: 16)
+                        .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
+                }
+            }
+            .frame(width: AraSign.iconWidth)
+            Text(text)
+                .font(.system(size: 12, weight: .semibold))
+                .lineLimit(1)
+        }
+        .foregroundStyle(AraPalette.ink)
+    }
+}
+
+/// The right of a one-line notice: what happened, a level, a value.
+struct AraBriefValue: View {
+    let text: String
+    let level: Double?
+    let badge: AraSign.Badge?
+
+    var body: some View {
+        HStack(spacing: 6) {
+            if !text.isEmpty {
+                Text(text)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(AraPalette.ink.opacity(0.85))
+                    .lineLimit(1)
+            }
+            if let level {
+                ZStack(alignment: .leading) {
+                    Capsule().fill(AraPalette.track)
+                    Capsule().fill(AraPalette.ink).frame(width: AraSign.briefLevelWidth * min(max(level, 0), 1))
+                }
+                .frame(width: AraSign.briefLevelWidth, height: 5)
+            }
+            switch badge {
+            case .digits(let value), .disc(let value):
+                Text(value)
+                    .font(.system(size: 12, weight: .semibold))
+                    .monospacedDigit()
+                    .foregroundStyle(AraPalette.ink)
+            case nil:
+                EmptyView()
+            }
+        }
+    }
+}
+
 public extension NotchLiveActivity {
     /// A notice shown as a sign that the closed notch grows into for a while.
     /// - Parameters:
@@ -177,6 +281,16 @@ public extension NotchLiveActivity {
         id: String, priority: Int, duration: TimeInterval, pageID: String? = nil, sign: AraSign,
         onClick: (@MainActor () -> Void)? = nil
     ) {
+        if onClick == nil, let brief = sign.brief {
+            // News that asks nothing of the user is said in one line beside the notch.
+            self.init(id: id, priority: priority, duration: duration, pageID: pageID) {
+                AraBriefSide(icon: sign.icon, text: brief.left)
+            } trailing: {
+                AraBriefValue(text: brief.right, level: brief.level, badge: brief.badge)
+            }
+            sideWidth = brief.sideWidth
+            return
+        }
         var sign = sign
         sign.leadsSomewhere = pageID != nil || onClick != nil
         let shown = sign

@@ -62,3 +62,4 @@ Không cần quyền.
 Mỗi dòng: ngày — lỗi hoặc thay đổi — test đã thêm — commit.
 
 - Chưa có.
+- 2026-11-16 — hàng tệp mờ ở mép còn nội dung — thử tay bằng ảnh chụp.

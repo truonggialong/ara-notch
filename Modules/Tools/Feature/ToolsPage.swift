@@ -8,13 +8,10 @@ struct ToolsPage: View {
     let tools: [NotchTool]
 
     var body: some View {
-        let columns = Array(repeating: GridItem(.flexible(), spacing: 8 * ui), count: 4)
-        LazyVGrid(columns: columns, spacing: 8 * ui) {
-            ForEach(tools) { tool in
-                ToolTile(tool: tool)
-            }
+        // Rows across the page while they fit, else sideways (`AraRail`).
+        AraRail(tools, itemSize: CGSize(width: 104, height: 66)) { tool in
+            ToolTile(tool: tool)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 

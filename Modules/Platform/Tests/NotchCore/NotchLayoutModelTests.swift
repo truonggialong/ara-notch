@@ -139,4 +139,12 @@ import Testing
         #expect(window.maxY == open.maxY)
         #expect(window.midX == open.midX)
     }
+
+    @Test func onlyQuietNewsBecomesOneLine() {
+        #expect(NoticeForm.choose(warns: false, hasTitle: false, rows: 1, offersAction: false) == .line)
+        #expect(NoticeForm.choose(warns: true, hasTitle: false, rows: 1, offersAction: false) == .sign)
+        #expect(NoticeForm.choose(warns: false, hasTitle: true, rows: 0, offersAction: false) == .sign)
+        #expect(NoticeForm.choose(warns: false, hasTitle: false, rows: 2, offersAction: false) == .sign)
+        #expect(NoticeForm.choose(warns: false, hasTitle: false, rows: 1, offersAction: true) == .sign)
+    }
 }

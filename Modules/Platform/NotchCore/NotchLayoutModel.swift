@@ -298,3 +298,15 @@ public enum ExploreKeys {
         }
     }
 }
+
+/// How a notice is shown: in one line beside the closed notch, or as the full sign that drops
+/// out of it. The sign is kept for news that warns, wants the user, offers something to do,
+/// or says more than one thing.
+public enum NoticeForm: Equatable, Sendable {
+    case line
+    case sign
+
+    public static func choose(warns: Bool, hasTitle: Bool, rows: Int, offersAction: Bool) -> NoticeForm {
+        warns || hasTitle || rows > 1 || offersAction ? .sign : .line
+    }
+}

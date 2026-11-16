@@ -255,6 +255,7 @@ public final class NotchController {
 
         pointer.onMove = { [weak self] point in self?.pointerMoved(to: point) }
         pointer.onClick = { [weak self] point in self?.clicked(at: point) }
+        pointer.onRelease = { [weak self] point in self?.released(at: point) }
         pointer.onScroll = { [weak self] event in self?.scrolled(event) }
         viewModel.onTogglePin = { [weak self] in self?.togglePin() }
         viewModel.onClose = { [weak self] in self?.send(.forceClose) }
@@ -993,13 +994,14 @@ public final class NotchController {
         guard !isHiddenByUser else { return }
         // The activity's own views answer clicks on its part of the notch.
         if activityOwnsPointer(at: point) { return }
-        // A click on a notice that takes something back does that, and the notice goes.
-        if !stateMachine.isPresented, let activity = viewModel.activity, let action = activity.onClick,
+        // A click on a notice that takes something back does that, and the notice goes: when
+        // the button comes up, and only if the same notice is still there, so a notice that
+        // changed under a press does not act on the one that replaced it.
+        pendingNoticeClick = nil
+        if !stateMachine.isPresented, let activity = viewModel.activity, activity.onClick != nil,
            let area = activityClickArea {
             if area.contains(point) {
-                AraHaptics.play(.tap)
-                dismissActivity(id: activity.request.id)
-                action()
+                pendingNoticeClick = activity.request.id
                 return
             }
         }
@@ -1012,6 +1014,21 @@ public final class NotchController {
             }
         }
         send(.clicked(inside: isInside(point)))
+    }
+
+    /// The notice pressed on, acted on when the button comes up over it.
+    private var pendingNoticeClick: String?
+
+    private func released(at point: CGPoint) {
+        guard let id = pendingNoticeClick else { return }
+        pendingNoticeClick = nil
+        guard NoticeClick.acts(pressedID: id, shownID: viewModel.activity?.request.id,
+                               releasedInside: activityClickArea?.contains(point) ?? false),
+              let activity = viewModel.activity, let action = activity.onClick
+        else { return }
+        AraHaptics.play(.tap)
+        dismissActivity(id: activity.request.id)
+        action()
     }
 
     /// Where what shows on the closed notch is clicked, on the screen; nil when nothing shows.

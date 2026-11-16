@@ -94,3 +94,4 @@ Lịch và Lời nhắc (chỉ hỏi từ trang Lịch).
 Mỗi dòng: ngày — lỗi hoặc thay đổi — test đã thêm — commit.
 
 - 2026-10-26 — tái cấu trúc theo module (nhánh `refactor/feature-modules`): widget dùng `WidgetSize`.
+- 2026-11-16 — cỡ riêng 544 × 240 (vẫn cao thêm theo ngày); danh sách giờ mờ ở mép — thử tay bằng ảnh chụp.

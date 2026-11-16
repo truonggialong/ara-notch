@@ -255,25 +255,11 @@ public struct AraEmptyState: View {
 }
 
 public extension View {
-    /// Fades the last few points of a list that scrolls up and down, so a row cut off by the
-    /// edge reads as "there is more" and not as a drawing mistake.
+    /// Fades a list that scrolls up and down at an end with more beyond it, so a row cut off
+    /// by the edge reads as "there is more" and not as a drawing mistake. At rest at the top
+    /// the top stays sharp, and at the bottom the last row stays clear (`ScrollEdges`).
     func araScrollFade(length: CGFloat = 14) -> some View {
-        modifier(AraScrollFadeModifier(length: length))
-    }
-}
-
-struct AraScrollFadeModifier: ViewModifier {
-    @Environment(\.araScale) private var ui
-    let length: CGFloat
-
-    func body(content: Content) -> some View {
-        content.mask {
-            VStack(spacing: 0 * ui) {
-                Rectangle()
-                LinearGradient(colors: [.black, .clear], startPoint: .top, endPoint: .bottom)
-                    .frame(height: length * ui)
-            }
-        }
+        araScrollEdgeFade(.vertical, length: length)
     }
 }
 

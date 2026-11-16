@@ -369,6 +369,7 @@ struct FilesPageView: View {
             }
             .padding(.vertical, 1 * ui)
         }
+        .araScrollEdgeFade(.horizontal, length: 12)
     }
 
     /// Every action is an icon; its name is in its tooltip.

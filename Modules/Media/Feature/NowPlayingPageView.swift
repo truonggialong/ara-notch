@@ -68,16 +68,18 @@ struct NowPlayingPageView: View {
         AraEmptyState(icon: .music, title: L10n.string(key))
     }
 
+    /// The player on its small sheet: the cover on the left, and beside it the title, who
+    /// plays it, the line being sung, the progress and the controls.
     private func player(_ track: NowPlaying) -> some View {
-        HStack(spacing: 18 * ui) {
-            artworkStack
-                .frame(width: 150 * ui)
-            VStack(alignment: .leading, spacing: 7 * ui) {
+        HStack(alignment: .center, spacing: 12 * ui) {
+            artworkCard
+                .frame(width: 78 * ui, height: 78 * ui)
+            VStack(alignment: .leading, spacing: 5 * ui) {
                 VStack(alignment: .leading, spacing: 2 * ui) {
                     HStack(spacing: 6 * ui) {
                         // Something with no name of its own is called after the app playing it.
                         Text(track.title.isEmpty ? (model.sourceApp?.name ?? L10n.string("page.media.untitled")) : track.title)
-                            .font(AraType.display(16 * ui))
+                            .font(AraType.display(15 * ui))
                             .lineLimit(1)
                         if track.isPlaying {
                             PlayingBarsView()
@@ -128,7 +130,6 @@ struct NowPlayingPageView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .padding(.horizontal, 6 * ui)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
@@ -180,7 +181,7 @@ struct NowPlayingPageView: View {
                 .foregroundStyle(AraTheme.secondaryText)
                 .frame(width: 18 * ui)
             AraSlider(value: Double(volume)) { model.onSetVolume?(Float($0)) }
-                .frame(width: 84 * ui)
+                .frame(minWidth: 36 * ui, maxWidth: 84 * ui)
                 .accessibilityLabel(L10n.string("page.media.volume"))
         }
     }
@@ -259,7 +260,7 @@ struct NowPlayingPageView: View {
 
     /// One outlined bar: the three playback buttons, the volume, and at its end where the sound goes.
     private func controls(_ track: NowPlaying) -> some View {
-        HStack(spacing: 6 * ui) {
+        HStack(spacing: 4 * ui) {
             AraIconButton(.previous, look: .bare) { model.onCommand?(.previousTrack) }
             AraIconButton(track.isPlaying ? .pause : .play, look: .accent, size: .regular) {
                 model.onCommand?(.togglePlayPause)
@@ -269,8 +270,8 @@ struct NowPlayingPageView: View {
             volumeSlider
             outputMenu(look: .bare)
         }
-        .padding(.horizontal, 8 * ui)
-        .frame(height: 42 * ui)
+        .padding(.horizontal, 6 * ui)
+        .frame(height: 36 * ui)
         .araSurface(Capsule())
     }
 }

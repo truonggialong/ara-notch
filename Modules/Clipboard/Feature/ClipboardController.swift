@@ -271,6 +271,8 @@ public final class ClipboardController {
         }
         // The row of clips and the row of chips both run sideways.
         page.wheelScrollsSideways = true
+        // A row of cards, lower and narrower than the usual sheet.
+        page.sheetSize = CGSize(width: 512, height: 171)
         return page
     }
 

@@ -7,6 +7,8 @@ final class PointerMonitor {
     /// Pointer location in global screen coordinates (bottom-left origin).
     var onMove: ((CGPoint) -> Void)?
     var onClick: ((CGPoint) -> Void)?
+    /// The button came up, wherever the press began.
+    var onRelease: ((CGPoint) -> Void)?
     /// The pointer moved with the button held, carrying files (a drag out of Finder, say).
     var onFileDrag: ((CGPoint) -> Void)?
     /// Scroll events anywhere on screen; `event.window` is set only for this app's own windows.
@@ -21,7 +23,7 @@ final class PointerMonitor {
 
     func start() {
         guard monitors.isEmpty else { return }
-        let pointerEvents: NSEvent.EventTypeMask = [.mouseMoved, .leftMouseDragged, .leftMouseDown]
+        let pointerEvents: NSEvent.EventTypeMask = [.mouseMoved, .leftMouseDragged, .leftMouseDown, .leftMouseUp]
 
         // Scrolling is watched everywhere too: a swipe on the closed notch lands on whatever is under it.
         let global = NSEvent.addGlobalMonitorForEvents(matching: pointerEvents.union(.scrollWheel)) { [weak self] event in
@@ -77,6 +79,8 @@ final class PointerMonitor {
             dragChangeCount = NSPasteboard(name: .drag).changeCount
             onClick?(NSEvent.mouseLocation)
             followHeldButton()
+        case .leftMouseUp:
+            onRelease?(NSEvent.mouseLocation)
         case .scrollWheel:
             onScroll?(event)
         default:
