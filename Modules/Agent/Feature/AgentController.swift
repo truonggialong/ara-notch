@@ -100,6 +100,8 @@ public final class AgentController {
     private var hasReadRunningSessions = false
     private var sessionCheck: Timer?
     private var isCheckingSessions = false
+    /// When the process list was last read; it is read only now and then (`AgentPacing`).
+    private var lastProcessRead: Date?
     private let claudeProjects: URL
     /// What turns took from each agent's five-hour limit, for estimating the next one.
     private var claudeCosts: TurnCostLedger
@@ -129,7 +131,7 @@ public final class AgentController {
         spool.onTick = { [weak self] in self?.readClaudeUsage() }
         account.onUsage = { [weak self] usage in self?.takeClaudeUsage(usage) }
         account.onState = { [weak self] state in self?.viewModel.claudeAccountState = state }
-        codex.onEvents = { [weak self] events in self?.applyCodex(events) }
+        codex.onEvents = { [weak self] events, isHistory in self?.applyCodex(events, isHistory: isHistory) }
         viewModel.onInstallStatusLine = { [weak self] in self?.installStatusLine() }
         viewModel.onRemoveStatusLine = { [weak self] in self?.removeStatusLine() }
         spool.onEvents = { [weak self] events in self?.apply(events) }
@@ -160,6 +162,12 @@ public final class AgentController {
         checkSessions()
         settings.$readsClaudeAccount
             .sink { [weak self] isOn in isOn ? self?.account.start() : self?.account.stop() }
+            .store(in: &cancellables)
+        // The limits are asked for oftener while the agent page is on screen.
+        notch.isOpenPublisher.combineLatest(notch.selectedPagePublisher)
+            .map { isOpen, page in isOpen && page == "agents" }
+            .removeDuplicates()
+            .sink { [weak self] shown in self?.account.setPageShown(shown) }
             .store(in: &cancellables)
         announcesEvents = true
     }
@@ -223,7 +231,7 @@ public final class AgentController {
         }
     }
 
-    private func applyCodex(_ events: [(sessionID: String, event: CodexRolloutEvent)]) {
+    private func applyCodex(_ events: [(sessionID: String, event: CodexRolloutEvent)], isHistory: Bool) {
         var agentEvents: [AgentEvent] = []
         for (sessionID, event) in events {
             if case .usage(let usage) = event {
@@ -235,7 +243,7 @@ public final class AgentController {
                 agentEvents.append(agentEvent)
             }
         }
-        apply(agentEvents)
+        apply(agentEvents, isHistory: isHistory)
     }
 
     /// What the app currently knows, as text; for automated checks.
@@ -303,13 +311,15 @@ public final class AgentController {
         viewModel.hooksInstalled = hooks.isInstalled
     }
 
-    private func apply(_ events: [AgentEvent]) {
+    /// - Parameter isHistory: events that happened before they were read, as Codex logs found
+    ///   on disk: they set the list but are neither announced nor measured.
+    private func apply(_ events: [AgentEvent], isHistory: Bool = false) {
         // The limits as they stand now: a turn is measured against them as it begins and ends.
         readClaudeUsage()
         for event in events {
             let announcement = sessions.apply(event)
             // Events already on file at launch are history: neither announced nor measured.
-            guard announcesEvents else { continue }
+            guard announcesEvents, !isHistory else { continue }
             let isCodex = event.sessionID.hasPrefix("codex:")
             if event.kind == .sessionEnd {
                 forgetTurn(of: event.sessionID, isCodex: isCodex)
@@ -348,17 +358,27 @@ public final class AgentController {
     private static let quietTurnLimit: TimeInterval = 30 * 60
 
     /// Claude Code says nothing when the user stops a turn, and nothing when a session it
-    /// still has open has been quiet for days. Every 20 seconds: which sessions a running
-    /// Claude Code has open, and whether the quiet turns were stopped, read from the end of
-    /// their transcripts.
+    /// still has open has been quiet for days. Every 20 seconds, whether the quiet turns were
+    /// stopped, read from the end of their transcripts; and now and then which sessions a
+    /// running Claude Code has open (`AgentPacing.readsProcessList`). With no Claude session
+    /// on the page, nothing is read at all.
     private func checkSessions() {
         guard !isCheckingSessions else { return }
+        let now = Date()
+        let quiet = now.addingTimeInterval(-Self.sessionCheckInterval)
+        let claude = sessions.list.filter { !$0.isCodex }
+        let candidates = claude.filter { $0.isMidTurn && $0.lastActivity < quiet }.map(\.id)
+        let readsProcesses = AgentPacing.readsProcessList(claudeSessions: claude.count, lastRead: lastProcessRead, now: now)
+        guard readsProcesses || !candidates.isEmpty else {
+            // No Claude session to keep: none is running that the list must hold on to.
+            finishCheck(running: claude.isEmpty ? [] : nil, stopped: [])
+            return
+        }
         isCheckingSessions = true
-        let quiet = Date().addingTimeInterval(-Self.sessionCheckInterval)
-        let candidates = sessions.list.filter { !$0.isCodex && $0.isMidTurn && $0.lastActivity < quiet }.map(\.id)
+        if readsProcesses { lastProcessRead = now }
         let projects = claudeProjects
         Task.detached(priority: .utility) {
-            let running = ClaudeSessionProbe.runningSessionIDs()
+            let running = readsProcesses ? ClaudeSessionProbe.runningSessionIDs() : nil
             let stopped = candidates.filter { ClaudeSessionProbe.wasInterrupted(sessionID: $0, projects: projects) }
             await MainActor.run { [weak self] in self?.finishCheck(running: running, stopped: stopped) }
         }

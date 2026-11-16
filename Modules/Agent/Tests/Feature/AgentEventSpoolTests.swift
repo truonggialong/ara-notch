@@ -7,6 +7,33 @@ private func line(_ index: Int) -> String {
 }
 
 @Suite @MainActor struct AgentEventSpoolTests {
+    @Test func aLineTheHookAppendsIsReadAsSoonAsTheSystemSaysSo() async throws {
+        // No more looking at the file every second: the system says when the hook closed it.
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("spool-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let file = folder.appendingPathComponent("events.jsonl")
+        let spool = AgentEventSpool(file: file)
+        var received = 0
+        spool.onEvents = { received += $0.count }
+        spool.start()
+        defer { spool.stop() }
+        // The folder is made by the spool, so it can be watched before the hook first writes.
+        #expect(FileManager.default.fileExists(atPath: folder.path))
+
+        try await Task.sleep(nanoseconds: 300_000_000)
+        let descriptor = open(file.path, O_WRONLY | O_APPEND | O_CREAT, 0o600)
+        let bytes = Array(line(0).utf8)
+        _ = bytes.withUnsafeBufferPointer { write(descriptor, $0.baseAddress, $0.count) }
+        close(descriptor)
+
+        let end = Date().addingTimeInterval(5)
+        while received == 0, Date() < end {
+            try await Task.sleep(nanoseconds: 50_000_000)
+        }
+        // Well before the slow 30-second look.
+        #expect(received == 1)
+    }
+
     @Test func aFileThatGrowsWhileTheAppRunsIsCutDownToItsNewestLines() throws {
         // The hook appends a line for every tool an agent uses; with the app running for days
         // the file used to grow until the next launch.

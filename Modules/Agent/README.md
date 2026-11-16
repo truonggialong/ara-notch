@@ -38,6 +38,7 @@ Những gì app gọi (hàm `public` của controller; các kiểu `public` khá
 ## Ghi chú cho người sửa
 
 - Cấu hình Codex không bao giờ bị sửa (xem giới hạn).
+- Nhịp đọc (`AgentPacing`, 2026-11-16, học từ Vorssaint): tệp sự kiện của hook và tệp của status line được đọc khi macOS báo thư mục `AraNotch/Agents` đổi (`FolderWatcher`), cộng một lần soát 30 giây; danh sách tiến trình (`ps`) chỉ đọc khi trang có phiên Claude, tối đa 2 phút một lần; nhật ký Codex đọc trên hàng đợi riêng, cái nào ghi trong 30 phút qua thì đọc lại mỗi 2 giây vì Codex giữ tệp mở và macOS chỉ báo khi tệp đóng; những gì có sẵn trên đĩa lúc bắt đầu là lịch sử, không báo lại; hạn mức tài khoản Claude hỏi mỗi phút khi trang Agent đang mở, 5 phút khi ẩn, lỗi liền nhau thì chờ lâu dần tới 30 phút.
 
 ## Dữ liệu lưu
 
@@ -58,6 +59,7 @@ Không cần quyền hệ thống. Sửa `~/.claude/settings.json` chỉ khi ng�
 ## Tệp
 
 - `Modules/Agent/Core/AgentEvents.swift` — Something a coding agent (Claude Code) reported through its hooks.
+- `Modules/Agent/Core/AgentPacing.swift` — How often the agent page looks at things outside the app: the process list, Codex logs held open, the Claude account.
 - `Modules/Agent/Core/AgentHeadline.swift` — What a small tile says about the agents in one line: the most pressing state any session is in, and how many sessions are in it.
 - `Modules/Agent/Core/AgentUsage.swift` — How much of one rate limit window is used up.
 - `Modules/Agent/Core/ClaudeHooksInstaller.swift` — Adds this app's hooks to a Claude Code settings document, and takes them out again.
@@ -67,6 +69,7 @@ Không cần quyền hệ thống. Sửa `~/.claude/settings.json` chỉ khi ng�
 - `Modules/Agent/Feature/AgentEventSpool.swift` — Follows the file the hook helper appends to and hands over each new event.
 - `Modules/Agent/Feature/AgentNotice.swift` — What a notice about an agent says, on the sign the notch grows into for a few seconds: which agent and where, what it is at, and what the turn means for its five-hour limit.
 - `Modules/Agent/Feature/AgentWidget.swift` — The agents at work, as a widget of the overview.
+- `Modules/Agent/Feature/FolderWatcher.swift` — Tells when anything in a folder changes, as the system reports it (FSEvents).
 - `Modules/Agent/Feature/ClaudeAccountReader.swift` — Asks the Claude account for its rate limits every few minutes, as Claude Code's `/usage` does, with the sign-in Claude Code keeps in the keychain.
 - `Modules/Agent/Feature/ClaudeHooks.swift` — Installs this app's hooks into Claude Code's settings file and removes them again.
 - `Modules/Agent/Feature/ClaudeSessionProbe.swift` — What the agent list learns from outside the hook events, off the main thread.
@@ -90,3 +93,4 @@ Mỗi dòng: ngày — lỗi hoặc thay đổi — test đã thêm — commit.
 
 - 2026-10-27 — macOS hỏi mật khẩu máy mỗi khi có bản dựng mới, và lặp lại mỗi 5 phút nếu bấm Từ chối: đọc đăng nhập Claude qua `/usr/bin/security` thay cho `SecItemCopyMatching` — `ClaudeAccountReaderTests` — nhánh `fix/keychain-prompts`.
 - 2026-10-26 — tái cấu trúc theo module (nhánh `refactor/feature-modules`): widget dùng `WidgetSize`, `WidgetAlert`.
+- 2026-11-16 — app bớt tốn máy khi theo dõi agent (học từ Vorssaint): bỏ đọc tệp sự kiện mỗi giây và `ps` mỗi 20 giây suốt ngày; nhật ký Codex không còn đọc trên luồng giao diện (tệp 14 MB từng giữ notch khoảng 0,7 giây) và nhật ký đang mở được đọc lại; hạn mức tài khoản hỏi theo trang và lùi khi lỗi. Sửa kèm: bật "Theo dõi Codex" giữa chừng không còn báo lại các lượt cũ trên đĩa — `AgentPacingTests`, `CodexWatcherTests` (hai test mới), `AgentEventSpoolTests.aLineTheHookAppendsIsReadAsSoonAsTheSystemSaysSo` — nhánh `agent/nhe-may-theo-doi`.
