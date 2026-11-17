@@ -152,7 +152,7 @@ private struct WidgetClipCard: View {
             }
             .contentShape(RoundedRectangle(cornerRadius: 9 * ui, style: .continuous))
         }
-        .buttonStyle(AraPressStyle(depth: 0.96))
+        .buttonStyle(AraPressStyle())
         .onHover { hover.isHovered = $0 }
         .help(item.rowTitle)
         .accessibilityLabel(item.rowTitle)

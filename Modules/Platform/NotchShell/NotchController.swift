@@ -100,6 +100,9 @@ public final class NotchController {
         self.settings = settings
         self.shortcuts = shortcuts ?? ShortcutCenter(store: ShortcutStore(defaults: .standard))
         stateMachine = NotchStateMachine(openOnHover: settings.openOnHover)
+        viewModel.material = settings.material
+        viewModel.orbit = settings.orbitLayout
+        viewModel.restingChoice = settings.restingChoice
         apply(settings.notchSize)
         // Applied before any page is registered, so pages fall into place as they arrive.
         viewModel.registry.applyLayout(
@@ -113,6 +116,8 @@ public final class NotchController {
         guard viewModel.pages[page.id] == nil else { return }
         viewModel.pages[page.id] = page
         viewModel.registry.register(page.descriptor)
+        refreshOpenSize()
+        refreshRestingOptions()
     }
 
     // MARK: - Page layout
@@ -179,6 +184,35 @@ public final class NotchController {
         settings.$openOnHover
             .sink { [weak self] isEnabled in self?.openOnHoverChanged(to: isEnabled) }
             .store(in: &cancellables)
+        settings.$material
+            .sink { [weak self] material in
+                self?.viewModel.material = material
+                self?.mirrors.values.forEach { $0.model.material = material }
+            }
+            .store(in: &cancellables)
+        settings.$orbitLayout
+            .receive(on: RunLoop.main)
+            .sink { [weak self] layout in
+                guard let self else { return }
+                self.viewModel.orbit = layout
+                self.layoutForCurrentScreen()
+            }
+            .store(in: &cancellables)
+        settings.$restingChoice
+            .dropFirst()
+            .receive(on: RunLoop.main)
+            .sink { [weak self] choice in
+                self?.viewModel.restingChoice = choice
+                self?.restingChanged()
+            }
+            .store(in: &cancellables)
+        // Closed, the notch forgets the grid of pages: it opens on a page again.
+        viewModel.$isOpen
+            .removeDuplicates()
+            .filter { !$0 }
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in self?.setExploring(false) }
+            .store(in: &cancellables)
         settings.$hapticsEnabled
             .sink { AraHaptics.isEnabled = $0 }
             .store(in: &cancellables)
@@ -221,8 +255,18 @@ public final class NotchController {
 
         pointer.onMove = { [weak self] point in self?.pointerMoved(to: point) }
         pointer.onClick = { [weak self] point in self?.clicked(at: point) }
+        pointer.onRelease = { [weak self] point in self?.released(at: point) }
         pointer.onScroll = { [weak self] event in self?.scrolled(event) }
         viewModel.onTogglePin = { [weak self] in self?.togglePin() }
+        viewModel.onClose = { [weak self] in self?.send(.forceClose) }
+        viewModel.onOrbit = { [weak self] action in self?.perform(orbit: action) }
+        viewModel.onSelectPage = { [weak self] id in
+            self?.setExploring(false)
+            self?.viewModel.registry.select(id)
+        }
+        viewModel.onChooseResting = { [weak self] choice in
+            self?.settings.restingChoice = RestingSelection(preferred: choice)
+        }
         // Another page on show may want another height.
         viewModel.$registry
             .map(\.selectedID)
@@ -302,6 +346,9 @@ public final class NotchController {
     private func handleKey(_ event: NSEvent) -> Bool {
         guard stateMachine.isPresented, let panel, event.window === panel, panel.isKeyWindow else { return false }
         let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+        if flags.subtracting(.capsLock) == [.option, .command], openPage(forKey: event) {
+            return true
+        }
         guard flags.isDisjoint(with: [.command, .control, .option]),
               let key = NotchKey(keyCode: event.keyCode, isShiftDown: flags.contains(.shift))
         else { return false }
@@ -429,11 +476,10 @@ public final class NotchController {
     /// Takes the chosen size: the open notch, how much its pages are enlarged, and the room
     /// and enlargement of what shows beside the closed notch.
     private func apply(_ size: NotchSize) {
-        viewModel.openSize = size.openSize
         viewModel.scale = size.scale
         viewModel.edgeScale = size.edgeScale
         viewModel.activitySideWidth = size.activitySideWidth
-        refreshOpenSize()
+        viewModel.openSize = wantedOpenSize()
     }
 
     /// Lets a page have a taller sheet than the usual one, or (with nil) the usual one again.
@@ -444,32 +490,89 @@ public final class NotchController {
         refreshOpenSize()
     }
 
-    /// Gives the open notch the height the page on show asks for. Growing, the window is made
-    /// larger first and the shape follows; shrinking, the shape goes first and the window
-    /// after it, so nothing is ever cut off in between.
+    /// Gives the open notch the size the page on show asks for: its own sheet (a small page
+    /// opens small), taller while it asks for more, or the grid of every page. Growing, the
+    /// window is made larger first and the shape follows; shrinking, the shape goes first and
+    /// the window after it, so nothing is ever cut off in between.
     private func refreshOpenSize() {
-        let size = settings.notchSize
-        let wanted = viewModel.registry.selectedID.flatMap { pageSheetHeights[$0] }
-        let height = PageHeight.open(
-            sheetHeight: wanted, size: size, screenHeight: currentScreenFrame?.height ?? size.openSize.height)
-        let target = CGSize(width: size.openSize.width, height: height)
+        let target = wantedOpenSize()
         guard target != viewModel.openSize else { return }
-        let isGrowing = target.height > viewModel.openSize.height
+        let isGrowing = target.width * target.height > viewModel.openSize.width * viewModel.openSize.height
+            || target.width > viewModel.openSize.width || target.height > viewModel.openSize.height
+        viewModel.lastChangeGrew = isGrowing
         if isGrowing, let geometry {
-            panel?.setFrame(geometry.openRect(size: target), display: true)
+            let union = CGSize(width: max(target.width, viewModel.openSize.width), height: max(target.height, viewModel.openSize.height))
+            panel?.setFrame(windowRect(geometry, size: union), display: true)
         }
         // A page that gets lower under the pointer (a row done, an editor closed, a picker
         // in place of a long day) would read as the pointer leaving, and the notch would
         // close on what was just clicked. It waits for the pointer to come back instead.
-        if let geometry, geometry.shrinkingLeavesOutside(NSEvent.mouseLocation, from: viewModel.openSize, to: target) {
+        let reach = viewModel.orbit.reach(scale: viewModel.edgeScale)
+        if let geometry, geometry.openHitRect(size: viewModel.openSize, reach: reach).contains(NSEvent.mouseLocation),
+           !geometry.openHitRect(size: target, reach: reach).contains(NSEvent.mouseLocation) {
             stateMachine.hold()
         }
         viewModel.openSize = target
-        guard !isGrowing else { return }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) { [weak self] in
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
             guard let self, let geometry = self.geometry, self.viewModel.openSize == target else { return }
-            self.panel?.setFrame(geometry.openRect(size: target), display: true)
+            self.panel?.setFrame(self.windowRect(geometry, size: target), display: true)
         }
+    }
+
+    private func wantedOpenSize() -> CGSize {
+        let size = settings.notchSize
+        let screen = currentScreenFrame?.size ?? CGSize(width: 1512, height: 982)
+        if viewModel.isExploring {
+            let sheet = NotchExploreGrid.sheet(
+                pages: viewModel.registry.pages.count, chooser: viewModel.restingOptions.count >= 2)
+            return PageSize.open(base: sheet, sheetHeight: nil, size: size, screen: screen)
+        }
+        let id = viewModel.registry.selectedID
+        return PageSize.open(
+            base: id.flatMap { viewModel.pages[$0]?.sheetSize }, sheetHeight: id.flatMap { pageSheetHeights[$0] },
+            size: size, screen: screen)
+    }
+
+    /// The window of the open notch, with room around it for the round buttons and the
+    /// spring's overshoot.
+    private func windowRect(_ geometry: NotchGeometry, size: CGSize) -> CGRect {
+        geometry.openWindowRect(size: size, margin: viewModel.orbit.windowMargin(scale: viewModel.edgeScale))
+    }
+
+    // MARK: - Round buttons and the grid of pages
+
+    private func perform(orbit action: OrbitAction) {
+        AraHaptics.play(.tap)
+        // The notch may change size under the button just pressed and leave the pointer
+        // outside it: it waits for the pointer to come back rather than close.
+        stateMachine.hold()
+        switch action {
+        case .explore:
+            setExploring(!viewModel.isExploring)
+        case .settings:
+            viewModel.onOpenSettings?()
+        case .pin:
+            togglePin()
+        case let .page(id):
+            setExploring(false)
+            viewModel.registry.select(id)
+        }
+    }
+
+    private func setExploring(_ isExploring: Bool) {
+        guard viewModel.isExploring != isExploring else { return }
+        viewModel.isExploring = isExploring
+        refreshOpenSize()
+    }
+
+    /// Option-Command and a page's letter, from the grid of pages, opens that page.
+    private func openPage(forKey event: NSEvent) -> Bool {
+        guard let character = event.charactersIgnoringModifiers?.uppercased().first,
+              let id = viewModel.exploreLetters.first(where: { $0.value == character })?.key
+        else { return false }
+        setExploring(false)
+        viewModel.registry.select(id)
+        return true
     }
 
     /// Shows the page with this id; ignored when no such page is registered.
@@ -497,12 +600,30 @@ public final class NotchController {
     private var restingActivities: [String: NotchLiveActivity] = [:]
 
     /// Sets, refreshes or (with nil) takes away a thing that rests beside the closed notch for
-    /// as long as it is true, such as the track that is playing. Of several, the most important
-    /// shows and the others come back when it goes. Anything shown for a while appears over
-    /// it, and it comes back after.
+    /// as long as it is true, such as the track that is playing. Of several, the one the user
+    /// chose shows (or two of them together, one each side), else the most important, and the
+    /// others come back when it goes. Anything shown for a while appears over it, and it comes
+    /// back after.
     public func setRestingActivity(_ activity: NotchLiveActivity?, id: String) {
+        let wasThere = restingActivities[id] != nil
         restingActivities[id] = activity
-        let chosen = Self.restingChoice(restingActivities.mapValues(\.request.priority)).flatMap { restingActivities[$0] }
+        if wasThere != (activity != nil) {
+            refreshRestingOptions()
+        }
+        restingChanged()
+    }
+
+    private func restingChanged() {
+        let shown = viewModel.restingChoice.shown(restingActivities.mapValues(\.request.priority))
+        let primaryID: String?
+        let companionID: String?
+        switch shown {
+        case let .one(id): (primaryID, companionID) = (id, nil)
+        case let .pair(primary, companion): (primaryID, companionID) = (primary, companion)
+        case nil: (primaryID, companionID) = (nil, nil)
+        }
+        let chosen = primaryID.flatMap { restingActivities[$0] }
+        restingCompanion = companionID.flatMap { restingActivities[$0] }
         if let previous = activityQueue.restingID, previous != chosen?.request.id {
             activityContents[previous] = nil
         }
@@ -513,9 +634,32 @@ public final class NotchController {
         activityQueueChanged()
     }
 
+    /// Shown with the resting thing, on the left of the camera, when the user chose two.
+    private var restingCompanion: NotchLiveActivity?
+
+    /// The resting things true now, for the grid of pages to offer as choices.
+    private func refreshRestingOptions() {
+        let options = restingActivities.values
+            .sorted { ($0.request.priority, $1.request.id) > ($1.request.priority, $0.request.id) }
+            .map { activity -> NotchViewModel.RestingOption in
+                let page = activity.pageID.flatMap { id in viewModel.registry.allPages.first { $0.id == id } }
+                let key = "notch.resting.\(activity.request.id)"
+                let named = L10n.string(key)
+                return NotchViewModel.RestingOption(
+                    id: activity.request.id,
+                    title: page.map { L10n.string($0.titleKey) } ?? (named == key ? activity.request.id : named),
+                    symbolName: page?.symbolName ?? "circle.fill")
+            }
+        guard options != viewModel.restingOptions else { return }
+        viewModel.restingOptions = options
+        if viewModel.isExploring {
+            refreshOpenSize()
+        }
+    }
+
     /// The id of the resting thing to show: the most important, and of equals the first by id.
     nonisolated static func restingChoice(_ priorities: [String: Int]) -> String? {
-        priorities.max { ($0.value, $1.key) < ($1.value, $0.key) }?.key
+        RestingSelection.mostImportant(priorities)
     }
 
     /// The change of what shows on the closed notch that waits for a notice's content to fade.
@@ -556,10 +700,12 @@ public final class NotchController {
         activityContents = activityContents.filter { live.contains($0.key) || $0.key == activity?.request.id }
         viewModel.activity = activity
         viewModel.activityIsResting = isResting
+        viewModel.companion = isResting ? restingCompanion : nil
         // Every display that shows the notch shows what is beside it.
         mirrors.values.forEach {
             $0.model.activity = viewModel.activity
             $0.model.activityIsResting = viewModel.activityIsResting
+            $0.model.companion = viewModel.companion
         }
         applyFullScreenHiding()
         if activity?.keepsSides != true {
@@ -635,7 +781,7 @@ public final class NotchController {
         viewModel.isPill = geometry.isPill
 
         let panel = self.panel ?? makePanel()
-        panel.setFrame(geometry.openRect(size: viewModel.openSize), display: true)
+        panel.setFrame(windowRect(geometry, size: viewModel.openSize), display: true)
         panel.orderFrontRegardless()
         layoutMirrors()
         checkFullScreen()
@@ -698,11 +844,16 @@ public final class NotchController {
             model.hasPhysicalNotch = geometry.hasPhysicalNotch
             model.isPill = geometry.isPill
             model.openSize = settings.notchSize.openSize
+            model.material = viewModel.material
+            model.orbit = OrbitLayout(actions: [:])
+            model.companion = viewModel.companion
             model.scale = viewModel.scale
             model.edgeScale = viewModel.edgeScale
             model.activitySideWidth = viewModel.activitySideWidth
             model.activity = viewModel.activity
-            mirror.panel.setFrame(geometry.openRect(size: model.openSize), display: true)
+            mirror.panel.setFrame(
+                geometry.openWindowRect(size: model.openSize, margin: model.orbit.windowMargin(scale: model.edgeScale)),
+                display: true)
             mirror.panel.orderFrontRegardless()
         }
         let connected = Set(screens.compactMap(Self.displayID))
@@ -747,7 +898,7 @@ public final class NotchController {
         // Out of the way of a full-screen app, the notch is not there to be touched.
         if viewModel.isHiddenForFullScreen, !stateMachine.isPresented { return false }
         let rect = stateMachine.isPresented
-            ? geometry.openHitRect(size: viewModel.openSize)
+            ? geometry.openHitRect(size: viewModel.openSize, reach: viewModel.orbit.reach(scale: viewModel.edgeScale))
             : geometry.hoverRect(padding: settings.interactionPadding, isAwake: isAwake)
         return rect.contains(point)
     }
@@ -843,13 +994,14 @@ public final class NotchController {
         guard !isHiddenByUser else { return }
         // The activity's own views answer clicks on its part of the notch.
         if activityOwnsPointer(at: point) { return }
-        // A click on a notice that takes something back does that, and the notice goes.
-        if !stateMachine.isPresented, let activity = viewModel.activity, let action = activity.onClick,
+        // A click on a notice that takes something back does that, and the notice goes: when
+        // the button comes up, and only if the same notice is still there, so a notice that
+        // changed under a press does not act on the one that replaced it.
+        pendingNoticeClick = nil
+        if !stateMachine.isPresented, let activity = viewModel.activity, activity.onClick != nil,
            let area = activityClickArea {
             if area.contains(point) {
-                AraHaptics.play(.tap)
-                dismissActivity(id: activity.request.id)
-                action()
+                pendingNoticeClick = activity.request.id
                 return
             }
         }
@@ -862,6 +1014,21 @@ public final class NotchController {
             }
         }
         send(.clicked(inside: isInside(point)))
+    }
+
+    /// The notice pressed on, acted on when the button comes up over it.
+    private var pendingNoticeClick: String?
+
+    private func released(at point: CGPoint) {
+        guard let id = pendingNoticeClick else { return }
+        pendingNoticeClick = nil
+        guard NoticeClick.acts(pressedID: id, shownID: viewModel.activity?.request.id,
+                               releasedInside: activityClickArea?.contains(point) ?? false),
+              let activity = viewModel.activity, let action = activity.onClick
+        else { return }
+        AraHaptics.play(.tap)
+        dismissActivity(id: activity.request.id)
+        action()
     }
 
     /// Where what shows on the closed notch is clicked, on the screen; nil when nothing shows.

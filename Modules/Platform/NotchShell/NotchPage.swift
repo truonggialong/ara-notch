@@ -13,8 +13,14 @@ public struct NotchPage: Identifiable {
     /// True for a page whose content scrolls sideways: a mouse wheel, which only turns up and
     /// down, then moves it along.
     public var wheelScrollsSideways = false
-    /// A button of the page's own on the tab row, before the pin, shown while the page is.
+    /// The page's own controls in the strip right of the camera (an output, a mode), shown
+    /// while the page is.
     public var headerAccessory: (@MainActor () -> AnyView)?
+    /// The sheet the page is laid out on, before enlargement, when it is not the usual one:
+    /// the open notch takes this size while the page shows, so a small page opens small.
+    public var sheetSize: CGSize?
+    /// What the page shows in the strip left of the camera, in place of its name.
+    public var bandLeading: (@MainActor () -> AnyView)?
 
     public var id: String { descriptor.id }
 

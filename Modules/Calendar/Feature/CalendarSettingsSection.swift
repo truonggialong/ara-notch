@@ -23,6 +23,15 @@ struct CalendarSettingsSection: View {
             Text(L10n.string("settings.calendar.alerts"))
             AraSettingsNote(L10n.string("settings.calendar.note"))
         }
+        Picker(selection: $settings.countdownMinutes) {
+            Text(L10n.string("settings.off")).tag(0)
+            ForEach(CalendarSettingsStore.countdownChoices, id: \.self) { minutes in
+                Text(String(format: L10n.string("settings.calendar.lead.minutes"), minutes)).tag(minutes)
+            }
+        } label: {
+            Text(L10n.string("settings.calendar.countdown"))
+            AraSettingsNote(L10n.string("settings.calendar.countdown.note"))
+        }
     }
 }
 

@@ -67,3 +67,4 @@ Mỗi dòng: ngày — lỗi hoặc thay đổi — test đã thêm — commit.
 
 - 2026-10-26 — tái cấu trúc theo module (nhánh `refactor/feature-modules`): tách từ `NotchCore` (`OverviewLayout.swift`), `NotchShell` (`ShellSettings.overviewArrangement`) và app (`OverviewPage`, `OverviewEditor`); thêm `OverviewController`, `OverviewSettings`, `OverviewSettingsStore` (cùng khoá cũ); enum `OverviewFeature` đổi tên `OverviewTileGroup`.
 - 2026-10-26 — `OverviewController.makePage(notch:)` gọi hai lần thì chế độ sửa bị nối với notch hai lần. `OverviewEditor.connect` nay thay các liên kết cũ thay vì cộng thêm, và có bản nhận thẳng hai publisher để test được. Bộ test mới `Modules/Overview/Tests/Feature/` (`OverviewEditorTests`): kết thúc khi notch đóng, khi trang khác hiện, lần nối sau thay lần trước. Test cuối thất bại khi tạm đổi lại kiểu cộng dồn.
+- 2026-11-16 — cỡ riêng 480 × 210 — thử tay bằng ảnh chụp.

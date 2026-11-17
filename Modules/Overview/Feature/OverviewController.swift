@@ -31,6 +31,8 @@ public final class OverviewController {
             }
         }
         page.headerAccessory = { AnyView(OverviewEditButton(editor: editor)) }
+        // The widget grid, a little narrower than the usual sheet.
+        page.sheetSize = CGSize(width: 480, height: 210)
         return page
     }
 

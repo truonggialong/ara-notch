@@ -87,6 +87,8 @@ public final class NotesController {
             NotesPageView(store: store, model: model)
         }
         page.keyHandler = { [model] key, _ in model.handleKey(key) }
+        // Notes has room to write: taller than the usual sheet.
+        page.sheetSize = CGSize(width: 576, height: 368)
         return page
     }
 

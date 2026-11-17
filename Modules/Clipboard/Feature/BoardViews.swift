@@ -124,6 +124,7 @@ struct BoardChipsView: View {
                 }
             }
         }
+        .araScrollEdgeFade(.horizontal, length: 14)
     }
 
     /// A locked board shows a padlock, open or closed with the vault, instead of its own symbol.

@@ -34,6 +34,37 @@ Clipboard có thêm `MCP/` (`ClipboardMCP`) và `aranotch-mcp/`; Agent có thêm
 | Tính năng | Overview | `OverviewCore`, `OverviewFeature` | [Overview/README.md](Overview/README.md) |
 | Tính năng | Tools | `ToolsFeature` | [Tools/README.md](Tools/README.md) |
 
+## Tìm module theo tính năng
+
+Chủ dự án gọi tính năng bằng tên trên màn hình. Tra từ khoá ở cột trái, rồi chỉ mở sổ của module đó.
+
+| Chủ dự án nói về… | Module |
+|---|---|
+| khung notch, mở/đóng, rê chuột, vuốt, nút tròn quanh notch, lưới Mọi trang, cỡ trang, nền kính, lò xo; hình dạng và cách hiện của thông báo (biển, một dòng, hai bên camera); bộ biểu tượng, nút, thẻ, thanh trượt dùng chung; phím tắt toàn cục; bản xem trước notch trong Cài đặt | Platform |
+| clipboard, lịch sử chép, bảng, ghim, khoá bảng, Library, panel ⌘⇧C, chồng chép, sửa và dọn văn bản, đọc chữ trong ảnh đã chép, MCP clipboard | Clipboard |
+| lịch, sự kiện, lời nhắc, cuộc họp, đếm ngược tới cuộc họp, âm lịch | Calendar |
+| nhạc, đang phát, ảnh bìa, lời bài hát, thiết bị phát âm thanh, nhạc ở notch đóng | Media |
+| hẹn giờ, đồng hồ đếm ngược, chuông hết giờ | Timer |
+| agent, Claude Code, Codex, phiên, hạn mức, hook, status line | Agent |
+| trang Tệp, kéo thả tệp, đổi định dạng ảnh, AirDrop, tiến độ tải xuống | Files |
+| ghi chú, Apple Notes | Notes |
+| chụp vùng, chụp cuộn, chú thích ảnh, đọc chữ trên màn hình, hút màu | Capture |
+| dịch nhanh, thanh Smart Selection, viết lại bằng Apple Intelligence | Translate |
+| chia cửa sổ, kéo cửa sổ vào mép | Windows |
+| pin, sạc, Caps Lock, mất mạng, Bluetooth, âm lượng và độ sáng thay khung của macOS, đèn bàn phím, giữ máy thức | SystemEvents |
+| trang Tổng quan, widget | Overview |
+| trang Công cụ | Tools |
+| cửa sổ Cài đặt, biểu tượng thanh menu, tự cập nhật, mở khi đăng nhập, hướng dẫn lần đầu, gỡ app, nối các module với nhau | App |
+
+Đọc tối thiểu khi sửa một tính năng:
+
+1. Sổ của module đó (`Modules/<X>/README.md`): mục "Tệp" nói tệp nào làm gì, mục "Giao diện công khai" nói module khác gọi gì.
+2. Chỉ những tệp trong mục "Tệp" liên quan tới việc cần sửa.
+3. Module khác chỉ khi sổ nói tính năng dùng giao diện công khai của nó (thường là `NotchController` của Platform), và chỉ phần giao diện đó, không đọc cả module.
+4. `App/Sources/AppDelegate.swift` chỉ khi phải nối tính năng với module khác hoặc thêm thứ mới vào app.
+
+`Scripts/check-module-maps.sh` (chạy trong `Scripts/test.sh`) bắt buộc mọi tệp `.swift` của một module có trong mục "Tệp" của sổ module đó, nên bản đồ không lệch khỏi mã.
+
 ## Phụ thuộc
 
 ```
@@ -67,6 +98,7 @@ Ngoại lệ có chủ ý: `ShortcutAction` trong `NotchCore` liệt kê phím t
 
 ## Quy trình sửa lỗi
 
+0. **Mở nhánh của module.** `Scripts/new-branch.sh <Module> <việc>` tạo nhánh `<module>/<việc>` từ `main`. Mọi commit của việc này nằm trên nhánh đó; không commit thẳng vào `main`, và chỉ gộp vào `main` khi chủ dự án bảo.
 1. **Tìm module.** Đọc bảng trên và sổ của module nghi ngờ (mục "Tệp" và "Giao diện công khai"). Nếu lỗi nằm ở chỗ hai module gặp nhau, module sở hữu là bên có hành vi sai, không phải bên dễ sửa hơn.
 2. **Tái hiện bằng test** trong bộ test của module đó (xem mục "Test" của sổ). Module không có bộ test cho phần đó thì đưa phần logic vào `<X>Core` để test được, hoặc ghi rõ cách tái hiện bằng tay.
 3. **Sửa trong module đó.** Không sửa vòng ở module khác để che lỗi. Nếu bắt buộc phải đổi giao diện công khai mà module khác đang dùng (một hàm `public`, một khoá lưu, một case của `ShortcutAction`), dừng lại và báo chủ dự án trước.
@@ -79,9 +111,10 @@ Ngoại lệ có chủ ý: `ShortcutAction` trong `NotchCore` liệt kê phím t
 
 ## Thêm hay đổi một module
 
+- Tính năng mới cũng làm trên nhánh riêng: `Scripts/new-branch.sh <X> <việc>` (module chưa có thư mục thì dùng `app`).
 - Tính năng mới: tạo `Modules/<X>/Core`, `Modules/<X>/Feature`, `Modules/<X>/Tests/Core`, khai báo trong `Package.swift` (`core("<X>")`, `feature("<X>")`, `tests("<X>", "Core", …)` và thêm `<X>` vào `features`), nối ở `AppDelegate`, thêm một dòng vào bảng trên, thêm `<X>` vào `Scripts/test-module.sh`, viết `Modules/<X>/README.md` theo mẫu của các sổ khác.
 - Mỗi sổ có các mục: Vai trò; Target và thư mục; Phụ thuộc và ai dùng; Giao diện công khai; Ghi chú cho người sửa; Dữ liệu lưu; Quyền hệ thống; Test; Tệp; Lỗi và giới hạn đã biết; Nhật ký sửa lỗi.
-- Đổi tệp, thêm hàm `public`, thêm khoá lưu: cập nhật sổ của module trong cùng commit.
+- Đổi tệp, thêm hàm `public`, thêm khoá lưu: cập nhật sổ của module trong cùng commit. Tệp mới thiếu trong mục "Tệp" làm `Scripts/check-module-maps.sh` báo lỗi.
 - Không ghi số test hay số suite vào sổ: `Scripts/test-module.sh <Module>` luôn cho con số đúng.
 
 ## Tài liệu khác

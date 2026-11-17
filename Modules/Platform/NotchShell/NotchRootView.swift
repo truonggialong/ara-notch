@@ -1,11 +1,10 @@
 import NotchCore
 import SwiftUI
 
-/// The notch itself: a black shape that grows from the notch into the open panel.
+/// The notch itself: a black shape that grows from the notch into the open panel, with round
+/// buttons that pour out around it while it is open.
 struct NotchRootView: View {
     @ObservedObject var model: NotchViewModel
-    /// The filled shape under the chosen tab slides from tab to tab.
-    @Namespace private var tabSelection
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private static let openEarRadius: CGFloat = 8
@@ -17,31 +16,39 @@ struct NotchRootView: View {
             shape
             backdrop
                 .frame(width: model.openSize.width, height: model.openSize.height)
-                .mask(alignment: .top) { shape }
+                .mask(alignment: .top) { outline }
                 .opacity(model.isOpen ? 1 : 0)
             content
                 // The page grows out of the notch as it opens, and sinks back into it.
                 .scaleEffect(model.isOpen || reduceMotion ? 1 : 0.86, anchor: .top)
                 .blur(radius: model.isOpen || reduceMotion ? 0 : 6)
-                .mask(alignment: .top) { shape }
+                .mask(alignment: .top) { outline }
                 .opacity(model.isOpen ? 1 : 0)
                 .allowsHitTesting(model.isOpen)
+                .contextMenu { islandMenu }
             dropFill
             activityContent
             peek
         }
         .frame(width: model.openSize.width, height: model.openSize.height, alignment: .top)
+        .overlay(alignment: .topLeading) {
+            NotchOrbits(model: model)
+        }
+        .background(alignment: .topLeading) { sideMeasure }
         // Over a full-screen app the notch is out of the way until it has a notice to give.
         .opacity(model.isHiddenForFullScreen ? 0 : 1)
         .animation(.easeOut(duration: 0.2), value: model.isHiddenForFullScreen)
-        // The window may be taller than the notch for a moment while a page changes its
-        // height: the notch stays hung from the top.
+        // The window is larger than the notch, for the buttons around it and the overshoot of
+        // its spring: the notch stays hung from the top, in the middle.
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .animation(.spring(response: 0.36, dampingFraction: 0.82), value: model.isOpen)
-        .animation(.spring(response: 0.36, dampingFraction: 0.82), value: model.openSize)
+        // It grows with a little bounce and shrinks without one, so closing is firm.
+        .animation(Self.spring(growing: model.isOpen, reduceMotion: reduceMotion), value: model.isOpen)
+        .animation(Self.spring(growing: model.lastChangeGrew, reduceMotion: reduceMotion), value: model.openSize)
+        .animation(Self.spring(growing: true, reduceMotion: reduceMotion), value: model.isExploring)
         // The swell under the pointer springs out with a little overshoot.
         .animation(reduceMotion ? nil : .spring(response: 0.24, dampingFraction: 0.58), value: model.isTouched)
         .animation(reduceMotion ? nil : .spring(response: 0.3, dampingFraction: 0.8), value: model.isActivityHovered)
+        .animation(reduceMotion ? nil : .spring(duration: 0.5, bounce: 0), value: model.measuredSideWidth)
         // A notice opens and closes smoothly, without a bounce: an overshoot of the plate read
         // as a jolt.
         .animation(Self.noticeMotion, value: model.activity?.request.id)
@@ -49,20 +56,41 @@ struct NotchRootView: View {
         .environment(\.colorScheme, .dark)
     }
 
-    @ViewBuilder
+    static func spring(growing: Bool, reduceMotion: Bool) -> Animation {
+        if reduceMotion { return .easeOut(duration: 0.2) }
+        let spring = NotchMotion.spring(growing: growing)
+        return .spring(duration: spring.duration, bounce: spring.bounce)
+    }
+
+    /// The open notch is drawn on glass: the shape lets it show instead of filling black.
+    private var opensOnGlass: Bool {
+        model.isOpen && model.material != .black
+    }
+
+    /// The notch's outline, for masking what is drawn in it: always opaque, whatever the notch
+    /// is laid on, since a mask keeps only where it is filled.
+    private var outline: some View {
+        notchShape(fill: .black)
+    }
+
     private var shape: some View {
+        notchShape(fill: opensOnGlass ? .clear : .black)
+    }
+
+    @ViewBuilder
+    private func notchShape(fill: Color) -> some View {
         let size = model.isOpen ? model.openSize : closedShapeSize
         if model.isPill {
             // Floating free of the screen edge: round on every corner, a capsule when closed.
             RoundedRectangle(cornerRadius: model.isOpen ? 22 : min(size.height / 2, 18), style: .continuous)
-                .fill(.black)
+                .fill(fill)
                 .frame(width: size.width, height: size.height)
         } else {
             NotchShape(
                 // The closed shape must hide entirely behind the hardware notch, so no ears there.
                 bottomRadius: model.isOpen ? 22 : (isDropping ? 14 : 10),
                 earRadius: model.isOpen ? Self.openEarRadius : 0)
-                .fill(.black)
+                .fill(fill)
                 .frame(width: size.width, height: size.height)
         }
     }
@@ -88,7 +116,7 @@ struct NotchRootView: View {
                         .frame(width: notch.width * 1.5, height: notch.height * 3)
                         .offset(y: -notch.height * 1.5)
                 }
-                .mask(alignment: .top) { shape }
+                .mask(alignment: .top) { outline }
                 .opacity(model.isNoticeLeaving ? 0 : 1)
                 .animation(Self.noticeFade, value: model.isNoticeLeaving)
                 .transition(Self.noticeContent)
@@ -123,7 +151,11 @@ struct NotchRootView: View {
         !model.isOpen && model.activity?.dropSize != nil
     }
 
-    private static let touchSwell = CGSize(width: 10, height: 4)
+    private static let touchSwell = CGSize(width: 6, height: 3)
+
+    static let wingSwap = AnyTransition.asymmetric(
+        insertion: .opacity.animation(.easeOut(duration: 0.14).delay(0.12)),
+        removal: .opacity.animation(.easeIn(duration: 0.1)))
 
     /// How the notch grows into a notice and back.
     static let noticeMotion = Animation.timingCurve(0.22, 0.8, 0.3, 1, duration: 0.3)
@@ -138,7 +170,7 @@ struct NotchRootView: View {
         removal: .opacity.animation(.easeIn(duration: 0.12)))
     private static let peekHeight: CGFloat = 20
 
-    /// The activity's extra line, while the notch is touched and would not open by itself.
+    /// The activity's extra line, while the notch is touched and opens only on a click.
     private var peekText: String? {
         guard model.isTouched, model.allowsPeek, !model.isOpen else { return nil }
         return model.activity?.peek
@@ -158,6 +190,8 @@ struct NotchRootView: View {
         }
     }
 
+    // MARK: - Beside the closed notch
+
     /// The live activity's two views, left and right of the hardware notch. Closed state only.
     @ViewBuilder
     private var activityContent: some View {
@@ -175,7 +209,7 @@ struct NotchRootView: View {
                 .padding(.top, model.closedSize.height)
                 .foregroundStyle(AraPalette.ink)
                 // Kept within the black while the plate grows and shrinks.
-                .mask(alignment: .top) { shape }
+                .mask(alignment: .top) { outline }
                 .opacity(model.isNoticeLeaving ? 0 : 1)
                 .animation(Self.noticeFade, value: model.isNoticeLeaving)
                 .transition(Self.noticeContent)
@@ -183,20 +217,69 @@ struct NotchRootView: View {
         } else if let activity = model.activity, !model.isOpen {
             VStack(spacing: 0) {
                 HStack(spacing: 0) {
-                    activitySide(activity.leading(), alignment: .leading)
+                    if let companion = model.companion {
+                        activitySide(AnyView(HStack(spacing: 5) { companion.leading(); companion.trailing() }), alignment: .leading)
+                    } else {
+                        activitySide(activity.leading(), alignment: .leading)
+                    }
                     Color.clear.frame(width: model.closedSize.width)
-                    activitySide(activity.trailing(), alignment: .trailing)
+                    if model.companion != nil {
+                        activitySide(AnyView(HStack(spacing: 5) { activity.leading(); activity.trailing() }), alignment: .trailing)
+                    } else {
+                        activitySide(activity.trailing(), alignment: .trailing)
+                    }
                 }
                 .frame(height: model.closedSize.height)
-                if let bottom = activity.bottom {
+                if let bottom = activity.bottom, model.companion == nil {
                     activityBottom(bottom())
                 }
             }
             .environment(\.notchActivityIsHovered, model.isActivityHovered)
             .foregroundStyle(AraPalette.ink)
             .lineLimit(1)
-            .transition(.opacity)
-            .id(activity.request.id)
+            // Through black: what leaves is gone in the first half, what comes arrives in
+            // the second, so two texts never show over each other in the same place.
+            .transition(Self.wingSwap)
+            .id(activity.request.id + (model.companion?.request.id ?? ""))
+        }
+    }
+
+    /// Measures what the sides of the closed notch show, at its natural size, so each side is
+    /// as wide as its content (`ActivityWings`).
+    @ViewBuilder
+    private var sideMeasure: some View {
+        if let activity = model.activity, activity.dropSize == nil {
+            let scale = model.edgeScale
+            HStack(alignment: .top, spacing: 0) {
+                Group {
+                    if let companion = model.companion {
+                        HStack(spacing: 5) { companion.leading(); companion.trailing() }
+                    } else {
+                        activity.leading()
+                    }
+                }
+                .fixedSize()
+                .background(GeometryReader { Color.clear.preference(key: SideWidthKey.self, value: [$0.size.width]) })
+                Group {
+                    if model.companion != nil {
+                        HStack(spacing: 5) { activity.leading(); activity.trailing() }
+                    } else {
+                        activity.trailing()
+                    }
+                }
+                .fixedSize()
+                .background(GeometryReader { Color.clear.preference(key: SideWidthKey.self, value: [$0.size.width]) })
+            }
+            .frame(height: model.closedSize.height / scale)
+            .hidden()
+            .allowsHitTesting(false)
+            .onPreferenceChange(SideWidthKey.self) { widths in
+                let widest = (widths.max() ?? 0) * scale
+                let width = ActivityWings.width(content: widest, combined: model.companion != nil)
+                if model.measuredSideWidth != width {
+                    model.measuredSideWidth = width
+                }
+            }
         }
     }
 
@@ -204,13 +287,14 @@ struct NotchRootView: View {
     /// rest of the notch, as far as the height of the hardware notch allows.
     private func activitySide(_ view: AnyView, alignment: Alignment) -> some View {
         let scale = model.edgeScale
-        let width = model.shownActivitySideWidth - 20
+        let padding = ActivityWings.padding
+        let width = max(model.shownActivitySideWidth - 2 * padding, 1)
         return view
             .frame(width: width / scale, height: model.closedSize.height / scale, alignment: alignment)
             .scaleEffect(scale)
             .frame(width: width, height: model.closedSize.height)
             .drawingGroup()
-            .padding(.horizontal, 10)
+            .padding(.horizontal, padding)
     }
 
     /// The strip under the hardware notch, across the notch and its sides, enlarged like the
@@ -225,103 +309,108 @@ struct NotchRootView: View {
             .frame(width: width, height: height)
     }
 
+    // MARK: - The open notch
+
     private var content: some View {
         let width = model.openSize.width - 2 * Self.openEarRadius
-        let headerHeight = model.closedSize.height
+        let bandHeight = model.closedSize.height
         return VStack(spacing: 0) {
-            // The tab row is as tall as the hardware notch it sits beside, so it grows less
-            // than the page when the largest size is chosen.
-            header(rowWidth: width)
-                .frame(width: width, height: headerHeight)
+            // The strip beside the camera: the page's name on the left, its own controls on
+            // the right. As tall as the hardware notch, so it grows less than the page.
+            band(rowWidth: width)
+                .frame(width: width, height: bandHeight)
             // The page is laid out at the size it is shown, every measure multiplied by the
             // notch's size, so text is drawn sharp on any display.
             page
                 .environment(\.araScale, model.scale)
-                .frame(width: width, height: model.openSize.height - headerHeight)
+                .frame(width: width, height: max(model.openSize.height - bandHeight, 0))
         }
         .frame(width: width, height: model.openSize.height)
+        // Cards on the notch are white of a few strengths over whatever the notch is laid on,
+        // black or glass, never a grey of their own.
+        .environment(\.araOnNotch, true)
     }
 
     /// What every page is laid on.
     private var backdrop: some View {
-        AraNotchGround()
+        NotchBackdrop(material: model.material, bandHeight: model.closedSize.height)
     }
 
-    private static let tabWidth: CGFloat = 30
-    private static let tabSpacing: CGFloat = 2
-    private static let headerPadding: CGFloat = 12
+    private static let bandPadding: CGFloat = 14
     /// Kept clear on each side of the hardware notch.
     private static let notchGap: CGFloat = 6
 
-    /// Tabs fill the room left of the hardware notch; those that do not fit carry on to its
-    /// right, before the pin and the settings button. The notch hides whatever is drawn
-    /// behind it, so nothing is.
-    private func header(rowWidth: CGFloat) -> some View {
-        let pages = model.registry.pages
-        // Only a hardware notch hides things; a drawn one is part of the open panel.
-        // Laid out at the size it is shown: the row's own measures grow with the notch, the
-        // hardware notch is as wide as it is.
+    /// The strip beside the camera. The hardware notch hides whatever is drawn behind it, so
+    /// nothing is.
+    private func band(rowWidth: CGFloat) -> some View {
         let grow = model.edgeScale
         let notchWidth = model.hasPhysicalNotch ? model.closedSize.width : 0
         let side = CGFloat(TabRowLayout.sideWidth(
-            rowWidth: Double(rowWidth), notchWidth: Double(notchWidth), edgePadding: Double(Self.headerPadding * grow),
+            rowWidth: Double(rowWidth), notchWidth: Double(notchWidth), edgePadding: Double(Self.bandPadding * grow),
             notchGap: Double(Self.notchGap * grow)))
-        let leftCount = model.hasPhysicalNotch
-            ? TabRowLayout.leftCount(
-                count: pages.count, sideWidth: Double(side), tabWidth: Double(Self.tabWidth * grow),
-                spacing: Double(Self.tabSpacing * grow))
-            : pages.count
+        let page = model.registry.selectedID.flatMap { model.pages[$0] }
         return HStack(spacing: 0) {
-            HStack(spacing: Self.tabSpacing * grow) {
-                ForEach(pages.prefix(leftCount)) { tab($0) }
-                if model.hasPhysicalNotch {
-                    Spacer(minLength: 0)
+            HStack(spacing: 6 * grow) {
+                if model.isExploring {
+                    bandTitle(symbol: "square.grid.2x2", title: L10n.string("notch.explore"), hue: nil, glyph: nil)
+                } else if let leading = page?.bandLeading {
+                    leading()
+                } else if let page {
+                    // A narrow page keeps only its icon here: its name cut short reads worse.
+                    bandTitle(
+                        symbol: page.descriptor.symbolName,
+                        title: side >= 100 * grow ? L10n.string(page.descriptor.titleKey) : nil, hue: page.hue,
+                        glyph: AraGlyph(pageID: page.id))
                 }
-            }
-            .frame(width: model.hasPhysicalNotch ? side : nil)
-            if model.hasPhysicalNotch {
-                Color.clear.frame(width: notchWidth + 2 * Self.notchGap * grow)
-            }
-            HStack(spacing: Self.tabSpacing * grow) {
-                ForEach(pages.dropFirst(leftCount)) { tab($0) }
                 Spacer(minLength: 0)
-                if let id = model.registry.selectedID, let accessory = model.pages[id]?.headerAccessory {
+            }
+            .frame(width: side)
+            Color.clear.frame(width: notchWidth + 2 * Self.notchGap * grow)
+            HStack(spacing: 4 * grow) {
+                Spacer(minLength: 0)
+                if !model.isExploring, let accessory = page?.headerAccessory {
                     accessory()
                 }
-                NotchTab(
-                    glyph: nil, symbolName: model.isPinned ? "pin.fill" : "pin",
-                    title: L10n.string(model.isPinned ? "notch.pin.on" : "notch.pin.off"),
-                    hue: nil, isSelected: model.isPinned, selection: nil
-                ) {
-                    model.onTogglePin?()
-                }
-                NotchTab(
-                    glyph: .settings, symbolName: AraIcon.settings.symbolName, title: L10n.string("notch.settings.tooltip"),
-                    hue: nil, isSelected: false, selection: tabSelection
-                ) {
-                    model.onOpenSettings?()
+                if model.isPinned {
+                    Image(systemName: "pin.fill")
+                        .font(.system(size: 10 * grow, weight: .semibold))
+                        .foregroundStyle(AraPalette.ink.opacity(0.7))
+                        .help(L10n.string("notch.pin.on"))
                 }
             }
+            .frame(width: side)
         }
-        .padding(.horizontal, Self.headerPadding * grow)
+        .padding(.horizontal, Self.bandPadding * grow)
         .environment(\.araScale, grow)
-        .animation(AraTheme.settle, value: model.registry.selectedID)
     }
 
-    private func tab(_ descriptor: PageDescriptor) -> some View {
-        NotchTab(
-            glyph: AraGlyph(pageID: descriptor.id), symbolName: descriptor.symbolName,
-            title: L10n.string(descriptor.titleKey), hue: model.pages[descriptor.id]?.hue,
-            isSelected: descriptor.id == model.registry.selectedID, selection: tabSelection
-        ) {
-            model.registry.select(descriptor.id)
+    private func bandTitle(symbol: String, title: String?, hue: AraHue?, glyph: AraGlyph?) -> some View {
+        let grow = model.edgeScale
+        return HStack(spacing: 6 * grow) {
+            Group {
+                if let glyph {
+                    AraGlyphView(glyph, size: 13)
+                } else {
+                    Image(systemName: symbol).font(.system(size: 11 * grow, weight: .semibold))
+                }
+            }
+            .foregroundStyle(hue.map { AraPalette.tint($0).line } ?? AraPalette.ink.opacity(0.8))
+            if let title {
+                Text(title)
+                    .font(.system(size: 12 * grow, weight: .medium))
+                    .foregroundStyle(AraPalette.ink.opacity(0.62))
+                    .lineLimit(1)
+            }
         }
     }
 
     @ViewBuilder
     private var page: some View {
         Group {
-            if let id = model.registry.selectedID, let page = model.pages[id] {
+            if model.isExploring {
+                NotchExploreGrid(model: model)
+                    .transition(.opacity)
+            } else if let id = model.registry.selectedID, let page = model.pages[id] {
                 page.makeView()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .araHue(page.hue)
@@ -330,19 +419,42 @@ struct NotchRootView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding(Self.contentPadding * model.scale)
+        .padding(.horizontal, Self.contentPadding * model.scale)
+        .padding(.top, 4 * model.scale)
+        .padding(.bottom, Self.contentPadding * model.scale)
         .foregroundStyle(AraPalette.ink)
-        .animation(.easeInOut(duration: 0.15), value: model.registry.selectedID)
+        .animation(.easeInOut(duration: 0.18), value: model.registry.selectedID)
+        .animation(.easeInOut(duration: 0.18), value: model.isExploring)
+    }
+
+    /// The menu of the open notch, on a secondary click anywhere on it: what used to sit on
+    /// its tab row, out of the way.
+    @ViewBuilder
+    private var islandMenu: some View {
+        Button(L10n.string(model.isPinned ? "notch.pin.on" : "notch.pin.off")) { model.onTogglePin?() }
+        Button(L10n.string("notch.explore")) { model.onOrbit?(.explore) }
+        Button(L10n.string("notch.settings.tooltip")) { model.onOpenSettings?() }
+        Divider()
+        Button(L10n.string("notch.close")) { model.onClose?() }
     }
 }
 
-/// A button on the notch's tab row that looks like the pin beside it: an icon, its name
-/// under the pointer, filled while it is on. For a page's own `headerAccessory`.
+private struct SideWidthKey: PreferenceKey {
+    static let defaultValue: [CGFloat] = []
+    static func reduce(value: inout [CGFloat], nextValue: () -> [CGFloat]) {
+        value += nextValue()
+    }
+}
+
+/// A button of the page's own in the strip right of the camera: an icon, its name under the
+/// pointer, filled while it is on. For a page's `headerAccessory`.
 public struct NotchToolbarButton: View {
     let symbolName: String
     let title: String
     let isOn: Bool
     let action: () -> Void
+    @StateObject private var hover = AraHover()
+    @Environment(\.araScale) private var ui
 
     public init(symbolName: String, title: String, isOn: Bool, action: @escaping () -> Void) {
         self.symbolName = symbolName
@@ -352,46 +464,17 @@ public struct NotchToolbarButton: View {
     }
 
     public var body: some View {
-        NotchTab(glyph: nil, symbolName: symbolName, title: title, hue: nil, isSelected: isOn, selection: nil, action: action)
-    }
-}
-
-/// One tab of the open notch: an icon in its page's colour, which brightens under the
-/// pointer and sits on a shape filled with that colour when it is the chosen page.
-private struct NotchTab: View {
-    /// The app's own drawing for the page; a page without one shows its system symbol.
-    let glyph: AraGlyph?
-    let symbolName: String
-    let title: String
-    let hue: AraHue?
-    let isSelected: Bool
-    /// The row whose filled shape slides between its chosen tabs; nil for a switch that
-    /// fills on its own.
-    let selection: Namespace.ID?
-    let action: () -> Void
-    @StateObject private var hover = AraHover()
-    @Environment(\.araScale) private var ui
-
-    var body: some View {
         Button {
             AraTooltipCenter.shared.hide()
             action()
         } label: {
-            icon
-                .foregroundStyle(
-                    isSelected
-                        ? AraPalette.onAccent(in: hue)
-                        : (hue.map { AraPalette.tint($0).line } ?? AraPalette.ink).opacity(hover.isHovered ? 1 : 0.72))
-                .frame(width: 30 * ui, height: 22 * ui)
+            Image(systemName: symbolName)
+                .font(.system(size: 12 * ui, weight: .semibold))
+                .foregroundStyle(AraPalette.ink.opacity(isOn || hover.isHovered ? 1 : 0.6))
+                .frame(width: 28 * ui, height: 24 * ui)
                 .background {
-                    if isSelected, let selection {
-                        Capsule().fill(AraPalette.accent(in: hue))
-                            .matchedGeometryEffect(id: "tab", in: selection)
-                    } else if isSelected {
-                        Capsule().fill(AraPalette.accent(in: hue))
-                    } else if hover.isHovered {
-                        Capsule().fill(AraPalette.hoverWash)
-                    }
+                    RoundedRectangle(cornerRadius: 8 * ui, style: .continuous)
+                        .fill(Color.white.opacity(isOn ? 0.14 : (hover.isHovered ? 0.09 : 0)))
                 }
                 .contentShape(Rectangle())
                 .animation(AraTheme.hover, value: hover.isHovered)
@@ -400,15 +483,5 @@ private struct NotchTab: View {
         .onHover { hover.isHovered = $0 }
         .araTooltip(title, isHovered: hover.isHovered)
         .accessibilityLabel(title)
-    }
-
-    @ViewBuilder
-    private var icon: some View {
-        if let glyph {
-            AraGlyphView(glyph, size: 15)
-        } else {
-            Image(systemName: symbolName)
-                .font(.system(size: 12 * ui, weight: .semibold))
-        }
     }
 }

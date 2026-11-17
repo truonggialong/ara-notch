@@ -49,6 +49,8 @@ Không cần quyền.
 - `Modules/Files/Core/FileActions.swift` — The image formats files can be converted to.
 - `Modules/Files/Core/FileDropTile.swift` — The actions shown as places to drop while files are dragged over the Files page: letting go over one adds the files and does it at once.
 - `Modules/Files/Feature/FilesController.swift` — State the Files page renders from.
+- `Modules/Files/Core/Downloads.swift` — Các tệp đang tải vào thư mục Tải về, gộp thành một vòng tiến độ và nhãn (`DownloadTally`).
+- `Modules/Files/Feature/DownloadsController.swift` — Theo dõi tiến độ tải mà trình duyệt công bố (`Progress.addSubscriber`), đặt vòng tiến độ cạnh notch, báo một dòng khi tải xong.
 
 ## Lỗi và giới hạn đã biết
 
@@ -62,3 +64,6 @@ Không cần quyền.
 Mỗi dòng: ngày — lỗi hoặc thay đổi — test đã thêm — commit.
 
 - Chưa có.
+- 2026-11-16 — hàng tệp mờ ở mép còn nội dung — thử tay bằng ảnh chụp.
+- 2026-11-16 — N4: tiến độ tải xuống vào thư mục Tải về cạnh notch đóng (vòng và phần trăm, nhiều tệp thì kèm số tệp), xong thì báo một dòng "Đã tải xong" (`DownloadTally`, `DownloadsController` theo `Progress.addSubscriber`, không đọc tệp) — `DownloadsTests`, thử bằng một chương trình nhỏ công bố tiến độ giả. Chưa làm: kéo tệp vừa tải ra từ notch.
+- 2026-11-16 — đang tải: khay xanh và vòng tiến độ, không số; tải xong: khay xanh và tên tệp — thử tay bằng tiến độ giả.

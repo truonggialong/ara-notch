@@ -1,0 +1,423 @@
+<title>Ara Notch Pictograms</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600&family=Inter:wght@400;500;600&display=swap">
+<style>
+/* Layout: one column of notices, each a strip of menu bar with the closed notch speaking in pictures; the glyph set laid out as a type specimen above. */
+:root{
+  --paper:#F3F3F0; --card:#FFFFFF; --ink:#151515; --muted:#6B6B66; --line:rgba(20,20,20,.10);
+  --notch:#050505; --wing:#FFFFFF; --bar:#DCE6F2;
+  --orange:#FF6A1A; --red:#FF4D4F; --green:#34C77B; --violet:#9B7BFF; --sky:#4FA8FF; --yellow:#FFC93C;
+  --housing:148px; --nh:26px; /* the camera housing, drawn at 0.8 of its points: 185 × 32 pt on this Mac */
+  --display:"Space Grotesk",ui-sans-serif,system-ui,sans-serif; --body:"Inter",ui-sans-serif,system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--paper:#121212;--card:#1C1C1B;--ink:#F1F1EE;--muted:#9C9C96;--line:rgba(255,255,255,.10);--bar:#26303B;color-scheme:dark}}
+:root[data-theme="dark"]{--paper:#121212;--card:#1C1C1B;--ink:#F1F1EE;--muted:#9C9C96;--line:rgba(255,255,255,.10);--bar:#26303B;color-scheme:dark}
+body{background:var(--paper);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.6;margin:0}
+.wrap{max-width:1040px;margin:0 auto;padding-block:40px 64px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:48px}
+h1,h2,h3{font-family:var(--display);font-weight:600;text-wrap:balance;margin:0}
+h1{font-size:clamp(30px,5vw,46px);letter-spacing:-.02em;line-height:1.05}
+h2{font-size:22px;letter-spacing:-.01em}
+h3{font-size:15px}
+p{margin:0;max-width:65ch}
+.lede{color:var(--muted);font-size:16px}
+.eyebrow{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:600}
+header{display:flex;flex-direction:column;gap:14px}
+.rules{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.rule{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.rule b{font-family:var(--display);font-weight:600;font-size:15px}
+.rule span{color:var(--muted);font-size:13.5px}
+/* glyph specimen */
+.specimen{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:10px}
+.g{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 8px 10px;display:flex;flex-direction:column;align-items:center;gap:8px;min-width:0}
+.g svg{width:34px;height:34px;color:var(--ink)}
+.g small{font-size:11.5px;color:var(--muted);text-align:center;line-height:1.3}
+.g .on{color:var(--orange)}
+/* notices */
+.group{display:flex;flex-direction:column;gap:14px}
+.list{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px}
+.n{background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden;display:flex;flex-direction:column;min-width:0}
+.screen{background:var(--bar);height:74px;position:relative;overflow:hidden}
+.macs{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:14px}
+.macs .ctl{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.macs button{font:600 13px var(--body);padding:6px 12px;border-radius:99px;border:1px solid var(--line);background:transparent;color:var(--ink);cursor:pointer}
+.macs button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+.macs button:focus-visible,.macs input:focus-visible{outline:2px solid var(--orange);outline-offset:2px}
+.macs input[type=range]{flex:1;min-width:160px;accent-color:var(--orange)}
+.macs output{font:600 13px var(--body);font-variant-numeric:tabular-nums;min-width:96px}
+.macs .demo{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px}
+.macs .demo .screen{border-radius:12px}
+/* Balanced: both sides take the width of the wider one, so the camera is always in the middle. */
+.notch{position:absolute;top:0;left:50%;transform:translateX(-50%);height:var(--nh);background:var(--notch);border-radius:0 0 11px 11px;display:inline-grid;grid-template-columns:1fr var(--housing) 1fr;align-items:center;gap:8px;padding:0 10px;color:var(--wing);transition:grid-template-columns .35s ease}
+/* The camera in the middle of the notch: a lens with its glint, and the green light beside it. */
+/* The camera housing: the black cut-out in the screen itself, as wide as it is on this MacBook, with the lens and its light inside. */
+.notch .cam{width:var(--housing);height:var(--nh);display:grid;place-items:center;position:relative;background:#000;border-radius:0 0 9px 9px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.07);transition:width .35s ease}
+.notch .cam::before{content:"";width:9px;height:9px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#5b6b8c 0 14%,#1c2433 30%,#0d0f14 62%,#232323 64% 100%);box-shadow:0 0 0 1.5px #161616}
+.notch .cam::after{content:"";position:absolute;left:calc(50% + 10px);top:50%;width:3px;height:3px;margin-top:-1.5px;border-radius:50%;background:#1f3d2a}
+.plate::before{content:"";position:absolute;top:0;left:50%;width:var(--housing);height:var(--nh);transform:translateX(-50%);border-radius:0 0 9px 9px;background:radial-gradient(circle at 50% 50%,#5b6b8c 0 1px,#1c2433 2px,#0d0f14 3.5px,#232323 4px,#000 5.5px);box-shadow:inset 0 0 0 1px rgba(255,255,255,.07);transition:width .35s ease}
+.notch .l{justify-self:start}
+.notch .r{justify-self:end}
+.notch .l,.notch .r{display:flex;align-items:center;gap:6px;white-space:nowrap}
+.notch svg{width:17px;height:17px;flex:none}
+.meta{padding:12px 14px 14px;display:flex;flex-direction:column;gap:4px}
+.meta h3{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.meta .was{font-size:12.5px;color:var(--muted)}
+.meta .was s{text-decoration-color:var(--red)}
+.tag{font-family:var(--body);font-size:11px;font-weight:600;padding:1px 7px;border-radius:99px;background:var(--line);color:var(--muted)}
+/* visual values */
+.meter{width:46px;height:5px;border-radius:3px;background:rgba(255,255,255,.18);position:relative;overflow:hidden}
+.meter i{position:absolute;inset:0 auto 0 0;border-radius:3px;background:currentColor}
+.pips{display:flex;gap:3px}
+.pips i{width:6px;height:10px;border-radius:2px;background:rgba(255,255,255,.2)}
+.pips i.f{background:currentColor}
+.ring{width:17px;height:17px}
+.dot{width:7px;height:7px;border-radius:50%;background:currentColor}
+.art{width:20px;height:20px;border-radius:5px;background:linear-gradient(135deg,#ff8a3d,#c2185b 60%,#5b2a86)}
+.bars{display:flex;gap:2px;align-items:center;height:14px}
+.bars i{width:3px;border-radius:2px;background:currentColor;height:40%;animation:eq 1s ease-in-out infinite}
+.bars i:nth-child(2){animation-delay:.2s}.bars i:nth-child(3){animation-delay:.4s}.bars i:nth-child(4){animation-delay:.1s}
+@keyframes eq{0%,100%{height:30%}50%{height:100%}}
+.swatch{width:16px;height:16px;border-radius:5px;background:#3A86FF;box-shadow:inset 0 0 0 1px rgba(255,255,255,.3)}
+.thumb{width:22px;height:16px;border-radius:3px;background:linear-gradient(160deg,#9ad0ff,#2f6fb3);position:relative}
+.thumb:after{content:"";position:absolute;left:3px;bottom:2px;width:9px;height:5px;background:#fff;clip-path:polygon(0 100%,50% 0,100% 100%)}
+.stack{display:flex;gap:2px}.stack i{width:5px;height:5px;border-radius:50%;background:currentColor}
+.fav{width:16px;height:16px;border-radius:4px;background:#fff;display:grid;place-items:center}
+.fav:after{content:"";width:9px;height:9px;border-radius:50%;background:#111;box-shadow:inset -3px 0 0 #fff}
+/* motion */
+@keyframes fill{0%{width:20%}60%,100%{width:64%}}
+@keyframes vol{0%{width:30%}20%{width:42%}40%{width:54%}60%{width:66%}80%,100%{width:78%}}
+@keyframes bolt{0%,100%{opacity:1}50%{opacity:.35}}
+@keyframes arcs{0%{opacity:.15}30%,100%{opacity:1}}
+@keyframes draw{from{stroke-dashoffset:30}to{stroke-dashoffset:0}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes pulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.35);opacity:.55}}
+@keyframes shake{0%,100%{transform:rotate(0)}10%{transform:rotate(-16deg)}20%{transform:rotate(14deg)}30%{transform:rotate(-8deg)}40%{transform:rotate(0)}}
+@keyframes sweep{from{stroke-dashoffset:0}to{stroke-dashoffset:44}}
+@keyframes grow{from{stroke-dashoffset:44}to{stroke-dashoffset:6}}
+@keyframes drop{0%{transform:translateY(-5px);opacity:0}40%,100%{transform:translateY(0);opacity:1}}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.25}}
+.a-fill i{animation:fill 2.4s ease-out infinite alternate}
+.a-vol i{animation:vol 3s steps(5) infinite}
+.a-bolt{animation:bolt 1.2s ease-in-out infinite}
+.a-draw{stroke-dasharray:30;animation:draw 1.2s ease-out infinite alternate}
+.a-spin{animation:spin 1.4s linear infinite;transform-origin:50% 50%}
+.a-pulse{animation:pulse 1.4s ease-in-out infinite;transform-origin:50% 50%}
+.a-shake{animation:shake 1.6s ease-in-out infinite;transform-origin:50% 20%}
+.a-drop{animation:drop 1.6s ease-out infinite}
+.a-blink{animation:blink 1.6s ease-in-out infinite}
+@media (prefers-reduced-motion: reduce){*{animation:none!important}}
+.foot{color:var(--muted);font-size:13.5px;border-top:1px solid var(--line);padding-top:18px}
+/* tiers: when words stay */
+.tiers{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px}
+.tier{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.tier h3{font-size:17px}
+.tier .why{color:var(--muted);font-size:13.5px}
+.tier ul{margin:0;padding-left:18px;font-size:13.5px;display:flex;flex-direction:column;gap:2px}
+.badge{align-self:flex-start;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;padding:2px 8px;border-radius:99px}
+.b1{background:color-mix(in srgb,var(--ink) 8%,transparent);color:var(--ink)}
+.b2{background:color-mix(in srgb,var(--orange) 16%,transparent);color:var(--orange)}
+.b3{background:color-mix(in srgb,var(--red) 14%,transparent);color:var(--red)}
+.txt{font-size:12px;font-weight:600;white-space:nowrap;letter-spacing:.005em}
+.txt.dim{opacity:.72;font-weight:500}
+.screen.tall{height:118px}
+.plate{position:absolute;top:0;left:50%;transform:translateX(-50%);width:300px;max-width:94%;height:96px;background:var(--notch);border-radius:0 0 18px 18px;color:var(--wing);display:flex;flex-direction:column;justify-content:flex-end;padding:0 14px 12px;gap:5px;box-shadow:inset 0 -2px 0 var(--edge,transparent)}
+.plate .top{display:flex;align-items:center;gap:8px}
+.plate .top svg{width:18px;height:18px}
+.plate .t1{font-size:13px;font-weight:600}
+.plate .t2{font-size:11.5px;opacity:.72;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.plate .acts{display:flex;gap:6px}
+.plate .acts span{font-size:11px;font-weight:600;padding:2px 9px;border-radius:99px;background:rgba(255,255,255,.14)}
+.plate .acts span.p{background:var(--edge);color:#111}
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+<defs>
+<!-- 24-pt grid, 1.75 stroke, round caps; a filled part only for the state -->
+<symbol id="battery" viewBox="0 0 24 24"><rect x="2.5" y="7" width="17" height="10" rx="3" fill="none" stroke="currentColor" stroke-width="1.75"/><path d="M21.5 10.5v3" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/><rect x="4.6" y="9.1" width="8" height="5.8" rx="1.4" fill="currentColor"/></symbol>
+<symbol id="bolt" viewBox="0 0 24 24"><path d="M13 3 6 13.5h5L10 21l7-10.5h-5L13 3Z" fill="currentColor"/></symbol>
+<symbol id="plug" viewBox="0 0 24 24"><path d="M9 3v4M15 3v4M7 7h10v3a5 5 0 0 1-10 0V7ZM12 15v6" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+<symbol id="caps" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="5" fill="none" stroke="currentColor" stroke-width="1.75"/><path d="M12 7 7.5 12H10v3.5h4V12h2.5L12 7Z" fill="currentColor"/><path d="M10 17.5h4" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/></symbol>
+<symbol id="wifi" viewBox="0 0 24 24"><path d="M3 9.5a13 13 0 0 1 18 0" class="w3" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/><path d="M6.2 12.8a8.5 8.5 0 0 1 11.6 0" class="w2" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/><path d="M9.3 16a4 4 0 0 1 5.4 0" class="w1" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/><circle cx="12" cy="19" r="1.4" fill="currentColor"/></symbol>
+<symbol id="wifioff" viewBox="0 0 24 24"><path d="M3 9.5a13 13 0 0 1 18 0M6.2 12.8a8.5 8.5 0 0 1 11.6 0M9.3 16a4 4 0 0 1 5.4 0" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" opacity=".35"/><path d="M4 4l16 16" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/></symbol>
+<symbol id="headphones" viewBox="0 0 24 24"><path d="M4 15v-3a8 8 0 0 1 16 0v3" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/><rect x="3" y="14" width="5" height="7" rx="2" fill="currentColor"/><rect x="16" y="14" width="5" height="7" rx="2" fill="currentColor"/></symbol>
+<symbol id="earbuds" viewBox="0 0 24 24"><path d="M7.5 4a3.5 3.5 0 0 1 3.5 3.5v2A3.5 3.5 0 0 1 7.5 13 3.5 3.5 0 0 1 4 9.5v-2A3.5 3.5 0 0 1 7.5 4ZM16.5 4A3.5 3.5 0 0 1 20 7.5v2a3.5 3.5 0 0 1-3.5 3.5A3.5 3.5 0 0 1 13 9.5v-2A3.5 3.5 0 0 1 16.5 4Z" fill="none" stroke="currentColor" stroke-width="1.75"/><path d="M5.5 12.5V20M18.5 12.5V20" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/></symbol>
+<symbol id="keyboard" viewBox="0 0 24 24"><rect x="2.5" y="6" width="19" height="12" rx="3" fill="none" stroke="currentColor" stroke-width="1.75"/><path d="M6 10h.01M9.5 10h.01M13 10h.01M16.5 10h.01M8 14h8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+<symbol id="mouse" viewBox="0 0 24 24"><rect x="6" y="3" width="12" height="18" rx="6" fill="none" stroke="currentColor" stroke-width="1.75"/><path d="M12 7v3" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/></symbol>
+<symbol id="speaker" viewBox="0 0 24 24"><path d="M4 9.5h3.5L12 5v14l-4.5-4.5H4v-5Z" fill="currentColor"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/></symbol>
+<symbol id="mute" viewBox="0 0 24 24"><path d="M4 9.5h3.5L12 5v14l-4.5-4.5H4v-5Z" fill="currentColor"/><path d="M16 9.5l5 5M21 9.5l-5 5" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/></symbol>
+<symbol id="sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="currentColor"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/></symbol>
+<symbol id="keylight" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="9" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.75"/><path d="M12 3v3M6.5 5l1.5 2M17.5 5 16 7" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/><path d="M7 15.5h10" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/></symbol>
+<symbol id="clip" viewBox="0 0 24 24"><rect x="5" y="4.5" width="14" height="16.5" rx="3" fill="none" stroke="currentColor" stroke-width="1.75"/><rect x="9" y="3" width="6" height="3.5" rx="1.2" fill="currentColor"/><path d="M9 11h6M9 14.5h4" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/></symbol>
+<symbol id="clipcheck" viewBox="0 0 24 24"><rect x="5" y="4.5" width="14" height="16.5" rx="3" fill="none" stroke="currentColor" stroke-width="1.75"/><rect x="9" y="3" width="6" height="3.5" rx="1.2" fill="currentColor"/><path d="m8.8 13.2 2.2 2.2 4.2-4.6" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="a-draw"/></symbol>
+<symbol id="layers" viewBox="0 0 24 24"><path d="M12 3 3 8l9 5 9-5-9-5Z" fill="currentColor"/><path d="m3 12.5 9 5 9-5M3 16.5l9 5 9-5" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+<symbol id="shield" viewBox="0 0 24 24"><path d="M12 3 4.5 6v5.5c0 4.5 3.2 8 7.5 9.5 4.3-1.5 7.5-5 7.5-9.5V6L12 3Z" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linejoin="round"/><path d="M8.5 15.5l7-7" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/><rect x="9.5" y="10" width="5" height="4.5" rx="1" fill="currentColor"/></symbol>
+<symbol id="crack" viewBox="0 0 24 24"><rect x="5" y="4.5" width="14" height="16.5" rx="3" fill="none" stroke="currentColor" stroke-width="1.75"/><path d="m12 7-2 4h3l-2 5" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+<symbol id="bell" viewBox="0 0 24 24"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15L6 16Z" fill="currentColor"/><path d="M10 20.5a2 2 0 0 0 4 0" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/></symbol>
+<symbol id="calclock" viewBox="0 0 24 24"><rect x="3" y="5" width="13" height="13" rx="3" fill="none" stroke="currentColor" stroke-width="1.75"/><path d="M7 3v3M12 3v3M3 9h13" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/><circle cx="17" cy="16.5" r="4.5" fill="currentColor"/><path d="M17 14.5v2.2l1.4 1" stroke="var(--notch)" stroke-width="1.4" stroke-linecap="round"/></symbol>
+<symbol id="undo" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.75"/><path d="m8 12.2 2.6 2.6 5.4-5.6" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+<symbol id="orbit" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" fill="currentColor"/><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.75" stroke-dasharray="12 6" stroke-linecap="round"/></symbol>
+<symbol id="ask" viewBox="0 0 24 24"><path d="M4 6.5A3.5 3.5 0 0 1 7.5 3h9A3.5 3.5 0 0 1 20 6.5v6a3.5 3.5 0 0 1-3.5 3.5H11l-4.5 4v-4h0A2.5 2.5 0 0 1 4 13.5v-7Z" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linejoin="round"/><circle cx="8.5" cy="9.5" r="1.2" fill="currentColor"/><circle cx="12" cy="9.5" r="1.2" fill="currentColor"/><circle cx="15.5" cy="9.5" r="1.2" fill="currentColor"/></symbol>
+<symbol id="done" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="currentColor"/><path d="m8 12.3 2.7 2.7L16.2 9.5" fill="none" stroke="var(--notch)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+<symbol id="download" viewBox="0 0 24 24"><path d="M12 3.5v10M8 9.5l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 14v3.5A2.5 2.5 0 0 0 6.5 20h11a2.5 2.5 0 0 0 2.5-2.5V14" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/></symbol>
+<symbol id="update" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.75"/><path d="M12 16.5v-8M8.5 11.5 12 8l3.5 3.5" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/><circle cx="19" cy="5" r="2.2" fill="currentColor"/></symbol>
+<symbol id="cup" viewBox="0 0 24 24"><path d="M4 9h12v5a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5V9Z" fill="currentColor"/><path d="M16 10.5h1.5a2.5 2.5 0 0 1 0 5H16M8 3.5c0 1.2 1 1.5 1 2.7M12 3.5c0 1.2 1 1.5 1 2.7" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/></symbol>
+<symbol id="note" viewBox="0 0 24 24"><path d="M9 17.5V6l10-2v11.5" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linejoin="round"/><circle cx="6.5" cy="17.5" r="2.7" fill="currentColor"/><circle cx="16.5" cy="15.5" r="2.7" fill="currentColor"/></symbol>
+</defs>
+</svg>
+
+<main class="wrap">
+<header>
+  <span class="eyebrow">Ara Notch · đề xuất bộ biểu tượng · 2026-11-16</span>
+  <h1>Thông báo nói bằng hình</h1>
+  <p class="lede">Bên trái camera là cái gì đang nói, bên phải là bao nhiêu hoặc ở trạng thái nào. Thông báo mà hình đã đủ nghĩa thì không có chữ; thông báo có tên riêng hay cần bạn làm gì thì giữ một dòng chữ ngắn, đọc được ngay không cần bấm.</p>
+</header>
+
+<section class="group" aria-labelledby="h-rules">
+  <h2 id="h-rules">Bốn quy tắc</h2>
+  <div class="rules">
+    <div class="rule"><b>Trái: cái gì</b><span>Một biểu tượng của bộ mới cho nguồn của thông báo: pin, Bluetooth, clipboard, hẹn giờ, agent.</span></div>
+    <div class="rule"><b>Phải: bao nhiêu, hoặc tên</b><span>Một hình đo được: thanh mức, vòng tiến độ, ô pin, chấm đếm, ảnh nhỏ của thứ vừa chép. Khi hình không nói được tên riêng, một dòng chữ ngắn thay vào.</span></div>
+    <div class="rule"><b>Luôn cân giữa</b><span>Hai bên camera luôn rộng bằng nhau, lấy theo bên dài hơn. Notch không bao giờ lệch trái hay phải; hình nằm sát mép ngoài, chữ nằm sát mép ngoài bên kia.</span></div>
+    <div class="rule"><b>Màu là nơi gửi</b><span>Trắng cho tin bình thường. Cam cho hẹn giờ, tím cho agent, xanh lá cho xong, vàng cho giữ máy thức, đỏ cho cảnh báo.</span></div>
+    <div class="rule"><b>Rê chuột để biết thêm</b><span>Con trỏ trên thông báo thì nó dừng lại và hiện thêm chi tiết: nghệ sĩ của bài, phần trăm pin, cả câu agent hỏi.</span></div>
+  </div>
+</section>
+
+<section class="group" aria-labelledby="h-macs">
+  <h2 id="h-macs">Cụm camera của từng MacBook</h2>
+  <p class="lede">Giữa mỗi notch là cụm camera thật: phần khuyết đen của màn hình, có ống kính và đèn bên trong. Cụm này rộng hẹp khác nhau theo dòng máy và theo độ phân giải bạn chọn trong Cài đặt hệ thống. App hỏi macOS kích thước cụm camera của từng màn hình (vùng trống hai bên notch), rồi đặt hai cánh thông báo đều hai bên. Kéo thanh dưới đây để xem notch tự cân lại.</p>
+  <div class="macs">
+    <div class="ctl" role="group" aria-label="Cỡ cụm camera">
+      <button type="button" id="mac-narrow" data-pt="165" aria-pressed="false">Hẹp hơn</button>
+      <button type="button" id="mac-this" data-pt="185" aria-pressed="true">Máy này · 185 pt</button>
+      <button type="button" id="mac-wide" data-pt="210" aria-pressed="false">Rộng hơn</button>
+      <input type="range" id="housing" min="150" max="240" step="1" value="185" aria-label="Độ rộng cụm camera theo điểm">
+      <output id="housing-out" for="housing">185 × 32 pt</output>
+    </div>
+    <div class="demo">
+      <div class="screen"><div class="notch"><span class="l"><svg class="a-drop"><use href="#earbuds"/></svg></span><span class="cam"></span><span class="r"><span class="txt">AirPods Pro</span></span></div></div>
+      <div class="screen"><div class="notch"><span class="l"><svg><use href="#speaker"/></svg></span><span class="cam"></span><span class="r"><span class="meter a-vol"><i></i></span></span></div></div>
+      <div class="screen"><div class="notch"><span class="l"><svg style="color:var(--sky)"><use href="#calclock"/></svg><span class="txt">20:18</span></span><span class="cam"></span><span class="r"><span class="txt">Gọi khách hàng</span></span></div></div>
+    </div>
+    <p class="was" style="font-size:12.5px;color:var(--muted)">185 × 32 pt là số đo thật trên máy này (màn hình 1512 × 982). "Hẹp hơn" và "Rộng hơn" là ví dụ để thấy notch tự cân, không phải số đo của một máy cụ thể. Hai cánh luôn bằng nhau; chỉ cụm camera ở giữa đổi cỡ.</p>
+  </div>
+</section>
+
+<section class="group" aria-labelledby="h-set">
+  <h2 id="h-set">Bộ biểu tượng</h2>
+  <p class="lede">Lưới 24 pt, nét 1,75 pt, đầu nét tròn. Phần tô đặc chỉ dành cho trạng thái: lõi pin, bàn phím của Caps Lock, chuông đang reo. 29 hình, vẽ riêng cho Ara Notch thay cho biểu tượng hệ thống.</p>
+  <div class="specimen">
+    <div class="g"><svg><use href="#battery"/></svg><small>Pin</small></div>
+    <div class="g"><svg class="on"><use href="#bolt"/></svg><small>Đang sạc</small></div>
+    <div class="g"><svg><use href="#plug"/></svg><small>Rút sạc</small></div>
+    <div class="g"><svg><use href="#caps"/></svg><small>Caps Lock</small></div>
+    <div class="g"><svg><use href="#wifi"/></svg><small>Có mạng</small></div>
+    <div class="g"><svg><use href="#wifioff"/></svg><small>Mất mạng</small></div>
+    <div class="g"><svg><use href="#headphones"/></svg><small>Tai nghe</small></div>
+    <div class="g"><svg><use href="#earbuds"/></svg><small>Tai nghe nhét tai</small></div>
+    <div class="g"><svg><use href="#keyboard"/></svg><small>Bàn phím</small></div>
+    <div class="g"><svg><use href="#mouse"/></svg><small>Chuột</small></div>
+    <div class="g"><svg><use href="#speaker"/></svg><small>Âm lượng</small></div>
+    <div class="g"><svg><use href="#mute"/></svg><small>Tắt tiếng</small></div>
+    <div class="g"><svg><use href="#sun"/></svg><small>Độ sáng</small></div>
+    <div class="g"><svg><use href="#keylight"/></svg><small>Đèn bàn phím</small></div>
+    <div class="g"><svg><use href="#clip"/></svg><small>Clipboard</small></div>
+    <div class="g"><svg><use href="#clipcheck"/></svg><small>Đã chép</small></div>
+    <div class="g"><svg><use href="#layers"/></svg><small>Chồng chép</small></div>
+    <div class="g"><svg><use href="#shield"/></svg><small>Không lưu (bí mật)</small></div>
+    <div class="g"><svg><use href="#crack"/></svg><small>Lịch sử hỏng</small></div>
+    <div class="g"><svg><use href="#note"/></svg><small>Bài mới</small></div>
+    <div class="g"><svg class="on"><use href="#bell"/></svg><small>Hết giờ</small></div>
+    <div class="g"><svg><use href="#calclock"/></svg><small>Sắp họp</small></div>
+    <div class="g"><svg><use href="#undo"/></svg><small>Xong, hoàn tác</small></div>
+    <div class="g"><svg><use href="#orbit"/></svg><small>Agent đang làm</small></div>
+    <div class="g"><svg><use href="#ask"/></svg><small>Agent cần bạn</small></div>
+    <div class="g"><svg><use href="#done"/></svg><small>Agent xong</small></div>
+    <div class="g"><svg><use href="#download"/></svg><small>Tải xuống</small></div>
+    <div class="g"><svg><use href="#update"/></svg><small>Có bản mới</small></div>
+    <div class="g"><svg><use href="#cup"/></svg><small>Giữ máy thức</small></div>
+  </div>
+</section>
+
+<section class="group" aria-labelledby="h-words">
+  <h2 id="h-words">Khi nào thông báo vẫn có chữ</h2>
+  <p class="lede">Một câu hỏi cho mỗi thông báo: nếu chỉ thấy hình trong một giây, bạn có biết máy vừa báo gì và có phải làm gì không? Nếu có, chỉ để hình. Nếu hình không nói được tên riêng (thiết bị nào, bài nào, cuộc họp nào) hoặc bạn cần làm gì đó, thông báo giữ chữ, ngắn nhất có thể.</p>
+  <div class="tiers">
+    <div class="tier"><span class="badge b1">Chỉ hình · 13</span><h3>Hình đã đủ nghĩa</h3><p class="why">Việc bạn vừa tự làm, hoặc một mức đo được. Bạn đã biết chuyện gì xảy ra, chỉ cần thấy kết quả.</p>
+      <ul><li>Âm lượng, tắt tiếng, độ sáng, đèn bàn phím</li><li>Caps Lock bật, tắt</li><li>Cắm sạc, rút sạc, pin đầy</li><li>Có mạng lại</li><li>Đã chép (màu, ảnh, liên kết, tệp), chồng chép</li><li>Đang tải xuống, giữ máy thức</li><li>Agent đang làm</li></ul></div>
+    <div class="tier"><span class="badge b2">Hình + chữ ngắn · 12</span><h3>Một dòng, đọc lướt</h3><p class="why">Có một tên riêng hay một con số mà hình không nói được. Chữ nằm bên phải camera, tối đa khoảng 24 ký tự, không bấm cũng đọc được.</p>
+      <ul><li>Thiết bị Bluetooth kết nối, ngắt: tên thiết bị</li><li>Pin yếu: phần trăm còn lại</li><li>Mất mạng: hai chữ "Mất mạng"</li><li>Bài mới: tên bài</li><li>Sắp họp: tên cuộc họp và giờ</li><li>Hết giờ: nhãn của bộ hẹn giờ</li><li>Agent xong lượt: tên dự án</li><li>Đã tải xong: tên tệp</li><li>Có bản mới: số phiên bản</li><li>Không lưu vì là khoá bí mật: lý do</li><li>Đã xong lời nhắc: chữ "Hoàn tác" (bấm được)</li><li>App khác đang phát tiếng: tên app</li></ul></div>
+    <div class="tier"><span class="badge b3">Biển lớn · 2</span><h3>Cần bạn quyết</h3><p class="why">Bạn phải đọc nội dung và làm gì đó. Biển thả xuống dưới notch, có tiêu đề, một dòng chi tiết và nút.</p>
+      <ul><li>Agent cần bạn: câu agent hỏi, nút Mở</li><li>Lịch sử clipboard hỏng, đã tạo mới: chuyện gì xảy ra, nút Xem</li></ul></div>
+  </div>
+
+  <h3 style="margin-top:6px">Hình + chữ ngắn, như sẽ thấy trên notch</h3>
+  <div class="list">
+    <article class="n"><div class="screen"><div class="notch"><span class="l"><svg class="a-drop"><use href="#earbuds"/></svg><span class="pips" style="color:var(--green)"><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i></i></span></span><span class="cam"></span><span class="r"><span class="txt">AirPods Pro</span></span></div></div>
+      <div class="meta"><h3>Bluetooth kết nối</h3><p class="was">Bạn có nhiều tai nghe: tên cho biết cái nào vừa nối. Ngắt thì hình mờ, tên vẫn hiện.</p></div></article>
+    <article class="n"><div class="screen"><div class="notch"><span class="l"><svg style="color:var(--red)" class="a-blink"><use href="#battery"/></svg></span><span class="cam"></span><span class="r"><span class="txt" style="color:var(--red)">18%</span></span></div></div>
+      <div class="meta"><h3>Pin yếu</h3><p class="was">Con số cho biết còn bao lâu để tìm sạc; ô pin không đủ chính xác.</p></div></article>
+    <article class="n"><div class="screen"><div class="notch"><span class="l"><svg style="color:var(--red)"><use href="#wifioff"/></svg></span><span class="cam"></span><span class="r"><span class="txt" style="color:var(--red)">Mất mạng</span></span></div></div>
+      <div class="meta"><h3>Mất mạng</h3><p class="was">Hiếm và quan trọng: hai chữ để không ai nhầm với "có mạng".</p></div></article>
+    <article class="n"><div class="screen"><div class="notch"><span class="l"><span class="art"></span></span><span class="cam"></span><span class="r"><span class="txt">Thu cuối</span><span class="bars" style="color:#ff8a3d"><i></i><i></i><i></i></span></span></div></div>
+      <div class="meta"><h3>Bài mới</h3><p class="was">Tên bài là chính tin; nghệ sĩ hiện khi rê chuột.</p></div></article>
+    <article class="n"><div class="screen"><div class="notch"><span class="l"><svg style="color:var(--sky)"><use href="#calclock"/></svg><span class="txt">20:18</span></span><span class="cam"></span><span class="r"><span class="txt">Gọi khách hàng</span></span></div></div>
+      <div class="meta"><h3>Sắp họp</h3><p class="was">Giờ bên trái, tên cuộc họp bên phải: biết ngay họp gì và khi nào.</p></div></article>
+    <article class="n"><div class="screen"><div class="notch"><span class="l"><svg style="color:var(--orange)" class="a-shake"><use href="#bell"/></svg></span><span class="cam"></span><span class="r"><span class="txt" style="color:var(--orange)">Pha trà</span></span></div></div>
+      <div class="meta"><h3>Hết giờ</h3><p class="was">Nhãn bạn đặt khi hẹn giờ. Không có nhãn thì chỉ còn chuông.</p></div></article>
+    <article class="n"><div class="screen"><div class="notch"><span class="l"><svg style="color:var(--green)"><use href="#done"/></svg></span><span class="cam"></span><span class="r"><span class="txt">Ara-notch</span></span></div></div>
+      <div class="meta"><h3>Agent xong lượt</h3><p class="was">Nhiều dự án chạy cùng lúc: tên dự án cho biết cái nào xong.</p></div></article>
+    <article class="n"><div class="screen"><div class="notch"><span class="l"><svg style="color:var(--green)"><use href="#download"/></svg></span><span class="cam"></span><span class="r"><span class="txt">video-thu.mp4</span></span></div></div>
+      <div class="meta"><h3>Đã tải xong</h3><p class="was">Tên tệp, cắt giữa nếu dài: "bao-cao…2026.pdf".</p></div></article>
+    <article class="n"><div class="screen"><div class="notch"><span class="l"><svg style="color:var(--orange)"><use href="#update"/></svg></span><span class="cam"></span><span class="r"><span class="txt" style="color:var(--orange)">Bản 1.1</span></span></div></div>
+      <div class="meta"><h3>Có bản mới</h3><p class="was">Số phiên bản để bạn biết có đáng cập nhật ngay không.</p></div></article>
+    <article class="n"><div class="screen"><div class="notch"><span class="l"><svg style="color:var(--orange)"><use href="#shield"/></svg></span><span class="cam"></span><span class="r"><span class="txt" style="color:var(--orange)">Không lưu khoá API</span></span></div></div>
+      <div class="meta"><h3>Không lưu vì là khoá bí mật</h3><p class="was">Giải thích vì sao thứ vừa chép không có trong lịch sử.</p></div></article>
+    <article class="n"><div class="screen"><div class="notch"><span class="l"><svg style="color:var(--green)"><use href="#undo"/></svg></span><span class="cam"></span><span class="r"><span class="txt">Hoàn tác</span><svg class="ring" viewBox="0 0 20 20"><circle cx="10" cy="10" r="7" fill="none" stroke="rgba(255,255,255,.85)" stroke-width="2" stroke-dasharray="44" transform="rotate(-90 10 10)" style="animation:sweep 5s linear infinite"/></svg></span></div></div>
+      <div class="meta"><h3>Đã xong lời nhắc</h3><p class="was">Chữ "Hoàn tác" báo rằng bấm vào là lấy lại được, trong 5 giây.</p></div></article>
+    <article class="n"><div class="screen"><div class="notch"><span class="l"><span class="fav" style="background:#25d366"></span></span><span class="cam"></span><span class="r"><span class="txt dim">đang phát tiếng</span></span></div></div>
+      <div class="meta"><h3>App khác đang phát tiếng</h3><p class="was">Biểu tượng app bên trái, ba chữ bên phải để hiểu vì sao loa đang kêu.</p></div></article>
+  </div>
+
+  <h3 style="margin-top:6px">Biển lớn, cho thông báo cần bạn quyết</h3>
+  <div class="list">
+    <article class="n"><div class="screen tall"><div class="plate" style="--edge:var(--violet)"><div class="top"><svg style="color:var(--violet)"><use href="#ask"/></svg><span class="t1">Claude cần bạn · Ara-notch</span></div><span class="t2">Cho phép chạy "swift build" trong thư mục này?</span><div class="acts"><span class="p">Mở</span><span>Để sau</span></div></div></div>
+      <div class="meta"><h3>Agent cần bạn</h3><p class="was">Câu hỏi đầy đủ một dòng; ở lại cho tới khi bạn mở hay bỏ qua.</p></div></article>
+    <article class="n"><div class="screen tall"><div class="plate" style="--edge:var(--red)"><div class="top"><svg style="color:var(--red)"><use href="#crack"/></svg><span class="t1">Lịch sử clipboard bị hỏng</span></div><span class="t2">Đã cất bản cũ và bắt đầu lịch sử mới</span><div class="acts"><span class="p">Xem</span><span>Đóng</span></div></div></div>
+      <div class="meta"><h3>Lịch sử clipboard hỏng</h3><p class="was">Hiếm gặp, cần hiểu đủ: tiêu đề, một dòng chi tiết, nút xem bản cũ.</p></div></article>
+  </div>
+</section>
+
+<section class="group" aria-labelledby="h-sys">
+  <h2 id="h-sys">Máy và thiết bị</h2>
+  <div class="list">
+    <article class="n"><div class="screen"><div class="notch"><span class="l"><svg style="color:var(--green)" class="a-bolt"><use href="#bolt"/></svg></span><span class="cam"></span><span class="r"><span class="pips" style="color:var(--green)"><i class="f"></i><i class="f"></i><i class="f"></i><i></i><i></i></span></span></div></div>
+      <div class="meta"><h3>Cắm sạc</h3><p class="was"><s>Pin · Đang sạc 64%</s> → tia sét nháy, năm ô pin sáng ba</p></div></article>
+    <article class="n"><div class="screen"><div class="notch"><span class="l"><svg><use href="#plug"/></svg></span><span class="cam"></span><span class="r"><span class="pips"><i class="f"></i><i class="f"></i><i class="f"></i><i></i><i></i></span></span></div></div>
+      <div class="meta"><h3>Rút sạc</h3><p class="was"><s>Pin · Dùng pin 64%</s> → phích cắm, ô pin trắng</p></div></article>
+    <article class="n"><div class="screen"><div class="notch"><span class="l"><svg style="color:var(--red)" class="a-blink"><use href="#battery"/></svg></span><span class="cam"></span><span class="r"><span class="pips" style="color:var(--red)"><i class="f a-blink"></i><i></i><i></i><i></i><i></i></span></span></div></div>
+      <div class="meta"><h3>Pin yếu <span class="tag">cảnh báo</span></h3><p class="was"><s>Pin yếu 18%</s> → pin đỏ nhấp nháy, còn một ô</p></div></article>
+    <article class="n"><div class="screen"><div class="notch"><span class="l"><svg style="color:var(--green)"><use href="#battery"/></svg></span><span class="cam"></span><span class="r"><span class="pips" style="color:var(--green)"><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i></span></span></div></div>
+      <div class="meta"><h3>Pin đầy</h3><p class="was"><s>Pin · Đã sạc đầy 100%</s> → năm ô xanh</p></div></article>
+    <article class="n"><div class="screen"><div class="notch"><span class="l"><svg style="color:var(--orange)"><use href="#caps"/></svg></span><span class="cam"></span><span class="r"><span class="dot" style="color:var(--orange)"></span></span></div></div>
+      <div class="meta"><h3>Caps Lock bật</h3><p class="was"><s>Caps Lock · Đang bật</s> → phím mũi tên lên, chấm cam như đèn trên phím</p></div></article>
+    <article class="n"><div class="screen"><div class="notch"><span class="l"><svg style="color:var(--red)"><use href="#wifioff"/></svg></span><span class="cam"></span><span class="r"><span class="dot a-blink" style="color:var(--red)"></span></span></div></div>
+      <div class="meta"><h3>Mất mạng <span class="tag">cảnh báo</span></h3><p class="was"><s>Mạng · Mất kết nối</s> → sóng gạch chéo, chấm đỏ nhấp nháy</p></div></article>
+    <article class="n"><div class="screen"><div class="notch"><span class="l"><svg style="color:var(--green)"><use href="#wifi"/></svg></span><span class="cam"></span><span class="r"><svg style="color:var(--green)"><use href="#done"/></svg></span></div></div>
+      <div class="meta"><h3>Có mạng lại</h3><p class="was"><s>Mạng · Đã có mạng</s> → sóng xanh, dấu xong</p></div></article>
+    <article class="n"><div class="screen"><div class="notch"><span class="l"><svg class="a-drop"><use href="#earbuds"/></svg></span><span class="cam"></span><span class="r"><span class="pips" style="color:var(--green)"><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i></i></span></span></div></div>
+      <div class="meta"><h3>Thiết bị Bluetooth kết nối</h3><p class="was"><s>AirPods Pro · đã kết nối</s> → hình đúng loại thiết bị rơi vào, ô pin của nó</p></div></article>
+    <article class="n"><div class="screen"><div class="notch"><span class="l"><svg style="opacity:.45"><use href="#headphones"/></svg></span><span class="cam"></span><span class="r"><span class="dot" style="background:transparent;box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.5)"></span></span></div></div>
+      <div class="meta"><h3>Thiết bị Bluetooth ngắt</h3><p class="was"><s>Tai nghe · đã ngắt</s> → hình thiết bị mờ đi, chấm rỗng</p></div></article>
+  </div>
+</section>
+
+<section class="group" aria-labelledby="h-level">
+  <h2 id="h-level">Mức</h2>
+  <div class="list">
+    <article class="n"><div class="screen"><div class="notch"><span class="l"><svg><use href="#speaker"/></svg></span><span class="cam"></span><span class="r"><span class="meter a-vol"><i></i></span></span></div></div>
+      <div class="meta"><h3>Âm lượng</h3><p class="was"><s>Âm lượng · 60%</s> → loa và thanh mức, bấm liên tục thì thanh trượt tại chỗ</p></div></article>
+    <article class="n"><div class="screen"><div class="notch"><span class="l"><svg style="color:var(--red)"><use href="#mute"/></svg></span><span class="cam"></span><span class="r"><span class="meter" style="opacity:.4"><i style="width:60%"></i></span></span></div></div>
+      <div class="meta"><h3>Tắt tiếng</h3><p class="was">→ loa gạch đỏ, thanh mức mờ giữ chỗ mức cũ</p></div></article>
+    <article class="n"><div class="screen"><div class="notch"><span class="l"><svg style="color:var(--yellow)"><use href="#sun"/></svg></span><span class="cam"></span><span class="r"><span class="meter a-fill" style="color:var(--yellow)"><i></i></span></span></div></div>
+      <div class="meta"><h3>Độ sáng</h3><p class="was"><s>Độ sáng · 64%</s> → mặt trời và thanh vàng</p></div></article>
+    <article class="n"><div class="screen"><div class="notch"><span class="l"><svg><use href="#keylight"/></svg></span><span class="cam"></span><span class="r"><span class="meter a-fill"><i></i></span></span></div></div>
+      <div class="meta"><h3>Đèn bàn phím</h3><p class="was"><s>Đèn bàn phím · 40%</s> → bàn phím có tia sáng, thanh mức</p></div></article>
+  </div>
+</section>
+
+<section class="group" aria-labelledby="h-clip">
+  <h2 id="h-clip">Clipboard</h2>
+  <div class="list">
+    <article class="n"><div class="screen"><div class="notch"><span class="l"><svg><use href="#clipcheck"/></svg></span><span class="cam"></span><span class="r"><span class="swatch"></span></span></div></div>
+      <div class="meta"><h3>Đã chép một màu</h3><p class="was"><s>Clipboard · Đã chép</s> → dấu xong vẽ ra, bên phải là chính màu vừa chép</p></div></article>
+    <article class="n"><div class="screen"><div class="notch"><span class="l"><svg><use href="#clipcheck"/></svg></span><span class="cam"></span><span class="r"><span class="thumb"></span></span></div></div>
+      <div class="meta"><h3>Đã chép một ảnh</h3><p class="was">→ ảnh nhỏ của chính ảnh đó; liên kết thì biểu tượng trang web, tệp thì biểu tượng tệp</p></div></article>
+    <article class="n"><div class="screen"><div class="notch"><span class="l"><svg><use href="#clipcheck"/></svg></span><span class="cam"></span><span class="r"><span class="fav"></span></span></div></div>
+      <div class="meta"><h3>Đã chép một liên kết</h3><p class="was">→ biểu tượng của trang web</p></div></article>
+    <article class="n"><div class="screen"><div class="notch"><span class="l"><svg style="color:var(--orange)"><use href="#layers"/></svg></span><span class="cam"></span><span class="r"><span class="stack" style="color:var(--orange)"><i></i><i></i><i></i></span></span></div></div>
+      <div class="meta"><h3>Chồng chép</h3><p class="was"><s>Chồng chép · 3</s> → ba chấm cam, mỗi lần chép thêm một chấm rơi vào</p></div></article>
+    <article class="n"><div class="screen"><div class="notch"><span class="l"><svg style="color:var(--orange)"><use href="#shield"/></svg></span><span class="cam"></span><span class="r"><svg style="color:var(--orange);opacity:.6"><use href="#clip"/></svg></span></div></div>
+      <div class="meta"><h3>Không lưu vì là khoá bí mật <span class="tag">cần chú ý</span></h3><p class="was"><s>Clipboard · Không lưu khoá API</s> → khiên có khoá, clipboard mờ</p></div></article>
+    <article class="n"><div class="screen"><div class="notch"><span class="l"><svg style="color:var(--red)"><use href="#crack"/></svg></span><span class="cam"></span><span class="r"><svg style="color:var(--red)"><use href="#update"/></svg></span></div></div>
+      <div class="meta"><h3>Lịch sử hỏng, đã làm mới <span class="tag">cảnh báo</span></h3><p class="was">→ clipboard nứt, mũi tên làm mới; chi tiết khi rê chuột</p></div></article>
+  </div>
+</section>
+
+<section class="group" aria-labelledby="h-time">
+  <h2 id="h-time">Thời gian, nhạc và agent</h2>
+  <div class="list">
+    <article class="n"><div class="screen"><div class="notch"><span class="l"><svg style="color:var(--orange)" class="a-shake"><use href="#bell"/></svg></span><span class="cam"></span><span class="r"><svg class="ring" viewBox="0 0 20 20"><circle cx="10" cy="10" r="7" fill="none" stroke="var(--orange)" stroke-width="3"/></svg></span></div></div>
+      <div class="meta"><h3>Hết giờ</h3><p class="was"><s>Hẹn giờ · Hết giờ</s> → chuông cam lắc, vòng đã đầy</p></div></article>
+    <article class="n"><div class="screen"><div class="notch"><span class="l"><svg style="color:var(--sky)"><use href="#calclock"/></svg></span><span class="cam"></span><span class="r"><svg class="ring" viewBox="0 0 20 20"><circle cx="10" cy="10" r="7" fill="none" stroke="rgba(255,255,255,.2)" stroke-width="3"/><circle cx="10" cy="10" r="7" fill="none" stroke="var(--sky)" stroke-width="3" stroke-dasharray="44" stroke-linecap="round" transform="rotate(-90 10 10)" style="animation:sweep 6s linear infinite"/></svg></span></div></div>
+      <div class="meta"><h3>Sắp họp</h3><p class="was"><s>Lịch · Gọi khách hàng · còn 4 phút</s> → lịch có đồng hồ màu của lịch, vòng thời gian còn lại co dần</p></div></article>
+    <article class="n"><div class="screen"><div class="notch"><span class="l"><svg style="color:var(--green)"><use href="#undo"/></svg></span><span class="cam"></span><span class="r"><svg class="ring" viewBox="0 0 20 20"><circle cx="10" cy="10" r="7" fill="none" stroke="rgba(255,255,255,.85)" stroke-width="2" stroke-dasharray="44" transform="rotate(-90 10 10)" style="animation:sweep 5s linear infinite"/></svg></span></div></div>
+      <div class="meta"><h3>Đã xong lời nhắc, bấm để hoàn tác <span class="tag">bấm được</span></h3><p class="was"><s>Đã xong · Hoàn tác</s> → dấu xong, vòng 5 giây còn lại để bấm hoàn tác</p></div></article>
+    <article class="n"><div class="screen"><div class="notch"><span class="l"><span class="art"></span></span><span class="cam"></span><span class="r"><span class="bars" style="color:#ff8a3d"><i></i><i></i><i></i><i></i></span></span></div></div>
+      <div class="meta"><h3>Bài mới</h3><p class="was"><s>Spotify · Thu cuối — Mr. T</s> → ảnh bìa và sóng màu bìa; tên bài khi rê chuột</p></div></article>
+    <article class="n"><div class="screen"><div class="notch"><span class="l"><svg style="color:var(--violet)" class="a-spin"><use href="#orbit"/></svg></span><span class="cam"></span><span class="r"><span class="meter" style="color:var(--violet)"><i style="width:42%"></i></span></span></div></div>
+      <div class="meta"><h3>Agent đang làm</h3><p class="was"><s>Claude · Đang làm · ~4% hạn mức</s> → quỹ đạo tím quay, thanh hạn mức</p></div></article>
+    <article class="n"><div class="screen"><div class="notch"><span class="l"><svg style="color:var(--violet)"><use href="#ask"/></svg></span><span class="cam"></span><span class="r"><span class="dot a-pulse" style="color:var(--violet)"></span></span></div></div>
+      <div class="meta"><h3>Agent cần bạn <span class="tag">cần chú ý</span></h3><p class="was"><s>Claude · Đang chờ bạn · lời hỏi</s> → bong bóng ba chấm, chấm tím đập; lời hỏi khi rê chuột</p></div></article>
+    <article class="n"><div class="screen"><div class="notch"><span class="l"><svg style="color:var(--green)"><use href="#done"/></svg></span><span class="cam"></span><span class="r"><span class="meter" style="color:var(--violet)"><i style="width:58%"></i></span></span></div></div>
+      <div class="meta"><h3>Agent xong lượt</h3><p class="was"><s>Claude · Xong lượt · 6% hạn mức</s> → dấu xong xanh, thanh hạn mức đã dùng</p></div></article>
+  </div>
+</section>
+
+<section class="group" aria-labelledby="h-app">
+  <h2 id="h-app">Tệp và ứng dụng</h2>
+  <div class="list">
+    <article class="n"><div class="screen"><div class="notch"><span class="l"><svg style="color:var(--sky)" class="a-drop"><use href="#download"/></svg></span><span class="cam"></span><span class="r"><svg class="ring" viewBox="0 0 20 20"><circle cx="10" cy="10" r="7" fill="none" stroke="rgba(255,255,255,.2)" stroke-width="3"/><circle cx="10" cy="10" r="7" fill="none" stroke="var(--sky)" stroke-width="3" stroke-dasharray="44" stroke-linecap="round" transform="rotate(-90 10 10)" style="animation:grow 4s ease-in-out infinite"/></svg></span></div></div>
+      <div class="meta"><h3>Đang tải xuống</h3><p class="was"><s>64%</s> → mũi tên xanh rơi vào khay, vòng đầy dần; nhiều tệp thì thêm chấm đếm</p></div></article>
+    <article class="n"><div class="screen"><div class="notch"><span class="l"><svg style="color:var(--green)"><use href="#download"/></svg></span><span class="cam"></span><span class="r"><svg style="color:var(--green)"><use href="#done"/></svg></span></div></div>
+      <div class="meta"><h3>Đã tải xong</h3><p class="was"><s>Đã tải xong · video.mp4</s> → khay xanh, dấu xong; tên tệp khi rê chuột</p></div></article>
+    <article class="n"><div class="screen"><div class="notch"><span class="l"><svg style="color:var(--yellow)"><use href="#cup"/></svg></span><span class="cam"></span><span class="r"><svg class="ring" viewBox="0 0 20 20"><circle cx="10" cy="10" r="7" fill="none" stroke="rgba(255,255,255,.2)" stroke-width="3"/><circle cx="10" cy="10" r="7" fill="none" stroke="var(--yellow)" stroke-width="3" stroke-dasharray="44" stroke-dashoffset="14" stroke-linecap="round" transform="rotate(-90 10 10)"/></svg></span></div></div>
+      <div class="meta"><h3>Giữ máy thức</h3><p class="was"><s>30′</s> → cốc vàng, vòng thời gian còn lại; vô hạn thì vòng kín</p></div></article>
+    <article class="n"><div class="screen"><div class="notch"><span class="l"><svg style="color:var(--orange)"><use href="#update"/></svg></span><span class="cam"></span><span class="r"><span class="dot a-pulse" style="color:var(--orange)"></span></span></div></div>
+      <div class="meta"><h3>Có bản mới</h3><p class="was"><s>AraNotch · Có bản mới 1.1.0</s> → vòng mũi tên lên, chấm cam; số phiên bản khi rê chuột</p></div></article>
+  </div>
+</section>
+
+<script>
+// As the app does: both sides of the camera take the width of the wider one.
+function balance(){
+  document.querySelectorAll('.notch').forEach(function(n){
+    n.style.gridTemplateColumns = '';
+    var l = n.querySelector('.l'), r = n.querySelector('.r');
+    var side = Math.ceil(Math.max(l.scrollWidth, r.scrollWidth));
+    n.style.gridTemplateColumns = side + 'px var(--housing) ' + side + 'px';
+  });
+  fit();
+}
+// A notch wider than its card is drawn smaller, whole, rather than cut at the edges.
+function fit(){
+  document.querySelectorAll('.notch').forEach(function(n){
+    n.style.transform = '';
+    var room = n.parentElement.clientWidth - 12;
+    var housing = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--housing')) || 148;
+    var sides = n.style.gridTemplateColumns ? parseFloat(n.style.gridTemplateColumns) : 0;
+    var width = 2 * sides + housing + 16 + 20;
+    var k = Math.min(1, room / width);
+    n.style.transform = 'translateX(-50%)' + (k < 1 ? ' scale(' + k.toFixed(3) + ')' : '');
+    n.style.transformOrigin = '50% 0';
+  });
+}
+window.addEventListener('resize', fit);
+if (document.fonts && document.fonts.ready) { document.fonts.ready.then(balance); }
+// The housing width, in points, drawn at 0.8.
+(function(){
+  var range = document.getElementById('housing'), out = document.getElementById('housing-out');
+  var buttons = document.querySelectorAll('.macs button');
+  function set(pt){
+    document.documentElement.style.setProperty('--housing', Math.round(pt * 0.8) + 'px');
+    range.value = pt; out.textContent = pt + ' × 32 pt';
+    buttons.forEach(function(b){ b.setAttribute('aria-pressed', String(+b.dataset.pt === +pt)); });
+    fit();
+  }
+  range.addEventListener('input', function(){ set(+range.value); });
+  buttons.forEach(function(b){ b.addEventListener('click', function(){ set(+b.dataset.pt); }); });
+})();
+balance();
+</script>
+<p class="foot">Hình trong trang này là bản phác: nét và màu sẽ được vẽ lại bằng SwiftUI trong app, cùng cỡ với cánh notch (cao 32 pt). Tấm biển lớn chỉ còn cho cảnh báo cần bạn làm gì đó; nó cũng dùng bộ biểu tượng này, chữ đặt bên dưới.</p>
+</main>

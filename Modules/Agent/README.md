@@ -93,4 +93,6 @@ Mỗi dòng: ngày — lỗi hoặc thay đổi — test đã thêm — commit.
 
 - 2026-10-27 — macOS hỏi mật khẩu máy mỗi khi có bản dựng mới, và lặp lại mỗi 5 phút nếu bấm Từ chối: đọc đăng nhập Claude qua `/usr/bin/security` thay cho `SecItemCopyMatching` — `ClaudeAccountReaderTests` — nhánh `fix/keychain-prompts`.
 - 2026-10-26 — tái cấu trúc theo module (nhánh `refactor/feature-modules`): widget dùng `WidgetSize`, `WidgetAlert`.
+- 2026-11-16 — thanh hạn mức màu tím của trang, cam từ 80%, đỏ từ 95%, có vạch xanh ở mức dùng vừa đủ tới lúc đặt lại (`UsageWindow.pace(length:at:)`, `level`); trang trống khi chưa cài hook có nút "Cài hook" (D10, D8) — `AgentUsageTests`.
+- 2026-11-16 — đang làm: quỹ đạo tím quay và thanh hạn mức; xong lượt: dấu xong xanh và tên dự án; cần bạn: giữ biển lớn với biểu tượng bong bóng tím.
 - 2026-11-16 — app bớt tốn máy khi theo dõi agent (học từ Vorssaint): bỏ đọc tệp sự kiện mỗi giây và `ps` mỗi 20 giây suốt ngày; nhật ký Codex không còn đọc trên luồng giao diện (tệp 14 MB từng giữ notch khoảng 0,7 giây) và nhật ký đang mở được đọc lại; hạn mức tài khoản hỏi theo trang và lùi khi lỗi. Sửa kèm: bật "Theo dõi Codex" giữa chừng không còn báo lại các lượt cũ trên đĩa — `AgentPacingTests`, `CodexWatcherTests` (hai test mới), `AgentEventSpoolTests.aLineTheHookAppendsIsReadAsSoonAsTheSystemSaysSo` — nhánh `agent/nhe-may-theo-doi`.

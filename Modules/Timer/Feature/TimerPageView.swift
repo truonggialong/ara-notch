@@ -61,7 +61,7 @@ struct TimerPageView: View {
                 HStack(spacing: 8 * ui) {
                     Text(TimerFormat.clock(TimeInterval(settings.seconds)))
                         .font(.system(size: 28 * ui, weight: .semibold, design: .rounded))
-                        .monospacedDigit()
+                        .araRollingDigits(settings.seconds, countsDown: false)
                         .frame(minWidth: 96 * ui, alignment: .leading)
                     // Seconds have no ring of their own: two buttons step them.
                     HStack(spacing: 2 * ui) {
@@ -123,9 +123,10 @@ struct TimerPageView: View {
                         .foregroundStyle(AraTheme.secondaryText)
                         .lineLimit(1)
                 }
-                Text(TimerFormat.clock(entry.timer.remaining(at: model.now)))
+                let remaining = TimerFormat.clock(entry.timer.remaining(at: model.now))
+                Text(remaining)
                     .font(.system(size: 42 * ui, weight: .semibold, design: .rounded))
-                    .monospacedDigit()
+                    .araRollingDigits(remaining)
                     .opacity(isPaused ? 0.55 : 1)
                 AraProgressLine(fraction: entry.timer.progress(at: model.now))
                     .frame(width: 300 * ui)
@@ -163,7 +164,7 @@ struct TimerPageView: View {
                         .frame(height: Self.tileHeight * ui)
                         .contentShape(Rectangle())
                 }
-                .buttonStyle(AraPressStyle(depth: 0.97))
+                .buttonStyle(AraPressStyle())
                 .araSurface(RoundedRectangle(cornerRadius: AraTheme.rowRadius * ui, style: .continuous))
             }
         }
@@ -187,9 +188,10 @@ struct TimerPageView: View {
                         .lineLimit(1)
                 }
                 .frame(height: 12 * ui)
-                Text(TimerFormat.clock(entry.timer.remaining(at: model.now)))
+                let remaining = TimerFormat.clock(entry.timer.remaining(at: model.now))
+                Text(remaining)
                     .font(.system(size: 20 * ui, weight: .semibold, design: .rounded))
-                    .monospacedDigit()
+                    .araRollingDigits(remaining)
                     .opacity(isPaused(entry) || isFinished ? 0.55 : 1)
                 AraProgressLine(fraction: entry.timer.progress(at: model.now))
             }

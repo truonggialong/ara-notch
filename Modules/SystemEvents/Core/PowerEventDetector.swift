@@ -80,3 +80,14 @@ public enum BatteryTime {
         return String(format: "%d:%02d", minutes / 60, minutes % 60)
     }
 }
+
+/// A battery's charge as the five cells a notice shows: a fifth each, rounded, and never none
+/// while there is any charge left.
+public enum BatteryCells {
+    public static let count = 5
+
+    public static func lit(percent: Int) -> Int {
+        guard percent > 0 else { return 0 }
+        return min(max(Int((Double(percent) / 20).rounded()), 1), count)
+    }
+}

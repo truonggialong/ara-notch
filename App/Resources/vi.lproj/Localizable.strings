@@ -523,6 +523,7 @@
 "icon.muted" = "Đang tắt";
 "icon.recording" = "Đang ghi";
 "icon.paused" = "Đang tạm dừng";
+"icon.awake" = "Đang giữ máy thức";
 "icon.confirm" = "Xong";
 "clipboard.search.short" = "Tìm";
 "icon.openLink" = "Mở liên kết";
@@ -958,3 +959,32 @@
 "settings.notes.fullDisk.note" = "Cần để sửa danh sách và hiện đủ ảnh";
 "settings.notes.fullDisk.granted" = "Đã cấp";
 "settings.notes.permission.open" = "Cho phép…";
+
+/* Notch: nút tròn, lưới trang, hoạt động cạnh notch, nền */
+"notch.explore" = "Mọi trang";
+"notch.explore.back" = "Quay lại trang";
+"notch.close" = "Đóng notch";
+"notch.resting.title" = "Hiện cạnh notch";
+"notch.resting.auto" = "Tự chọn";
+"notch.resting.both" = "Cả hai";
+"notch.resting.capslock.on" = "Caps Lock";
+"settings.material" = "Nền notch khi mở";
+"settings.material.note" = "Dải cạnh camera luôn đen. Bật Giảm trong suốt của macOS thì nền đen.";
+"settings.material.black" = "Đen";
+"settings.material.glass" = "Kính tối";
+"settings.material.liquid" = "Liquid Glass";
+"page.agents.notInstalled.short" = "Chưa theo dõi phiên Claude Code";
+"page.agents.install" = "Cài hook";
+"settings.layout.hint" = "Kéo một nút sang chỗ khác để đổi chỗ. Bấm + để thêm nút, bấm vào nút để đổi hoặc bỏ.";
+"settings.layout.remove" = "Bỏ nút này";
+"settings.layout.add" = "Thêm nút";
+"settings.calendar.countdown" = "Đếm ngược tới cuộc họp";
+"settings.calendar.countdown.note" = "Giờ họp và số phút còn lại nằm cạnh notch đóng, từ lúc này đến khi họp";
+"notch.resting.calendar.countdown" = "Cuộc họp";
+"tools.awake" = "Giữ máy thức";
+"notch.resting.keepAwake" = "Giữ máy thức";
+"downloads.done" = "Đã tải xong";
+"downloads.title" = "Tải xuống";
+"notch.resting.files.download" = "Tải xuống";
+"glance.offline" = "Mất mạng";
+"glance.version" = "Bản %@";

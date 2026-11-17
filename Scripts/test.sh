@@ -8,6 +8,7 @@ cd "$(dirname "$0")/.."
 
 Scripts/check-modules.sh
 Scripts/test-check-modules.sh >/dev/null
+Scripts/check-module-maps.sh
 
 PLUGIN="/Library/Developer/CommandLineTools/usr/lib/swift/host/plugins/testing/libTestingMacros.dylib"
 ARGS=()

@@ -271,6 +271,8 @@ public final class ClipboardController {
         }
         // The row of clips and the row of chips both run sideways.
         page.wheelScrollsSideways = true
+        // A row of cards, lower and narrower than the usual sheet.
+        page.sheetSize = CGSize(width: 512, height: 171)
         return page
     }
 
@@ -858,7 +860,7 @@ public final class ClipboardController {
             viewModel.copyStack.push(item.id)
             announceCopyStack()
         } else {
-            confirmCopy()
+            confirmCopy(item, content: content)
         }
     }
 
@@ -914,11 +916,11 @@ public final class ClipboardController {
     /// Shows how many clips are waiting in the stack.
     private func announceCopyStack() {
         let count = viewModel.copyStack.count
+        // One orange dot for each clip waiting in the stack.
         notch.present(NotchLiveActivity(
             id: Self.copyStackActivityID, priority: 2, duration: 2.5, pageID: "clipboard",
-            sign: AraSign(
-                icon: .symbol("square.stack.3d.up.fill"), mark: "Clipboard",
-                rows: [AraSign.Row(L10n.string("sign.clipboard.stack"), badge: .digits(String(count)))])))
+            glance: AraGlance(.layers, color: .timer, value: .count(count)),
+            detail: "\(L10n.string("sign.clipboard.stack")) \(count)"))
     }
 
     // MARK: - Retention and feedback
@@ -934,7 +936,7 @@ public final class ClipboardController {
         notch.present(NotchLiveActivity(
             id: "clipboard.damaged", priority: 2, duration: 8, pageID: "clipboard",
             sign: AraSign(
-                tone: .danger, icon: .symbol("exclamationmark.triangle.fill"), mark: "Clipboard",
+                tone: .danger, icon: .pictogram(.crack, .warning), mark: "Clipboard",
                 title: L10n.string("clipboard.damaged.title"),
                 rows: [AraSign.Row(
                     L10n.string("clipboard.damaged.row"), detail: L10n.string("clipboard.damaged.detail"))])))
@@ -944,12 +946,13 @@ public final class ClipboardController {
         announceNotSaved(L10n.string("clipboard.skipped.\(reason.rawValue)"), symbol: "lock.fill")
     }
 
+    /// A copy that was not kept says why, in a few words beside the notch: otherwise the
+    /// history would just seem not to have heard it.
     private func announceNotSaved(_ message: String, symbol: String) {
         notch.present(NotchLiveActivity(
             id: "clipboard.skipped", priority: 1, duration: 2.5, pageID: "clipboard",
-            sign: AraSign(
-                tone: .attention, icon: .symbol(symbol), mark: "Clipboard",
-                rows: [AraSign.Row(message, detail: L10n.string("sign.clipboard.notSaved"))])))
+            glance: AraGlance(.shield, color: .timer, value: .text(message), valueColor: .timer),
+            detail: "\(message) · \(L10n.string("sign.clipboard.notSaved"))"))
     }
 
     // MARK: - Pausing and clearing
@@ -1023,15 +1026,28 @@ public final class ClipboardController {
     }
 
     /// A soft sound and a brief notice beside the notch tell the user the copy was recorded,
-    /// each when it is on.
-    private func confirmCopy() {
+    /// each when it is on. The notice shows what was copied, without words: the colour itself,
+    /// the picture itself, or else the icon of the app it came from.
+    private func confirmCopy(_ item: ClipItem? = nil, content: ClipContent? = nil) {
         playFeedbackSound()
         guard settings.copySign else { return }
         notch.present(NotchLiveActivity(
             id: "clipboard.copied", priority: 1, duration: 1.2, pageID: "clipboard",
-            sign: AraSign(
-                icon: .symbol("doc.on.clipboard.fill"), mark: "Clipboard",
-                rows: [AraSign.Row(L10n.string("clipboard.copied"))])))
+            glance: AraGlance(.copied, value: Self.copiedValue(item, content: content)),
+            detail: L10n.string("clipboard.copied")))
+    }
+
+    private static func copiedValue(_ item: ClipItem?, content: ClipContent?) -> AraGlance.Value {
+        if let item, item.kind == .color, let color = ClipColor.parse(item.text, allowingBareHex: true) {
+            return .swatch(Color(.sRGB, red: color.red, green: color.green, blue: color.blue, opacity: color.alpha))
+        }
+        if case let .image(data) = content, let image = NSImage(data: data) {
+            return .picture(image)
+        }
+        if let item, let icon = SourceAppIcon.image(for: item.source) {
+            return .picture(icon)
+        }
+        return .done
     }
 
     // MARK: - Link previews
@@ -1340,11 +1356,11 @@ public final class ClipboardController {
         }
     }
 
-    /// A short notice beside the notch.
+    /// A short notice beside the notch: the clipboard's picture and a few words.
     private func announce(symbol: String, _ message: String, duration: TimeInterval = 2.5) {
         notch.present(NotchLiveActivity(
             id: "clipboard.notice", priority: 1, duration: duration, pageID: "clipboard",
-            sign: AraSign(icon: .symbol(symbol), mark: "Clipboard", rows: [AraSign.Row(message)])))
+            glance: AraGlance(.symbol(symbol), value: .text(message)), detail: message))
     }
 
     // MARK: - Pasting pinned clips by number

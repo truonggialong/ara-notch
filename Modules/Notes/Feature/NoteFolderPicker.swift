@@ -109,7 +109,7 @@ struct NoteFolderList: View {
             .araRow(isSelected: store.selectedFolderID == id, radius: 8)
             .contentShape(Rectangle())
         }
-        .buttonStyle(AraPressStyle(depth: 0.97))
+        .buttonStyle(AraPressStyle())
     }
 
     @ViewBuilder

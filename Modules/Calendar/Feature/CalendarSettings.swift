@@ -14,6 +14,11 @@ public final class CalendarSettings: ObservableObject {
         didSet { store.leadMinutes = leadMinutes }
     }
 
+    /// Minutes before a meeting its countdown rests beside the notch; 0 is off.
+    @Published public var countdownMinutes: Int {
+        didSet { store.countdownMinutes = countdownMinutes }
+    }
+
     @Published public var showsLunarDate: Bool {
         didSet { store.showsLunarDate = showsLunarDate }
     }
@@ -29,5 +34,6 @@ public final class CalendarSettings: ObservableObject {
         meetingAlerts = store.meetingAlerts
         leadMinutes = store.leadMinutes
         showsLunarDate = store.showsLunarDate
+        countdownMinutes = store.countdownMinutes
     }
 }

@@ -473,6 +473,7 @@ struct CalendarPageView: View {
                     looseRows(timeline.doneRows, titleKey: "calendar.chart.done", isOverdue: false)
                 }
             }
+            .araScrollFade()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(alignment: .topLeading) {

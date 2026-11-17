@@ -102,7 +102,7 @@ struct NoteListRow: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .contentShape(Rectangle())
             }
-            .buttonStyle(AraPressStyle(depth: 0.97))
+            .buttonStyle(AraPressStyle())
             if hover.isHovered {
                 AraIconButton(.delete, look: .bareDanger, size: .small, help: L10n.string("notes.delete")) {
                     Task { await model.delete(note.id, in: store) }

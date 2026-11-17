@@ -176,28 +176,22 @@ public final class SystemEventsController {
             if key.key == .volumeUp, VolumeControl.isMuted {
                 VolumeControl.isMuted = false
             }
-            notch.present(SystemActivities.level(
-                "sign.volume", symbol: SystemActivities.volumeSymbol(level: next, isMuted: VolumeControl.isMuted),
-                value: next))
+            notch.present(SystemActivities.level(.volume(muted: VolumeControl.isMuted), value: next))
         case .mute:
             guard !key.isRepeat, let level = VolumeControl.level else { return VolumeControl.level != nil }
             VolumeControl.isMuted.toggle()
             let isMuted = VolumeControl.isMuted
-            notch.present(SystemActivities.level(
-                "sign.volume", symbol: SystemActivities.volumeSymbol(level: level, isMuted: isMuted),
-                value: isMuted ? 0 : level))
+            notch.present(SystemActivities.level(.volume(muted: isMuted), value: level))
         case .brightnessUp, .brightnessDown:
             guard let level = BrightnessControl.level else { return false }
             let next = LevelStepper.step(level, up: key.key == .brightnessUp, fine: fine)
             BrightnessControl.level = next
-            notch.present(SystemActivities.level(
-                "sign.brightness", symbol: next > 0.5 ? "sun.max.fill" : "sun.min.fill", value: next))
+            notch.present(SystemActivities.level(.brightness, value: next))
         case .keyboardLightUp, .keyboardLightDown:
             guard let level = KeyboardLightControl.level else { return false }
             let next = LevelStepper.step(level, up: key.key == .keyboardLightUp, fine: fine)
             KeyboardLightControl.level = next
-            notch.present(SystemActivities.level(
-                "sign.keyboardLight", symbol: next > 0 ? "light.max" : "light.min", value: next))
+            notch.present(SystemActivities.level(.keyboardLight, value: next))
         }
         return true
     }

@@ -109,8 +109,7 @@ final class AppUpdater: NSObject, ObservableObject, SPUUpdaterDelegate, @preconc
     static func reminder(forVersion version: String) -> NotchLiveActivity {
         NotchLiveActivity(
             id: "app.update", priority: 2, duration: 12, pageID: "about",
-            sign: AraSign(
-                icon: .symbol("arrow.down.circle"), mark: "AraNotch",
-                rows: [AraSign.Row(L10n.string("update.found"), badge: .digits(version))]))
+            glance: AraGlance(.update, color: .timer, value: .text(String(format: L10n.string("glance.version"), version)), valueColor: .timer),
+            detail: "\(L10n.string("update.found")) \(version)")
     }
 }

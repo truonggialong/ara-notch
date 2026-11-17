@@ -413,7 +413,7 @@ private struct AraDayCell: View {
                 }
                 .contentShape(Rectangle())
         }
-        .buttonStyle(AraPressStyle(depth: 0.94))
+        .buttonStyle(AraPressStyle())
         .onHover { hover.isHovered = $0 }
     }
 }

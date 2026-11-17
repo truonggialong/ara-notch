@@ -204,3 +204,5 @@ Mỗi dòng: ngày — lỗi hoặc thay đổi — test đã thêm — commit.
 
 - 2026-10-26 — tái cấu trúc theo module (nhánh `refactor/feature-modules`): hai hàng phím số chuyển từ nền tảng về đây (`ClipboardNumberRows`, cùng khoá lưu cũ); widget dùng `WidgetSize`.
 - 2026-10-26 — GitHub chặn đẩy mã lên repo công khai vì token Slack mẫu trong `recognisesCommonSecretKeys` trông như khoá thật; chuỗi mẫu nay được ghép từ hai phần, test giữ nguyên ý — test có sẵn, chạy lại qua — commit này.
+- 2026-11-16 — cỡ riêng 512 × 171; hàng thẻ và hàng chip mờ ở mép còn nội dung — thử tay bằng ảnh chụp.
+- 2026-11-16 — thông báo đã chép hiện chính màu, chính ảnh hoặc biểu tượng app nguồn; chồng chép là chấm cam đếm số; không lưu nói lý do bằng chữ; lịch sử hỏng giữ biển lớn với biểu tượng mới — thử tay một phần.

@@ -11,6 +11,20 @@ private let statusInput = Data("""
 """.utf8)
 
 @Suite struct ClaudeStatusInputTests {
+    @Test func thePaceMarkIsTheShareOfTheWindowGoneBy() {
+        let now = Date(timeIntervalSince1970: 1_000_000)
+        let window = UsageWindow(usedPercent: 40, resetsAt: now.addingTimeInterval(3600))
+        #expect(window.pace(length: UsageWindow.fiveHourLength, at: now) == 0.8)
+        #expect(UsageWindow(usedPercent: 40, resetsAt: nil).pace(length: 3600, at: now) == nil)
+        #expect(UsageWindow(usedPercent: 40, resetsAt: now.addingTimeInterval(99_999)).pace(length: 3600, at: now) == 0)
+    }
+
+    @Test func theBarWarnsFrom80AndAlarmsFrom95() {
+        #expect(UsageWindow(usedPercent: 79, resetsAt: nil).level == .normal)
+        #expect(UsageWindow(usedPercent: 80, resetsAt: nil).level == .warning)
+        #expect(UsageWindow(usedPercent: 95, resetsAt: nil).level == .danger)
+    }
+
     @Test func readsBothRateLimitWindows() throws {
         let usage = try #require(ClaudeStatusInput.usage(from: statusInput, at: date(100)))
         #expect(usage.fiveHour == UsageWindow(usedPercent: 23.5, resetsAt: date(1_738_425_600)))

@@ -89,3 +89,6 @@ Mỗi dòng: ngày — lỗi hoặc thay đổi — test đã thêm — commit.
 
 - 2026-10-26 — tái cấu trúc theo module (nhánh `refactor/feature-modules`): widget dùng `WidgetSize`.
 - 2026-10-28 — notch đóng khi đang phát theo phương án 5d chủ dự án duyệt: màu theo ảnh bìa, sóng chuyển màu, mỗi cánh 44 pt, vạch tiến độ phát sáng dưới camera, trạng thái tạm dừng (ẩn sau 5 phút), rê vào hai cánh hay vạch thì sóng thành nút tạm dừng và vạch tua được; `--simulate-now-playing` nhận nhiều dòng — `TrackColorsTests` (6), `PausedRestingTests` (6).
+- 2026-11-16 — trang Nhạc gọn theo cỡ riêng 320 × 138 (400 × 173 ở cỡ mặc định): bỏ chồng bìa xoè, bìa 78 pt, thanh âm lượng co giãn; trang cao thêm (156) khi có lời bài hát — thử tay bằng ảnh chụp.
+- 2026-11-16 — nền nhuốm màu mạnh nhất của ảnh bìa (không nhuốm khi bìa xám hay không có bìa), bìa thu về 94% khi tạm dừng, lời bài hát sáng dần theo nhịp (`Lyrics.progress(at:)`); thanh tiến độ không tua khi lăn chuột (D9) — `LyricsTests`.
+- 2026-11-16 — bài mới: ảnh bìa và tên bài; app khác phát tiếng: biểu tượng app và "đang phát tiếng".

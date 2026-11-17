@@ -25,6 +25,7 @@ case "$module" in
 esac
 
 Scripts/check-modules.sh
+Scripts/check-module-maps.sh
 if [[ -z "$suites" ]]; then
     echo "$module has no tests of its own: build the app and try it by hand, then run Scripts/test.sh."
     exit 0

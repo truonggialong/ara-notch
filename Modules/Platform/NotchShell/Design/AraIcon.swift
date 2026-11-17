@@ -24,7 +24,7 @@ public enum AraIcon: String, CaseIterable, Sendable {
     // Translation
     case translate, replace, speak, swapLanguage
     // States
-    case idle, working, waiting, done, warning, muted, recording, paused
+    case idle, working, waiting, done, warning, muted, recording, paused, awake
 
     /// The system symbol drawn for the icon.
     public var symbolName: String {
@@ -125,6 +125,7 @@ public enum AraIcon: String, CaseIterable, Sendable {
         case .muted: "speaker.slash"
         case .recording: "record.circle"
         case .paused: "pause.circle"
+        case .awake: "cup.and.saucer"
         }
     }
 

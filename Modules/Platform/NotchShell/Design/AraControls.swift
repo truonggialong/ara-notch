@@ -1,5 +1,34 @@
+import NotchCore
 import AppKit
 import SwiftUI
+
+/// Turns of the wheel over a slider while the pointer is on it. Swipes more sideways than up
+/// or down go on to whatever is under it (`SliderValue.wheelStep`).
+@MainActor
+final class SliderWheel: ObservableObject {
+    private var monitor: Any?
+    /// The slider's value, kept as the wheel moves it.
+    var value: Double = 0
+
+    func start(_ apply: @escaping (Double) -> Void) {
+        stop()
+        monitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { event in
+            guard let step = SliderValue.wheelStep(
+                deltaX: Double(event.scrollingDeltaX), deltaY: Double(event.scrollingDeltaY),
+                isPrecise: event.hasPreciseScrollingDeltas, isInverted: event.isDirectionInvertedFromDevice)
+            else { return event }
+            // The momentum after a swipe would carry the level on long after the fingers left.
+            if event.momentumPhase != [] { return nil }
+            apply(step)
+            return nil
+        }
+    }
+
+    func stop() {
+        if let monitor { NSEvent.removeMonitor(monitor) }
+        monitor = nil
+    }
+}
 
 /// Whether the pointer is over a control. Held in an object because the build tools here
 /// cannot expand `@State`.
@@ -15,7 +44,7 @@ public struct AraPressStyle: ButtonStyle {
     @Environment(\.araScale) private var ui
     var depth: CGFloat
 
-    public init(depth: CGFloat = 0.9) {
+    public init(depth: CGFloat = AraTheme.pressDepth) {
         self.depth = depth
     }
 
@@ -33,7 +62,7 @@ public struct AraPressStyle: ButtonStyle {
         var body: some View {
             configuration.label
                 .scaleEffect(configuration.isPressed && !reduceMotion ? depth : 1)
-                .opacity(configuration.isPressed ? 0.75 : 1)
+                .opacity(configuration.isPressed ? 0.8 : 1)
                 .animation(AraTheme.press, value: configuration.isPressed)
         }
     }
@@ -109,6 +138,8 @@ public struct AraIconButton: View {
             action()
         } label: {
             AraIconFace(icon: icon, look: look, size: size, isOn: isOn, isHovered: hover.isHovered)
+                .scaleEffect(hover.isHovered ? AraTheme.hoverLift : 1)
+                .animation(AraTheme.hover, value: hover.isHovered)
         }
         .buttonStyle(AraPressStyle())
         .onHover { hover.isHovered = $0 }
@@ -120,6 +151,7 @@ public struct AraIconButton: View {
 
 /// The drawing of an icon button, for controls that are not plain buttons, such as menus.
 public struct AraIconFace: View {
+    @Environment(\.araOnNotch) private var onNotch
     @Environment(\.araScale) private var ui
     let icon: AraIcon
     var look: AraButtonLook
@@ -170,7 +202,7 @@ public struct AraIconFace: View {
         } else if look == .bare || look == .bareDanger {
             Circle().fill(isHovered ? AraPalette.hoverWash : .clear)
         } else {
-            Circle().fill(AraPalette.well)
+            Circle().fill(AraPalette.well(onNotch: onNotch))
                 .overlay { Circle().fill(isHovered ? AraPalette.hoverWash : .clear) }
         }
     }
@@ -178,6 +210,7 @@ public struct AraIconFace: View {
 
 /// A button with an icon and a few words, for the rare action an icon alone cannot say.
 public struct AraPillButton: View {
+    @Environment(\.araOnNotch) private var onNotch
     @Environment(\.araScale) private var ui
     let icon: AraIcon?
     let title: String
@@ -216,9 +249,10 @@ public struct AraPillButton: View {
             .frame(height: 26 * ui)
             .background { plate }
             .contentShape(Capsule())
+            .scaleEffect(hover.isHovered ? AraTheme.hoverLift : 1)
             .animation(AraTheme.hover, value: hover.isHovered)
         }
-        .buttonStyle(AraPressStyle(depth: 0.95))
+        .buttonStyle(AraPressStyle())
         .onHover { hover.isHovered = $0 }
     }
 
@@ -228,7 +262,7 @@ public struct AraPillButton: View {
             Capsule().fill(AraPalette.accent(in: hue))
                 .opacity(hover.isHovered ? 0.86 : 1)
         } else {
-            Capsule().fill(AraPalette.well)
+            Capsule().fill(AraPalette.well(onNotch: onNotch))
                 .overlay { Capsule().fill(hover.isHovered ? AraPalette.hoverWash : .clear) }
         }
     }
@@ -236,6 +270,7 @@ public struct AraPillButton: View {
 
 /// One choice among a few, such as a preset: a quiet pill, filled with the page's colour when chosen.
 public struct AraChip<Label: View>: View {
+    @Environment(\.araOnNotch) private var onNotch
     @Environment(\.araScale) private var ui
     var isSelected: Bool
     let action: () -> Void
@@ -260,14 +295,15 @@ public struct AraChip<Label: View>: View {
                 .frame(height: 24 * ui)
                 .background {
                     // Where the page has no colour of its own, the chosen tag is the one orange.
-                    Capsule().fill(isSelected ? (hue.map { AraPalette.tint($0).line } ?? AraPalette.brand) : AraPalette.well)
+                    Capsule().fill(isSelected ? (hue.map { AraPalette.tint($0).line } ?? AraPalette.brand) : AraPalette.well(onNotch: onNotch))
                         .overlay { Capsule().fill(hover.isHovered && !isSelected ? AraPalette.hoverWash : .clear) }
                 }
                 .contentShape(Capsule())
+                .scaleEffect(hover.isHovered ? AraTheme.hoverLift : 1)
                 .animation(AraTheme.hover, value: hover.isHovered)
                 .animation(AraTheme.hover, value: isSelected)
         }
-        .buttonStyle(AraPressStyle(depth: 0.94))
+        .buttonStyle(AraPressStyle())
         .onHover { hover.isHovered = $0 }
     }
 }
@@ -286,7 +322,7 @@ public struct AraHoverLift<Content: View>: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     public init(
-        scale: CGFloat = 1.03, dragProvider: (() -> NSItemProvider)? = nil,
+        scale: CGFloat = AraTheme.hoverLift, dragProvider: (() -> NSItemProvider)? = nil,
         @ViewBuilder content: @escaping (_ isHovered: Bool) -> Content
     ) {
         self.scale = scale
@@ -346,27 +382,33 @@ public struct AraSlider: View {
     /// Called once when the drag ends.
     var onEnded: ((Double) -> Void)?
     @StateObject private var hover = AraHover()
+    @StateObject private var wheel = SliderWheel()
     @Environment(\.araHue) private var hue
+    /// A level (volume, brightness) moves with the wheel; a position in a track does not.
+    var respondsToWheel = true
 
-    public init(value: Double, onChange: @escaping (Double) -> Void, onEnded: ((Double) -> Void)? = nil) {
+    public init(
+        value: Double, respondsToWheel: Bool = true, onChange: @escaping (Double) -> Void,
+        onEnded: ((Double) -> Void)? = nil
+    ) {
         self.value = value
+        self.respondsToWheel = respondsToWheel
         self.onChange = onChange
         self.onEnded = onEnded
     }
 
+    /// A track without a knob: the filled part is the value. It is easy to hit, much taller
+    /// to the pointer than it looks, and a wheel or a swipe up and down moves it too.
     public var body: some View {
         GeometryReader { area in
             let fraction = min(max(value, 0), 1)
-            let height: CGFloat = (hover.isHovered ? 6 : 4) * ui
+            let height: CGFloat = 8 * ui
             ZStack(alignment: .leading) {
                 Capsule().fill(AraPalette.track)
                     .frame(height: height)
                 Capsule().fill(hue.map { AraPalette.tint($0).line } ?? AraPalette.ink)
                     .frame(width: max(height, area.size.width * fraction), height: height)
-                Circle().fill(AraPalette.ink)
-                    .frame(width: 12 * ui, height: 12 * ui)
-                    .offset(x: min(max(area.size.width * fraction - 6 * ui, 0), area.size.width - 12 * ui))
-                    .opacity(hover.isHovered ? 1 : 0)
+                    .opacity(hover.isHovered ? 1 : 0.88)
             }
             .frame(maxHeight: .infinity)
             .contentShape(Rectangle())
@@ -376,11 +418,29 @@ public struct AraSlider: View {
                     .onEnded { drag in onEnded?(Self.fraction(at: drag.location.x, width: area.size.width)) })
             .animation(AraTheme.hover, value: hover.isHovered)
         }
-        .frame(height: 14 * ui)
-        .onHover { hover.isHovered = $0 }
+        .frame(height: 24 * ui)
+        .onHover { isHovered in
+            hover.isHovered = isHovered
+            if isHovered, respondsToWheel {
+                wheel.value = value
+                wheel.start { [wheel] step in
+                    // From the last value set: the one this view was drawn with may be behind.
+                    let next = min(max(wheel.value + step, 0), 1)
+                    wheel.value = next
+                    onChange(next)
+                    onEnded?(next)
+                }
+            } else {
+                wheel.stop()
+            }
+        }
+        .onChange(of: value) { _, new in wheel.value = new }
+        .onDisappear { wheel.stop() }
     }
 
+    /// The value under the pointer. The last few points at each end count as the end, so
+    /// a slider reaches nothing and everything without the pointer having to hit its edge.
     private static func fraction(at x: CGFloat, width: CGFloat) -> Double {
-        width > 0 ? Double(min(max(x / width, 0), 1)) : 0
+        SliderValue.fraction(at: Double(x), width: Double(width), endZone: 6)
     }
 }

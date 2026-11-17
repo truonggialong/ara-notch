@@ -118,6 +118,9 @@ Ghi chú định dạng chữ kiểu Telegram (bôi chữ là có menu nổi, c�
 - `Modules/Notes/DESIGN.md` — thiết kế (có phần sửa ngày 2026-10-27).
 - `docs/superpowers/specs/2026-10-27-notes-in-notch-design.md`, `docs/superpowers/plans/2026-10-27-notes-in-notch.md` — thiết kế và kế hoạch bỏ cửa sổ Ghi chú.
 - `Modules/Notes/PLAN.md` — kế hoạch làm (có phần sửa ngày 2026-10-27).
+- `Modules/Notes/Core/NoteImageFormat.swift` — Nhận ra loại ảnh từ vài byte đầu, vì Notes cất ảnh nhận qua HTML trong tệp không đuôi.
+- `Modules/Notes/Feature/NoteImageStaging.swift` — Đặt ảnh của ghi chú đang viết vào chỗ Notes đọc được (thư mục của AraNotch trong group container của Notes).
+- `Modules/Notes/Feature/NotesSelfTest.swift` — Tự kiểm trang Ghi chú khi không có người (`--self-test-notes <report>`): gửi phím và chuột qua app, ghi từng bước ra báo cáo.
 
 ## Lỗi và giới hạn đã biết
 
@@ -177,3 +180,4 @@ Ghi chú định dạng chữ kiểu Telegram (bôi chữ là có menu nổi, c�
 - 2026-10-27 (M7, một phần): trình soạn không được gõ dựng lại cả ghi chú sau mỗi phím gõ ở trình soạn kia. Sửa: bắt kịp sau 0,5 giây ngừng gõ. Test `secondEditorFollowsEditsOfTheFirst` (sửa: ba lần sửa, một lần dựng lại) (commit c4997cc). Chưa làm: đưa tài liệu đang sửa ra khỏi thứ danh sách ghi chú quan sát.
 - 2026-10-27 (bỏ cửa sổ): tự thử trên notch thấy ghi chú mới mất 33 giây: trang hiện ra tự mở ghi chú gần nhất, việc đọc nó xếp trước lệnh tạo trong hàng AppleScript. Sửa: không tự mở trong lúc đang tạo (`isMakingNote`). Test `newNoteDoesNotReadAnotherNoteFirst`. Cũng trong vòng này: hai test dựa vào thời gian (`coalescesChangesWithinTheInterval`, `twoEditsOfANoteLeftBehindBothReachNotes`) hỏng khi một test khác giữ main actor gần một giây; sửa test cho không phụ thuộc vào việc main actor trả lời trong 60–100 ms.
 - 2026-10-27 (rà soát nhánh bỏ cửa sổ, I-1 và I-2): notch bị giữ mở mãi khi ghi chú đang có con trỏ bị xoá (trình soạn bị gỡ mà không được báo mất con trỏ), hay khi ghi chú đang chờ xác nhận xoá biến mất khỏi danh sách. Sửa: `open` về nil thì bỏ cờ con trỏ; ghi chú rời danh sách thì bỏ câu hỏi xoá. Test `theNotchIsLetGoWhenTheFocusedNoteGoesAway`, `aDeleteQuestionGoesWithItsNote`.
+- 2026-11-16 — cỡ riêng 576 × 368 — thử tay bằng ảnh chụp.

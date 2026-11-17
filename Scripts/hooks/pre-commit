@@ -1,0 +1,13 @@
+#!/bin/bash
+# Refuses a commit made straight on main: maintenance and upgrades go on a branch of their own
+# (Scripts/new-branch.sh), and main changes only by merging one when the owner says so.
+# Merging is not stopped: a fast-forward runs no hook, and a merge commit runs pre-merge-commit.
+# Turned on with: git config core.hooksPath Scripts/hooks
+branch="$(git symbolic-ref --short -q HEAD 2>/dev/null || true)"
+if [[ "$branch" == "main" && "${ARANOTCH_ALLOW_MAIN:-}" != "1" ]]; then
+    echo "Không commit thẳng vào main. Mở nhánh của module trước:" >&2
+    echo "  Scripts/new-branch.sh <Module> <việc>" >&2
+    echo "rồi commit trên nhánh đó; gộp vào main khi chủ dự án bảo." >&2
+    exit 1
+fi
+exit 0

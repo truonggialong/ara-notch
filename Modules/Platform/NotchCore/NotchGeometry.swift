@@ -134,6 +134,22 @@ public struct NotchGeometry: Equatable, Sendable {
         return rect
     }
 
+    /// Where the pointer is on the open notch or on the buttons around it, `reach` beyond its
+    /// sides and below it.
+    public func openHitRect(size: CGSize, reach: CGSize) -> CGRect {
+        let rect = openHitRect(size: size)
+        return CGRect(x: rect.minX - reach.width, y: rect.minY - reach.height,
+                      width: rect.width + 2 * reach.width, height: rect.height + reach.height)
+    }
+
+    /// The window of the open notch: the notch hung from the top in its middle, with `margin`
+    /// of room on each side and below for the buttons around it and the spring's overshoot.
+    public func openWindowRect(size: CGSize, margin: CGSize) -> CGRect {
+        let open = openRect(size: size)
+        return CGRect(x: open.minX - margin.width, y: open.minY - margin.height,
+                      width: open.width + 2 * margin.width, height: open.height + margin.height)
+    }
+
     /// True when the open panel, going from one size to a smaller one, leaves a pointer that
     /// was on it outside. The pointer has not left then: the panel went from under it.
     public func shrinkingLeavesOutside(_ pointer: CGPoint, from old: CGSize, to new: CGSize) -> Bool {

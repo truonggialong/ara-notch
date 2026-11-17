@@ -67,6 +67,21 @@ public final class ShellSettings: ObservableObject {
         didSet { store.appearance = appearance }
     }
 
+    /// What the open notch is laid on.
+    @Published public var material: NotchMaterial {
+        didSet { store.material = material }
+    }
+
+    /// The round buttons around the open notch.
+    @Published public var orbitLayout: OrbitLayout {
+        didSet { store.orbitLayout = orbitLayout }
+    }
+
+    /// Which resting thing shows beside the closed notch, or two together.
+    @Published public var restingChoice: RestingSelection {
+        didSet { store.restingChoice = restingChoice }
+    }
+
     /// Whether the first-run guide has been shown.
     public var hasSeenWelcome: Bool {
         get { store.hasSeenWelcome }
@@ -90,5 +105,8 @@ public final class ShellSettings: ObservableObject {
         notchSize = store.notchSize
         pillStyle = store.pillStyle
         appearance = store.appearance
+        material = store.material
+        orbitLayout = store.orbitLayout
+        restingChoice = store.restingChoice
     }
 }

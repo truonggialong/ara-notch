@@ -36,7 +36,7 @@ struct AgentNotice: Equatable {
                 rows: limitRows(showsEstimate: true))
         case .attention(let message):
             return AraSign(
-                tone: .attention, icon: .symbol("exclamationmark.bubble.fill"), mark: agent, markDetail: project,
+                tone: .attention, icon: .pictogram(.ask, .agent), mark: agent, markDetail: project,
                 title: L10n.string("agents.notice.attention"),
                 rows: AgentNoticeText.lines(of: message ?? "").map { AraSign.Row($0) })
         case .finished(let cost):
@@ -81,9 +81,25 @@ struct AgentNotice: Equatable {
         return formatter
     }()
 
-    /// The notice as an activity of the notch.
+    /// The notice as an activity of the notch. At work and done read at a glance: a violet
+    /// orbit with the limit used, or a green tick with the project's name, which says which of
+    /// several sessions ended. A question needs reading, so it stays the full sign.
     @MainActor
     func activity(id: String, duration: TimeInterval) -> NotchLiveActivity {
-        NotchLiveActivity(id: id, priority: 2, duration: duration, pageID: "agents", sign: sign)
+        let used = forecast.map { (100 - $0.remainingPercent) / 100 }
+        switch kind {
+        case .working:
+            return NotchLiveActivity(
+                id: id, priority: 2, duration: duration, pageID: "agents",
+                glance: AraGlance(.orbit, color: .agent, motion: .spin, value: used.map { .meter($0) } ?? .none),
+                detail: "\(agent) · \(project) · \(L10n.string("agents.notice.working"))")
+        case .attention:
+            return NotchLiveActivity(id: id, priority: 2, duration: duration, pageID: "agents", sign: sign)
+        case .finished:
+            return NotchLiveActivity(
+                id: id, priority: 2, duration: duration, pageID: "agents",
+                glance: AraGlance(.done, color: .done, value: .text(project.isEmpty ? agent : project)),
+                detail: "\(agent) · \(project) · \(L10n.string("agents.notice.finished"))")
+        }
     }
 }

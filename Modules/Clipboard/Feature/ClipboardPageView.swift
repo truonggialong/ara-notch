@@ -134,6 +134,7 @@ struct ClipboardPageView: View {
                     .padding(.horizontal, 4 * ui)
                     .padding(.vertical, 3 * ui)
                 }
+                .araScrollEdgeFade(.horizontal)
                 .onChange(of: model.selection.selectedID) { _, selectedID in
                     if model.showsSelectionInNotch, let selectedID {
                         withAnimation(.easeOut(duration: 0.15)) { proxy.scrollTo(selectedID) }

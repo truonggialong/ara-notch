@@ -64,6 +64,8 @@ Bluetooth (thông báo thiết bị); Trợ năng (bắt phím âm lượng và 
 - `Modules/SystemEvents/Feature/NetworkMonitor.swift` — Reports whether the Mac has a usable network connection.
 - `Modules/SystemEvents/Feature/PowerMonitor.swift` — Reads the battery and charger state and reports changes.
 - `Modules/SystemEvents/Feature/SystemEventsController.swift` — Events that can be injected for automated checks, without touching the real system state.
+- `Modules/SystemEvents/Core/KeepAwake.swift` — Một phiên giữ máy thức: các mức 30 phút, 1 giờ, 2 giờ, vô hạn, và thời gian còn lại (`KeepAwakeSession`).
+- `Modules/SystemEvents/Feature/KeepAwakeController.swift` — Giữ máy và màn hình thức bằng `IOPMAssertion`, đặt cốc vàng và giờ còn lại cạnh notch.
 
 ## Lỗi và giới hạn đã biết
 
@@ -76,3 +78,5 @@ Bluetooth (thông báo thiết bị); Trợ năng (bắt phím âm lượng và 
 Mỗi dòng: ngày — lỗi hoặc thay đổi — test đã thêm — commit.
 
 - 2026-10-26 — tái cấu trúc theo module (nhánh `refactor/feature-modules`): widget dùng `WidgetSize`, `WidgetAlert`.
+- 2026-11-16 — N2: giữ máy thức (`KeepAwakeSession`, `KeepAwakeController`): mỗi lần bấm nút trên trang Công cụ đi qua 30 phút, 1 giờ, 2 giờ, vô hạn rồi tắt; giữ cả màn hình thức bằng `IOPMAssertion`; cốc vàng và giờ còn lại nằm cạnh notch (id `keepAwake`, ưu tiên 1) — `KeepAwakeTests`, thử tay bằng chuột giả lập và `pmset -g assertions`.
+- 2026-11-16 — thông báo hệ thống bằng hình: sạc, rút sạc, pin đầy là năm ô pin (`BatteryCells`); pin yếu và mất mạng có chữ đỏ; Caps Lock là phím và đèn cam; Bluetooth là hình thiết bị và tên; các mức là thanh không số (`SystemActivities.Level`); giữ máy thức là cốc vàng và vòng thời gian còn lại (`KeepAwakeSession.remaining`) — `BatteryCellsTests`, `KeepAwakeTests`.

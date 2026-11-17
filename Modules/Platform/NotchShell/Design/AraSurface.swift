@@ -11,6 +11,10 @@ public enum AraTheme {
     public static let press = Animation.spring(response: 0.22, dampingFraction: 0.62)
     /// How a control answers the pointer arriving or leaving.
     public static let hover = Animation.easeOut(duration: 0.14)
+    /// How much anything that can be clicked grows under the pointer, and shrinks pressed: one
+    /// feel for every button, card and tile.
+    public static let hoverLift: CGFloat = 1.022
+    public static let pressDepth: CGFloat = 0.965
     /// How content settles when something changes place or size.
     public static let settle = Animation.spring(response: 0.34, dampingFraction: 0.8)
 
@@ -42,6 +46,7 @@ struct AraSurfaceModifier<S: InsettableShape>: ViewModifier {
     var hue: AraHue?
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.araHue) private var surroundingHue
+    @Environment(\.araOnNotch) private var onNotch
 
     /// The palette the surface and what is on it are drawn with.
     private var scheme: ColorScheme {
@@ -59,9 +64,16 @@ struct AraSurfaceModifier<S: InsettableShape>: ViewModifier {
             .environment(\.araHue, hue ?? surroundingHue)
             .environment(\.colorScheme, scheme)
             .background {
-                shape.fill(tint?.fill ?? (level == .raised ? AraPalette.well : AraPalette.card))
-                    .environment(\.colorScheme, scheme)
-                    .allowsHitTesting(false)
+                if onNotch, tint == nil, level != .selected {
+                    // On the notch: white of a few strengths over black or glass, never a grey
+                    // of its own, so glass shows through.
+                    shape.fill(Color.white.opacity(level == .raised ? AraNotchWhite.hover : AraNotchWhite.card))
+                        .allowsHitTesting(false)
+                } else {
+                    shape.fill(tint?.fill ?? (level == .raised ? AraPalette.well : AraPalette.card))
+                        .environment(\.colorScheme, scheme)
+                        .allowsHitTesting(false)
+                }
             }
     }
 }
@@ -115,12 +127,13 @@ struct AraRoundedSurface: ViewModifier {
 
 struct AraFieldModifier: ViewModifier {
     @Environment(\.araScale) private var ui
+    @Environment(\.araOnNotch) private var onNotch
 
     func body(content: Content) -> some View {
         content
             .foregroundStyle(AraPalette.ink)
             .background {
-                Capsule().fill(AraPalette.card)
+                Capsule().fill(onNotch ? Color.white.opacity(AraNotchWhite.card) : AraPalette.card)
                     .overlay { Capsule().strokeBorder(AraPalette.line, lineWidth: AraTheme.outline * ui) }
                     .allowsHitTesting(false)
             }
@@ -211,60 +224,78 @@ public struct AraProgressRing: View {
 /// and at most one more line.
 public struct AraEmptyState: View {
     @Environment(\.araScale) private var ui
+    @Environment(\.araOnNotch) private var onNotch
     let icon: AraIcon
     let title: String
     var detail: String?
+    var actionTitle: String?
+    var action: (() -> Void)?
     @Environment(\.araHue) private var hue
 
-    public init(icon: AraIcon, title: String, detail: String? = nil) {
+    /// The one way every page says it has nothing to show, or needs a permission: a plate with
+    /// the page's icon, one line, and at most one pill for the next step. A short page puts the
+    /// plate beside the words; a taller one stacks them.
+    public init(icon: AraIcon, title: String, detail: String? = nil, actionTitle: String? = nil, action: (() -> Void)? = nil) {
         self.icon = icon
         self.title = title
         self.detail = detail
+        self.actionTitle = actionTitle
+        self.action = action
     }
 
     public var body: some View {
-        VStack(spacing: 7 * ui) {
-            icon.image
-                .font(.system(size: 17 * ui, weight: .medium))
-                .foregroundStyle(AraPalette.label(in: hue))
-                .frame(width: 42 * ui, height: 42 * ui)
-                .background(AraPalette.well, in: Circle())
-            Text(title)
-                .font(AraType.display(15 * ui))
-            if let detail {
-                // Dimmed, not coloured: the state may be on a card or straight on the ground.
-                Text(detail)
-                    .font(.system(size: 11 * ui))
-                    .opacity(0.68)
-                    .multilineTextAlignment(.center)
-                    .lineLimit(2)
+        ViewThatFits(in: .vertical) {
+            VStack(spacing: 8 * ui) {
+                plate
+                words(alignment: .center)
+            }
+            HStack(spacing: 12 * ui) {
+                plate
+                words(alignment: .leading)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .accessibilityElement(children: .combine)
     }
-}
 
-public extension View {
-    /// Fades the last few points of a list that scrolls up and down, so a row cut off by the
-    /// edge reads as "there is more" and not as a drawing mistake.
-    func araScrollFade(length: CGFloat = 14) -> some View {
-        modifier(AraScrollFadeModifier(length: length))
+    private var plate: some View {
+        icon.image
+            .font(.system(size: 20 * ui, weight: .medium))
+            .foregroundStyle(AraPalette.label(in: hue))
+            .frame(width: 56 * ui, height: 56 * ui)
+            .background(
+                onNotch ? Color.white.opacity(AraNotchWhite.card) : AraPalette.well,
+                in: RoundedRectangle(cornerRadius: 16 * ui, style: .continuous))
+    }
+
+    private func words(alignment: HorizontalAlignment) -> some View {
+        VStack(alignment: alignment, spacing: 4 * ui) {
+            Text(title)
+                .font(.system(size: 13 * ui, weight: .semibold))
+                .multilineTextAlignment(alignment == .center ? .center : .leading)
+                .lineLimit(2)
+            if let detail {
+                // Dimmed, not coloured: the state may be on a card or straight on the ground.
+                Text(detail)
+                    .font(.system(size: 11 * ui))
+                    .opacity(0.68)
+                    .multilineTextAlignment(alignment == .center ? .center : .leading)
+                    .lineLimit(2)
+            }
+            if let actionTitle, let action {
+                AraPillButton(actionTitle, isProminent: true, action: action)
+                    .padding(.top, 2 * ui)
+            }
+        }
     }
 }
 
-struct AraScrollFadeModifier: ViewModifier {
-    @Environment(\.araScale) private var ui
-    let length: CGFloat
-
-    func body(content: Content) -> some View {
-        content.mask {
-            VStack(spacing: 0 * ui) {
-                Rectangle()
-                LinearGradient(colors: [.black, .clear], startPoint: .top, endPoint: .bottom)
-                    .frame(height: length * ui)
-            }
-        }
+public extension View {
+    /// Fades a list that scrolls up and down at an end with more beyond it, so a row cut off
+    /// by the edge reads as "there is more" and not as a drawing mistake. At rest at the top
+    /// the top stays sharp, and at the bottom the last row stays clear (`ScrollEdges`).
+    func araScrollFade(length: CGFloat = 14) -> some View {
+        araScrollEdgeFade(.vertical, length: length)
     }
 }
 
