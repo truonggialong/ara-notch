@@ -96,7 +96,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             pasteboard: arguments.pasteboardName.map { NSPasteboard(name: NSPasteboard.Name($0)) } ?? .general)
         let systemEvents = SystemEventsController(
             settings: AlertSettings(store: AlertSettingsStore(defaults: .standard)), notch: controller)
-        let keepAwake = KeepAwakeController(notch: controller)
+        let keepAwake = KeepAwakeController(
+            notch: controller, settings: KeepAwakeSettings(store: KeepAwakeSettingsStore(defaults: .standard)))
         let timer = TimerController(
             settings: TimerSettings(store: TimerSettingsStore(defaults: .standard)), notch: controller)
         let media = MediaController(
@@ -160,12 +161,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             tool("note") { [weak notes] in notes?.newNote() },
             // Each click steps the length on (30 minutes, an hour, two, without end) and then
             // off; the notch stays open to show it.
-            NotchTool(id: "awake") { [weak keepAwake] in keepAwake?.step() },
+            // Held, the button offers a time of day, an app that is open, or the downloads.
+            NotchTool(id: "awake", options: { [weak keepAwake] close in
+                keepAwake?.makeChooser(close: close) ?? AnyView(EmptyView())
+            }) { [weak keepAwake] in keepAwake?.step() },
         ]
         // The overview's quick tools are the four used most: capture, read text, pick a colour, translate.
         let toolsPage = ToolsController(tools: tools, quickToolIDs: ["capture", "text", "color", "translate"])
         controller.register(page: toolsPage.makePage())
-        keepAwake.onChange = { [toolsPage] left in
+        keepAwake.onChange = { [toolsPage] (left: String?) in
             toolsPage.setState(left.map { NotchToolState(tone: .awake, badge: $0) }, forTool: "awake")
         }
         overview.setTiles([
@@ -239,7 +243,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 })),
             SettingsTab(
                 id: "tools", titleKey: "settings.section.tools", symbolName: "keyboard",
-                searchPrefixes: ["settings.capture", "settings.translate", "settings.selection", "settings.windows", "settings.clipboard.hotKey", "settings.notes.newNote", "shortcut.", "settings.shortcuts.restore"],
+                searchPrefixes: ["settings.capture", "settings.translate", "settings.selection", "settings.windows", "settings.clipboard.hotKey", "settings.notes.newNote", "shortcut.", "settings.shortcuts.restore", "tools.awake", "settings.keepAwake"],
                 content: AnyView(Group {
                     Section {
                         clipboard.makeToolSettings()
@@ -259,6 +263,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     }
                     Section(L10n.string("settings.section.windows")) {
                         windows.makeSettingsSection()
+                    }
+                    Section(L10n.string("tools.awake")) {
+                        keepAwake.makeSettingsSection()
                     }
                 })),
             SettingsTab(
@@ -449,6 +456,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self.keepAwake = keepAwake
         self.downloads = downloads
         downloads.start()
+        keepAwake.isDownloading = { [weak downloads] in downloads?.isDownloading ?? false }
+        keepAwake.start()
         self.timer = timer
         self.media = media
         self.files = files

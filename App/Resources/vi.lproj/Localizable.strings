@@ -988,3 +988,37 @@
 "notch.resting.files.download" = "Tải xuống";
 "glance.offline" = "Mất mạng";
 "glance.version" = "Bản %@";
+
+/* Keep awake: kinds of session, stop rules, Triggers */
+"keepAwake.whileApp" = "Khi %@ còn mở";
+"keepAwake.untilDownloads" = "Đến khi tải xong";
+"keepAwake.trigger.app" = "Tự bật: một app đang mở";
+"keepAwake.trigger.docked" = "Tự bật: cắm sạc và màn hình ngoài";
+"keepAwake.trigger.schedule" = "Tự bật: giờ làm việc";
+"keepAwake.macOnly" = "Chỉ máy, màn hình được tắt";
+"keepAwake.withDisplay" = "Cả màn hình";
+"keepAwake.endsSoon" = "Sắp hết giữ máy thức";
+"keepAwake.extendHour" = "+1 giờ";
+"keepAwake.stopped.app" = "Dừng: app đã tắt";
+"keepAwake.stopped.downloads" = "Dừng: đã tải xong";
+"keepAwake.stopped.battery" = "Dừng: pin còn %d%%";
+"keepAwake.stopped.unplugged" = "Dừng: đã rút sạc";
+"keepAwake.hours" = "%d giờ";
+"keepAwake.untilTime" = "Đến giờ…";
+"keepAwake.whileAppTitle" = "Khi app này còn mở";
+"keepAwake.start" = "Bắt đầu";
+"settings.keepAwake.display" = "Khi giữ máy thức";
+"settings.keepAwake.display.note" = "Chỉ máy: tải về, build vẫn chạy, màn hình vẫn tắt theo giờ của macOS";
+"settings.keepAwake.lowBattery" = "Tự dừng khi pin còn";
+"settings.keepAwake.unplugged" = "Tự dừng khi rút sạc";
+"settings.keepAwake.sleep" = "Tự dừng khi máy bị cho ngủ";
+"settings.keepAwake.remind" = "Nhắc 5 phút trước khi hết";
+"settings.keepAwake.trigger.apps" = "Tự bật khi app này mở";
+"settings.keepAwake.trigger.apps.note" = "Bấm + để thêm từ các app đang mở; bấm vào biểu tượng để bỏ";
+"settings.keepAwake.trigger.docked" = "Tự bật khi cắm sạc và có màn hình ngoài";
+"settings.keepAwake.trigger.docked.note" = "Làm việc ở bàn: máy không ngủ khi đang nối màn hình";
+"settings.keepAwake.trigger.schedule" = "Tự bật trong giờ làm việc";
+"settings.keepAwake.trigger.days" = "Ngày";
+"settings.keepAwake.trigger.hours" = "Giờ";
+"settings.keepAwake.trigger.remove" = "Bỏ app này";
+"tools.moreChoices" = "Thêm lựa chọn";

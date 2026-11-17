@@ -988,3 +988,37 @@
 "notch.resting.files.download" = "Downloads";
 "glance.offline" = "Offline";
 "glance.version" = "Version %@";
+
+/* Keep awake: kinds of session, stop rules, Triggers */
+"keepAwake.whileApp" = "While %@ is open";
+"keepAwake.untilDownloads" = "Until downloads finish";
+"keepAwake.trigger.app" = "Started by an app that is open";
+"keepAwake.trigger.docked" = "Started by power and an external display";
+"keepAwake.trigger.schedule" = "Started by working hours";
+"keepAwake.macOnly" = "Mac only, the display may sleep";
+"keepAwake.withDisplay" = "Mac and display";
+"keepAwake.endsSoon" = "Keep awake ends soon";
+"keepAwake.extendHour" = "+1 hour";
+"keepAwake.stopped.app" = "Stopped: the app quit";
+"keepAwake.stopped.downloads" = "Stopped: downloads done";
+"keepAwake.stopped.battery" = "Stopped: battery at %d%%";
+"keepAwake.stopped.unplugged" = "Stopped: unplugged";
+"keepAwake.hours" = "%d h";
+"keepAwake.untilTime" = "Until…";
+"keepAwake.whileAppTitle" = "While this app is open";
+"keepAwake.start" = "Start";
+"settings.keepAwake.display" = "While keeping awake";
+"settings.keepAwake.display.note" = "Mac only: downloads and builds go on, the display still sleeps on time";
+"settings.keepAwake.lowBattery" = "Stop when the battery is at";
+"settings.keepAwake.unplugged" = "Stop when unplugged";
+"settings.keepAwake.sleep" = "Stop when the Mac is put to sleep";
+"settings.keepAwake.remind" = "Remind 5 minutes before the end";
+"settings.keepAwake.trigger.apps" = "Start while these apps are open";
+"settings.keepAwake.trigger.apps.note" = "Click + to add an open app; click an icon to remove it";
+"settings.keepAwake.trigger.docked" = "Start on power with an external display";
+"settings.keepAwake.trigger.docked.note" = "At a desk: the Mac stays awake while docked";
+"settings.keepAwake.trigger.schedule" = "Start during working hours";
+"settings.keepAwake.trigger.days" = "Days";
+"settings.keepAwake.trigger.hours" = "Hours";
+"settings.keepAwake.trigger.remove" = "Remove this app";
+"tools.moreChoices" = "More choices";

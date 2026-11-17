@@ -9,13 +9,35 @@ struct ToolsPage: View {
     @Environment(\.araScale) private var ui
     let tools: [NotchTool]
     @ObservedObject var states: ToolStates
+    @StateObject private var held = HeldTool()
 
     var body: some View {
         // Rows across the page while they fit, else sideways (`AraRail`).
         AraRail(tools, itemSize: CGSize(width: 78, height: 72), spacing: 6) { tool in
-            ToolButton(tool: tool, state: states.states[tool.id])
+            ToolButton(tool: tool, state: states.states[tool.id], held: held)
         }
+        .overlay {
+            // A tool held open its choices over the page; a click beside them closes them.
+            if let id = held.openID, let options = tools.first(where: { $0.id == id })?.options {
+                ZStack {
+                    Color.black.opacity(0.35)
+                        .contentShape(Rectangle())
+                        .onTapGesture { held.openID = nil }
+                    options { held.openID = nil }
+                }
+                .transition(.opacity.combined(with: .scale(scale: 0.96)))
+            }
+        }
+        .animation(AraTheme.hover, value: held.openID)
     }
+}
+
+/// The tool whose choices are open, and whether the press that opened them is still to be
+/// let go (its click then does nothing more).
+@MainActor
+final class HeldTool: ObservableObject {
+    @Published var openID: String?
+    var swallowsClick = false
 }
 
 /// What a tool shows while it is on.
@@ -58,10 +80,18 @@ private struct ToolButton: View {
     @Environment(\.araScale) private var ui
     let tool: NotchTool
     let state: NotchToolState?
+    @ObservedObject var held: HeldTool
     @StateObject private var hover = AraHover()
 
     var body: some View {
-        Button(action: tool.action) {
+        Button {
+            // The click that ends a hold has already opened the choices.
+            if held.swallowsClick {
+                held.swallowsClick = false
+                return
+            }
+            tool.action()
+        } label: {
             VStack(spacing: 6 * ui) {
                 ZStack {
                     Circle().fill(state?.color ?? Color.white.opacity(hover.isHovered ? AraNotchWhite.hover : AraNotchWhite.card))
@@ -92,7 +122,17 @@ private struct ToolButton: View {
             .animation(AraTheme.hover, value: state)
         }
         .buttonStyle(AraPressStyle())
+        .simultaneousGesture(
+            LongPressGesture(minimumDuration: 0.45).onEnded { _ in
+                guard tool.options != nil else { return }
+                held.swallowsClick = true
+                held.openID = tool.id
+                AraHaptics.play(.tap)
+            })
         .onHover { hover.isHovered = $0 }
         .accessibilityLabel(L10n.string("tools.\(tool.id)"))
+        .accessibilityAction(named: L10n.string("tools.moreChoices")) {
+            if tool.options != nil { held.openID = tool.id }
+        }
     }
 }

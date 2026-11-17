@@ -21,6 +21,9 @@ public final class DownloadsController {
         self.folder = folder ?? FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask)[0]
     }
 
+    /// Whether any file is downloading into the folder now.
+    public var isDownloading: Bool { !tally.isEmpty }
+
     public func start() {
         guard subscriber == nil else { return }
         subscriber = Progress.addSubscriber(forFileURL: folder) { [weak self] progress in

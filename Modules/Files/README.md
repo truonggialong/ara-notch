@@ -67,3 +67,4 @@ Mỗi dòng: ngày — lỗi hoặc thay đổi — test đã thêm — commit.
 - 2026-11-16 — hàng tệp mờ ở mép còn nội dung — thử tay bằng ảnh chụp.
 - 2026-11-16 — N4: tiến độ tải xuống vào thư mục Tải về cạnh notch đóng (vòng và phần trăm, nhiều tệp thì kèm số tệp), xong thì báo một dòng "Đã tải xong" (`DownloadTally`, `DownloadsController` theo `Progress.addSubscriber`, không đọc tệp) — `DownloadsTests`, thử bằng một chương trình nhỏ công bố tiến độ giả. Chưa làm: kéo tệp vừa tải ra từ notch.
 - 2026-11-16 — đang tải: khay xanh và vòng tiến độ, không số; tải xong: khay xanh và tên tệp — thử tay bằng tiến độ giả.
+- 2026-11-17 — thêm `DownloadsController.isDownloading` cho giữ máy thức "đến khi tải xong".
