@@ -233,6 +233,14 @@ public struct AgentSessions: Equatable, Sendable {
     }
 
     /// The turn of a working or waiting session was stopped by the user.
+    /// The turn of a working or waiting session ended, as its transcript says, though no
+    /// hook reported it.
+    public mutating func markFinished(id: String) {
+        guard var session = sessions[id], session.isMidTurn else { return }
+        session.state = .done
+        sessions[id] = session
+    }
+
     public mutating func markStopped(id: String) {
         guard var session = sessions[id], session.isMidTurn else { return }
         session.state = .stopped
@@ -248,28 +256,52 @@ public struct AgentSessions: Equatable, Sendable {
     }
 }
 
-/// How a Claude Code session's transcript ends: whether the user stopped the last turn.
-/// Only the last lines are given, and only what kind of line each is and whether the user's
-/// line is the interrupt mark is looked at.
+/// How a Claude Code session's transcript ends: whether its last turn is over, and how. Only
+/// the last lines are given, and only what kind of line each is, why a reply stopped and the
+/// marks Claude Code writes are looked at; what was said is not.
 public enum TranscriptEnding {
     static let interruptMark = "[Request interrupted by user"
+    /// What a local command (`/model`, `/clear`) prints: it answers without a turn.
+    static let localCommandMark = "<local-command-stdout>"
+    /// Why a reply stopped, when it ends the turn; `tool_use` means the agent goes on.
+    static let endingReasons: Set<String> = ["end_turn", "stop_sequence"]
 
-    public static func wasInterrupted(lastLines: [String]) -> Bool {
+    public enum Ending: Equatable, Sendable {
+        /// The user stopped the turn.
+        case interrupted
+        /// The agent's last reply ended the turn.
+        case finished
+        /// A local command answered; no turn runs.
+        case localCommand
+    }
+
+    /// How the last turn ended; nil while it goes on (a tool runs, a result came back).
+    public static func ending(lastLines: [String]) -> Ending? {
         for line in lastLines.reversed() {
             guard let object = try? JSONSerialization.jsonObject(with: Data(line.utf8)) as? [String: Any],
                   let type = object["type"] as? String, type == "user" || type == "assistant"
             else { continue }
-            guard type == "user" else { return false }
-            let content = (object["message"] as? [String: Any])?["content"]
+            let message = object["message"] as? [String: Any]
+            if type == "assistant" {
+                guard let reason = message?["stop_reason"] as? String else { return nil }
+                return endingReasons.contains(reason) ? .finished : nil
+            }
+            let content = message?["content"]
             let texts: [String]
             if let text = content as? String {
                 texts = [text]
             } else {
                 texts = (content as? [[String: Any]] ?? []).compactMap { $0["text"] as? String }
             }
-            return texts.contains { $0.hasPrefix(interruptMark) }
+            if texts.contains(where: { $0.hasPrefix(interruptMark) }) { return .interrupted }
+            if texts.contains(where: { $0.contains(localCommandMark) }) { return .localCommand }
+            return nil
         }
-        return false
+        return nil
+    }
+
+    public static func wasInterrupted(lastLines: [String]) -> Bool {
+        ending(lastLines: lastLines) == .interrupted
     }
 }
 

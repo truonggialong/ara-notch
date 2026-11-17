@@ -31,6 +31,21 @@ public final class AgentSettings: ObservableObject {
         didSet { store.announcesWorking = announcesWorking }
     }
 
+    /// The shortest turn whose end is announced, in seconds.
+    @Published public var finishMinimum: TimeInterval {
+        didSet { store.finishMinimum = finishMinimum }
+    }
+
+    /// Percent of a limit used that earns a notice; 0 is off.
+    @Published public var limitThreshold: Double {
+        didSet { store.limitThreshold = limitThreshold }
+    }
+
+    /// What rests beside the closed notch while agents work.
+    @Published public var liveReadout: AgentLiveReadout {
+        didSet { store.liveReadout = liveReadout }
+    }
+
     /// What measured turns took from the five-hour limit, kept between launches.
     func turnCosts(codex: Bool) -> [Double] {
         store.turnCosts(codex: codex)
@@ -47,6 +62,9 @@ public final class AgentSettings: ObservableObject {
         announcesFinished = store.announcesFinished
         tracksCodex = store.tracksCodex
         readsClaudeAccount = store.readsClaudeAccount
+        finishMinimum = store.finishMinimum
+        limitThreshold = store.limitThreshold
+        liveReadout = store.liveReadout
     }
 }
 
@@ -108,6 +126,14 @@ public final class AgentController {
     private var codexCosts: TurnCostLedger
     /// Events already on file at launch are history; only later ones are announced.
     private var announcesEvents = false
+    /// Limits warned about and seen to renew, per agent.
+    private var claudeLimits = LimitAlerts()
+    private var codexLimits = LimitAlerts()
+    /// When each session's turn began, for how long it took.
+    private var turnStarts: [String: Date] = [:]
+    /// Ticks once a second while the stopwatch beside the notch runs.
+    private var liveTicker: Timer?
+    private static let liveID = "agents.live"
 
     /// - Parameters:
     ///   - eventsFile: where the hook helper writes; nil for the standard place.
@@ -170,6 +196,16 @@ public final class AgentController {
             .sink { [weak self] shown in self?.account.setPageShown(shown) }
             .store(in: &cancellables)
         announcesEvents = true
+        settings.$liveReadout
+            .dropFirst()
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.liveTicker?.invalidate()
+                self?.liveTicker = nil
+                self?.refreshLive()
+            }
+            .store(in: &cancellables)
+        refreshLive()
     }
 
     // MARK: - Rate limits and Codex
@@ -215,6 +251,78 @@ public final class AgentController {
     /// A report from the status line or the account: the newer one stands.
     private func takeClaudeUsage(_ usage: AgentUsage) {
         viewModel.claudeUsage = AgentUsage.latest(viewModel.claudeUsage, usage)
+        if let current = viewModel.claudeUsage {
+            checkLimits(current, agent: "Claude", alerts: &claudeLimits, announces: announcesEvents)
+        }
+    }
+
+    // MARK: - Beside the notch while agents work
+
+    /// While an agent works, a violet orbit rests left of the camera (with how many work, when
+    /// more than one) and, right of it, a stopwatch of the oldest turn or the limit used.
+    private func refreshLive() {
+        let working = sessions.list.filter {
+            if case .working = $0.state { return true }
+            return false
+        }
+        guard announcesEvents, settings.liveReadout != .off, !working.isEmpty else {
+            liveTicker?.invalidate()
+            liveTicker = nil
+            notch.setRestingActivity(nil, id: Self.liveID)
+            return
+        }
+        let now = Date()
+        let since = working.compactMap { turnStarts[$0.id] }.min()
+        let usage = working.contains(where: { !$0.isCodex }) ? viewModel.claudeUsage : viewModel.codexUsage
+        let value: AraGlance.Value
+        switch settings.liveReadout {
+        case .limit:
+            value = usage?.fiveHour.map { .meter($0.usedPercent / 100) } ?? .none
+        default:
+            value = since.map { .text(AgentLiveReadout.stopwatch(now.timeIntervalSince($0))) } ?? .none
+        }
+        let names = Set(working.map(\.project)).sorted().joined(separator: ", ")
+        notch.setRestingActivity(
+            NotchLiveActivity(
+                id: Self.liveID, priority: 1, duration: 0, pageID: "agents",
+                glance: AraGlance(
+                    .orbit, color: .agent, motion: .spin, leading: working.count > 1 ? "\(working.count)" : nil, value: value,
+                    valueColor: .agent),
+                detail: "\(L10n.string("agents.notice.working")) · \(names)"),
+            id: Self.liveID)
+        if settings.liveReadout == .elapsed, since != nil, liveTicker == nil {
+            let ticker = Timer(timeInterval: 1, repeats: true) { [weak self] _ in
+                MainActor.assumeIsolated { self?.refreshLive() }
+            }
+            ticker.tolerance = 0.1
+            RunLoop.main.add(ticker, forMode: .common)
+            liveTicker = ticker
+        }
+    }
+
+    /// Says beside the notch when a limit nears the threshold, and when one starts afresh.
+    private func checkLimits(_ usage: AgentUsage, agent: String, alerts: inout LimitAlerts, announces: Bool) {
+        let found = alerts.update(usage, threshold: settings.limitThreshold, now: Date())
+        guard announces else { return }
+        for alert in found {
+            let windowName: String
+            let glance: AraGlance
+            switch alert {
+            case let .nearing(window, percent):
+                windowName = L10n.string("agents.limit.\(window.rawValue)")
+                glance = AraGlance(
+                    .symbol("gauge.with.dots.needle.67percent"), color: .timer, leading: agent,
+                    value: .text("\(windowName) · \(Int(percent.rounded()))%"), valueColor: .timer)
+            case let .renewed(window):
+                windowName = L10n.string("agents.limit.\(window.rawValue)")
+                glance = AraGlance(
+                    .symbol("arrow.clockwise"), color: .done, leading: agent, value: .text(L10n.string("agents.limit.renewed")),
+                    valueColor: .done)
+            }
+            notch.present(NotchLiveActivity(
+                id: "agents.limit.\(agent)", priority: 2, duration: 5, pageID: "agents", glance: glance,
+                detail: "\(agent) · \(windowName)"))
+        }
     }
 
     private func setTracksCodex(_ isOn: Bool) {
@@ -238,6 +346,7 @@ public final class AgentController {
                 // The newest report stands, whichever session it came from.
                 if usage.updatedAt >= (viewModel.codexUsage?.updatedAt ?? .distantPast) {
                     viewModel.codexUsage = usage
+                    checkLimits(usage, agent: "Codex", alerts: &codexLimits, announces: announcesEvents && !isHistory)
                 }
             } else if let agentEvent = CodexRolloutEvent.agentEvent(for: event, sessionID: sessionID) {
                 agentEvents.append(agentEvent)
@@ -318,11 +427,17 @@ public final class AgentController {
         readClaudeUsage()
         for event in events {
             let announcement = sessions.apply(event)
+            // When a turn began is known from history too: the stopwatch beside the notch
+            // counts from there, for a turn already running when the app started.
+            if announcement == .started {
+                turnStarts[event.sessionID] = event.at
+            }
             // Events already on file at launch are history: neither announced nor measured.
             guard announcesEvents, !isHistory else { continue }
             let isCodex = event.sessionID.hasPrefix("codex:")
             if event.kind == .sessionEnd {
                 forgetTurn(of: event.sessionID, isCodex: isCodex)
+                turnStarts[event.sessionID] = nil
             }
             guard let announcement, let session = sessions.session(id: event.sessionID) else { continue }
             let usage = isCodex ? viewModel.codexUsage : viewModel.claudeUsage
@@ -340,7 +455,9 @@ public final class AgentController {
                 }
             case .finished:
                 let cost = endTurn(of: session.id, isCodex: isCodex, usage: usage, at: event.at)
-                if settings.announcesFinished {
+                let took = turnStarts.removeValue(forKey: session.id).map { event.at.timeIntervalSince($0) }
+                // A turn of a few seconds is not news (`FinishNotice`).
+                if settings.announcesFinished, FinishNotice.announces(duration: took, minimum: settings.finishMinimum) {
                     announce(.finished(costPercent: cost), session, usage: usage, duration: 4)
                 }
             }
@@ -349,13 +466,15 @@ public final class AgentController {
             sessions.expire(before: Date().addingTimeInterval(-Self.sessionLifetime), keeping: runningClaudeIDs)
         }
         viewModel.sessions = sessions.list
+        refreshLive()
     }
 
     // MARK: - Turns that end without a word
 
     private static let sessionCheckInterval: TimeInterval = 20
-    /// A turn that goes on reports each tool it uses; one quiet this long has stopped.
-    private static let quietTurnLimit: TimeInterval = 30 * 60
+    /// A turn that goes on reports each tool it uses; one quiet this long is no longer shown
+    /// as working (as Vorssaint does).
+    private static let quietTurnLimit: TimeInterval = 10 * 60
 
     /// Claude Code says nothing when the user stops a turn, and nothing when a session it
     /// still has open has been quiet for days. Every 20 seconds, whether the quiet turns were
@@ -379,18 +498,29 @@ public final class AgentController {
         let projects = claudeProjects
         Task.detached(priority: .utility) {
             let running = readsProcesses ? ClaudeSessionProbe.runningSessionIDs() : nil
-            let stopped = candidates.filter { ClaudeSessionProbe.wasInterrupted(sessionID: $0, projects: projects) }
-            await MainActor.run { [weak self] in self?.finishCheck(running: running, stopped: stopped) }
+            var stopped: [String] = []
+            var finished: [String] = []
+            for id in candidates {
+                switch ClaudeSessionProbe.ending(sessionID: id, projects: projects) {
+                case .interrupted, .localCommand: stopped.append(id)
+                case .finished: finished.append(id)
+                case nil: break
+                }
+            }
+            await MainActor.run { [weak self, stopped, finished] in
+                self?.finishCheck(running: running, stopped: stopped, finished: finished)
+            }
         }
     }
 
-    private func finishCheck(running: Set<String>?, stopped: [String]) {
+    private func finishCheck(running: Set<String>?, stopped: [String], finished: [String] = []) {
         isCheckingSessions = false
         if let running {
             runningClaudeIDs = running
             hasReadRunningSessions = true
         }
         stopped.forEach { sessions.markStopped(id: $0) }
+        finished.forEach { sessions.markFinished(id: $0) }
         let now = Date()
         sessions.stopTurns(quietSince: now.addingTimeInterval(-Self.quietTurnLimit))
         if hasReadRunningSessions {
@@ -399,6 +529,7 @@ public final class AgentController {
         if viewModel.sessions != sessions.list {
             viewModel.sessions = sessions.list
         }
+        refreshLive()
     }
 
     // MARK: - What turns take
@@ -713,6 +844,38 @@ struct AgentNoticeSettings: View {
             .init(id: "attention", title: L10n.string("settings.agents.announceAttention"), isOn: $settings.announcesAttention),
             .init(id: "finished", title: L10n.string("settings.agents.announceFinished"), isOn: $settings.announcesFinished),
         ])
+        Picker(selection: $settings.finishMinimum) {
+            ForEach(FinishNotice.minimums, id: \.self) { seconds in
+                Text(Self.length(seconds)).tag(seconds)
+            }
+        } label: {
+            Text(L10n.string("settings.agents.finishMinimum"))
+            AraSettingsNote(L10n.string("settings.agents.finishMinimum.note"))
+        }
+        .disabled(!settings.announcesFinished)
+        Picker(selection: $settings.liveReadout) {
+            ForEach(AgentLiveReadout.allCases, id: \.self) { readout in
+                Text(L10n.string("settings.agents.live.\(readout.rawValue)")).tag(readout)
+            }
+        } label: {
+            Text(L10n.string("settings.agents.live"))
+            AraSettingsNote(L10n.string("settings.agents.live.note"))
+        }
+        Picker(selection: $settings.limitThreshold) {
+            ForEach(LimitAlerts.thresholds, id: \.self) { percent in
+                Text(percent == 0 ? L10n.string("settings.off") : "\(Int(percent))%").tag(percent)
+            }
+        } label: {
+            Text(L10n.string("settings.agents.limitThreshold"))
+            AraSettingsNote(L10n.string("settings.agents.limitThreshold.note"))
+        }
+    }
+
+    /// "Every turn", "30 seconds", "2 minutes".
+    private static func length(_ seconds: TimeInterval) -> String {
+        if seconds == 0 { return L10n.string("settings.agents.finishMinimum.all") }
+        if seconds < 60 { return String(format: L10n.string("settings.agents.finishMinimum.seconds"), Int(seconds)) }
+        return String(format: L10n.string("settings.agents.finishMinimum.minutes"), Int(seconds / 60))
     }
 }
 

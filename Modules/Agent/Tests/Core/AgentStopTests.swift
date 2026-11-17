@@ -31,6 +31,33 @@ private func line(_ type: String, _ text: String) -> String {
     }
 }
 
+@Suite struct TurnEndingTests {
+    private func reply(_ reason: String) -> String {
+        #"{"type":"assistant","message":{"role":"assistant","stop_reason":"\#(reason)","content":[{"type":"text","text":"x"}]}}"#
+    }
+
+    @Test func aReplyThatEndsTheTurnFinishesIt() {
+        #expect(TranscriptEnding.ending(lastLines: [line("user", "sửa"), reply("end_turn")]) == .finished)
+        #expect(TranscriptEnding.ending(lastLines: [reply("stop_sequence"), #"{"type":"file-history-snapshot"}"#]) == .finished)
+    }
+
+    @Test func aReplyThatCallsAToolGoesOn() {
+        #expect(TranscriptEnding.ending(lastLines: [reply("tool_use")]) == nil)
+        #expect(TranscriptEnding.ending(lastLines: [line("assistant", "no reason given")]) == nil)
+    }
+
+    @Test func aLocalCommandRunsNoTurn() {
+        #expect(TranscriptEnding.ending(lastLines: [line("user", "<local-command-stdout>Set model to Opus</local-command-stdout>")]) == .localCommand)
+    }
+
+    @Test func aSessionWhoseTranscriptEndedIsMarkedDone() {
+        var sessions = AgentSessions()
+        _ = sessions.apply(AgentEvent(kind: .toolUse, sessionID: "s", cwd: "/a", toolName: "Bash", message: nil, at: Date()))
+        sessions.markFinished(id: "s")
+        #expect(sessions.session(id: "s")?.state == .done)
+    }
+}
+
 @Suite struct StoppedSessionTests {
     @Test func aWorkingSessionCanBeMarkedStopped() {
         var sessions = AgentSessions()
