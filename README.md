@@ -4,25 +4,27 @@
 
 A macOS app that turns the MacBook notch into a small control panel: clipboard, now playing, timers, calendar and reminders, notes, a file shelf, screen capture, quick translate and the state of coding agents.
 
-## Mới trong bản 1.0.0 · New in 1.0.0
+## Mới trong bản 1.1.0 · New in 1.1.0
 
-AraNotch chính thức lên bản 1.0, với đủ mọi tính năng của bản 0.31.0 dưới đây.
-
-- **Nhạc trên notch đóng đẹp và gọn hơn:** khi đang phát nhạc, notch chỉ còn ảnh bìa bên trái và sóng nhạc bên phải, ngắn hơn trước nhiều. Sóng nhạc và một vạch tiến độ nhỏ phát sáng ngay dưới camera mang màu lấy từ ảnh bìa của bài.
-- **Tạm dừng vẫn thấy:** khi bạn dừng nhạc, sóng xẹp thành chấm và ảnh bìa mờ đi thay vì biến mất. Sau 5 phút không phát lại thì tự ẩn.
-- **Điều khiển ngay trên notch đóng:** rê chuột vào ảnh bìa, sóng nhạc hay vạch tiến độ thì notch không mở ra; sóng biến thành nút tạm dừng, vạch to ra kèm giờ để bấm hay kéo mà tua. Rê vào giữa notch thì notch mở như thường.
-
-Bản 0.30.1 trước đó làm chữ ghi chú trên notch to và dễ đọc hơn.
+- **Notch mới, gọn hơn:** tên trang cạnh camera, mỗi trang một cỡ, nút tròn quanh notch và lưới "Mọi trang" có phím tắt.
+- **Nền kính và chuyển động mềm hơn:** nền đen, kính tối hay Liquid Glass; notch mở hơi nảy, đóng gọn.
+- **Thông báo bằng hình:** bộ 29 biểu tượng riêng; hình cho những gì nhìn là hiểu, thêm một dòng chữ ngắn khi cần tên. Notch luôn cân giữa quanh camera.
+- **Hai thứ cạnh notch cùng lúc:** chọn nhạc, hẹn giờ, hay cả hai.
+- **Đếm ngược tới cuộc họp** ngay cạnh notch.
+- **Giữ máy thức:** theo thời gian, đến một giờ, khi một app còn mở hay đến khi tải xong; có thể cho màn hình tắt, tự dừng khi pin yếu, nhắc để gia hạn, tự bật theo app, màn hình ngoài hay giờ làm việc.
+- **Tiến độ tải xuống** cạnh notch.
+- **Agent nhẹ máy hơn,** báo khi gần hết giới hạn sử dụng.
 
 ---
 
-AraNotch is now version 1.0, with everything in the 0.31.0 release below.
-
-- **A neater, prettier player on the closed notch:** while music plays, the notch shows just the artwork on the left and the bars on the right, much shorter than before. The bars and a small glowing progress line right under the camera take their colours from the track's artwork.
-- **Still there when paused:** when you pause, the bars lie flat and the artwork dims instead of disappearing. After 5 minutes without playing, it goes away.
-- **Controls right on the closed notch:** hover the artwork, the bars or the progress line and the notch stays closed; the bars turn into a pause button and the line grows, with times, so you can click or drag to seek. Hover the middle of the notch to open it as usual.
-
-The 0.30.1 release before it made note text on the notch larger and easier to read.
+- **A new, neater notch:** the page's name beside the camera, each page at its own size, round buttons around the notch and an "All pages" grid with shortcuts.
+- **Glass and softer motion:** black, dark glass or Liquid Glass; the notch opens with a little bounce and closes neatly.
+- **Notices in pictures:** a set of 29 pictures of its own; pictures for what reads at a glance, a short line of text when a name is needed. The notch stays centred on the camera.
+- **Two things beside the notch:** music, a timer, or both.
+- **Countdown to meetings** beside the notch.
+- **Keep awake:** for a while, until a time, while an app is open or until downloads finish; it can let the display sleep, stops on a low battery, reminds you to extend it, and turns on by itself for an app, an external display or working hours.
+- **Download progress** beside the notch.
+- **Lighter agent watching,** with a warning near your usage limit.
 
 ## Tính năng · Features
 
@@ -38,6 +40,7 @@ The 0.30.1 release before it made note text on the notch larger and easier to re
 - **Agent lập trình:** xem Claude Code và Codex đang làm gì, khi nào cần bạn, khi nào xong, và còn bao nhiêu giới hạn sử dụng.
 - **Thông báo gọn gàng:** pin, Bluetooth, mạng, âm lượng, độ sáng, Caps Lock, bài hát mới và cuộc họp sắp tới hiện ngay cạnh notch.
 - **Cửa sổ:** kéo cửa sổ vào mép màn hình hay dùng phím tắt để chia đôi, chia góc.
+- **Giữ máy thức:** giữ Mac không ngủ theo thời gian, đến một giờ, khi một app còn mở hay đến khi tải xong, và tự bật theo điều kiện bạn chọn.
 - Dùng được trên mọi màn hình, kể cả màn hình rời không có tai thỏ; giao diện tiếng Việt và tiếng Anh, chọn trong Cài đặt › Chung › Ngôn ngữ.
 
 ---
@@ -54,6 +57,7 @@ The 0.30.1 release before it made note text on the notch larger and easier to re
 - **Coding agents:** see what Claude Code and Codex are doing, when they need you, when they are done, and how much of their usage limits is left.
 - **Tidy notices:** battery, Bluetooth, network, volume, brightness, Caps Lock, a new song and an upcoming meeting show right beside the notch.
 - **Windows:** drag a window to a screen edge or use a shortcut to fill half or a corner of the screen.
+- **Keep awake:** keeps the Mac from sleeping for a while, until a time, while an app is open or until downloads finish, and turns on by itself when you choose.
 - Works on every display, external ones without a notch too; in Vietnamese and English, chosen in Settings › General › Language.
 
 ## Tải về · Download
