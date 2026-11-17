@@ -819,13 +819,22 @@ struct AgentSettingsSection: View {
 }
 
 extension AgentSettingsSection {
+    static func sourceKey(_ source: ClaudeAccountReader.Source) -> String {
+        switch source {
+        case .claudeCode: "settings.agents.account.source.claudeCode"
+        case .claudeApp: "settings.agents.account.source.claudeApp"
+        case .account: "settings.agents.account.source.account"
+        }
+    }
+
     /// What reading the account does, and how the last read went.
     var accountNote: String {
         switch model.claudeAccountState {
         case .off: L10n.string("settings.agents.account.note")
         case .reading: L10n.string("settings.agents.account.reading")
-        case .read(let date):
+        case .read(let date, let source):
             String(format: L10n.string("settings.agents.account.read"), date.formatted(date: .omitted, time: .shortened))
+                + " · " + L10n.string(Self.sourceKey(source))
         case .noLogin: L10n.string("settings.agents.account.noLogin")
         case .refused: L10n.string("settings.agents.account.refused")
         case .expired: L10n.string("settings.agents.account.expired")

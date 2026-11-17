@@ -52,4 +52,12 @@ public enum AgentPacing {
         guard let lastRead else { return true }
         return now.timeIntervalSince(lastRead) >= accountWhileShown
     }
+
+    /// How long to leave Claude Code unasked after it answered `empties` times in a row
+    /// without numbers: ten minutes, doubling, at most six hours. Starting it costs a second
+    /// of work, worth little when the account has no numbers to give.
+    public static func claudeCodeWait(empties: Int) -> TimeInterval {
+        guard empties > 0 else { return 0 }
+        return min(600 * pow(2, Double(min(empties, 8) - 1)), 6 * 3600)
+    }
 }
