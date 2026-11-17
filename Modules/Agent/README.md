@@ -38,12 +38,15 @@ Những gì app gọi (hàm `public` của controller; các kiểu `public` khá
 ## Ghi chú cho người sửa
 
 - Cấu hình Codex không bao giờ bị sửa (xem giới hạn).
+- Nhóm 2 (2026-11-16, học từ Vorssaint): báo "xong" chỉ với lượt dài từ `agents.finishMinimum` giây (mặc định 60, `FinishNotice`); báo khi hạn mức 5 giờ hay 7 ngày dùng tới `agents.limitThreshold` phần trăm (mặc định 80, mỗi cửa sổ một lần) và khi hạn mức làm mới (`LimitAlerts`); khi agent làm, cạnh notch đóng có quỹ đạo tím và đồng hồ của lượt lâu nhất hoặc thanh hạn mức 5 giờ (`agents.liveReadout`, thứ nằm yên id `agents.live`, ưu tiên 1); lượt im 10 phút thôi là đang làm, và lượt kết thúc được đọc từ bản ghi phiên (`TranscriptEnding.ending`: `end_turn`/`stop_sequence`, dấu ngắt, `<local-command-stdout>`).
+- Không làm (2026-11-16): lấy hạn mức Claude qua giao thức điều khiển của Claude Code (`get_usage`, như Vorssaint). Thử trên Claude Code 2.1.323 với gói Pro: trả `rate_limits_available: true` nhưng `rate_limits: null`, kể cả khi hỏi lại sau 10 giây; tệp `~/Library/Application Support/Claude/plan-usage-history.json` dừng cập nhật từ 2026-09-30. Nguồn tài khoản qua chuỗi khoá vẫn được giữ vì đang cho số.
+- Nhịp đọc (`AgentPacing`, 2026-11-16, học từ Vorssaint): tệp sự kiện của hook và tệp của status line được đọc khi macOS báo thư mục `AraNotch/Agents` đổi (`FolderWatcher`), cộng một lần soát 30 giây; danh sách tiến trình (`ps`) chỉ đọc khi trang có phiên Claude, tối đa 2 phút một lần; nhật ký Codex đọc trên hàng đợi riêng, cái nào ghi trong 30 phút qua thì đọc lại mỗi 2 giây vì Codex giữ tệp mở và macOS chỉ báo khi tệp đóng; những gì có sẵn trên đĩa lúc bắt đầu là lịch sử, không báo lại; hạn mức tài khoản Claude hỏi mỗi phút khi trang Agent đang mở, 5 phút khi ẩn, lỗi liền nhau thì chờ lâu dần tới 30 phút.
 
 ## Dữ liệu lưu
 
 - `~/Library/Application Support/AraNotch/Agents/events.jsonl` (hook ghi, app đọc), `AraNotch/bin/aranotch-hook`, `claude-usage.json` (status line ghi).
 - `~/.claude/settings.json` (hook và status line do người dùng cài, có sao lưu `.aranotch-backup-N`), đọc `~/.claude/projects/…/<phiên>.jsonl` và `~/.codex/sessions` (chỉ đọc).
-- UserDefaults `agents.announcesWorking`, `agents.announcesAttention`, `agents.announcesFinished`, `agents.readsClaudeAccount`, `agents.tracksCodex`, `agents.turnCosts.claude`, `agents.turnCosts.codex` (`AgentSettingsStore`).
+- UserDefaults `agents.finishMinimum`, `agents.limitThreshold`, `agents.liveReadout`, `agents.announcesWorking`, `agents.announcesAttention`, `agents.announcesFinished`, `agents.readsClaudeAccount`, `agents.tracksCodex`, `agents.turnCosts.claude`, `agents.turnCosts.codex` (`AgentSettingsStore`).
 - Chuỗi khoá: chỉ đọc thông tin đăng nhập Claude khi bật "Lấy giới hạn từ tài khoản".
 
 ## Quyền hệ thống
@@ -57,7 +60,10 @@ Không cần quyền hệ thống. Sửa `~/.claude/settings.json` chỉ khi ng�
 
 ## Tệp
 
+- `Modules/Agent/Core/ClaudeUsageSources.swift` — Reads Claude's limits from two sources without the keychain: Claude Code's reply to `get_usage`, and the history the Claude app saves (`plan-usage-history.json`).
+- `Modules/Agent/Core/AgentAlerts.swift` — Which finished turns are worth a notice, notices about the rate limits (nearing the threshold, starting afresh), and what rests beside the notch while agents work.
 - `Modules/Agent/Core/AgentEvents.swift` — Something a coding agent (Claude Code) reported through its hooks.
+- `Modules/Agent/Core/AgentPacing.swift` — How often the agent page looks at things outside the app: the process list, Codex logs held open, the Claude account.
 - `Modules/Agent/Core/AgentHeadline.swift` — What a small tile says about the agents in one line: the most pressing state any session is in, and how many sessions are in it.
 - `Modules/Agent/Core/AgentUsage.swift` — How much of one rate limit window is used up.
 - `Modules/Agent/Core/ClaudeHooksInstaller.swift` — Adds this app's hooks to a Claude Code settings document, and takes them out again.
@@ -67,7 +73,9 @@ Không cần quyền hệ thống. Sửa `~/.claude/settings.json` chỉ khi ng�
 - `Modules/Agent/Feature/AgentEventSpool.swift` — Follows the file the hook helper appends to and hands over each new event.
 - `Modules/Agent/Feature/AgentNotice.swift` — What a notice about an agent says, on the sign the notch grows into for a few seconds: which agent and where, what it is at, and what the turn means for its five-hour limit.
 - `Modules/Agent/Feature/AgentWidget.swift` — The agents at work, as a widget of the overview.
-- `Modules/Agent/Feature/ClaudeAccountReader.swift` — Asks the Claude account for its rate limits every few minutes, as Claude Code's `/usage` does, with the sign-in Claude Code keeps in the keychain.
+- `Modules/Agent/Feature/FolderWatcher.swift` — Tells when anything in a folder changes, as the system reports it (FSEvents).
+- `Modules/Agent/Feature/ClaudeAccountReader.swift` — Reads Claude's rate limits every few minutes: asks Claude Code first, then the Claude app's saved history, and only then the account itself with the sign-in Claude Code keeps in the keychain.
+- `Modules/Agent/Feature/ClaudeCodeUsageProbe.swift` — Starts Claude Code bare, asks it for the limits (`get_usage`) and stops it, off the main thread.
 - `Modules/Agent/Feature/ClaudeHooks.swift` — Installs this app's hooks into Claude Code's settings file and removes them again.
 - `Modules/Agent/Feature/ClaudeSessionProbe.swift` — What the agent list learns from outside the hook events, off the main thread.
 - `Modules/Agent/Feature/CodexWatcher.swift` — Follows Codex by reading the session logs it writes itself (`~/.codex/sessions`).
@@ -77,7 +85,7 @@ Không cần quyền hệ thống. Sửa `~/.claude/settings.json` chỉ khi ng�
 
 - Trang Agent chỉ biết những gì hook, status line và nhật ký Codex báo: không có nội dung trao đổi. Phiên bị tắt đột ngột (không có sự kiện kết thúc) còn nằm trên trang tối đa 12 giờ.
 - Hook chạy một chương trình nhỏ trước mỗi lần Claude Code dùng công cụ; chương trình luôn trả về thành công và không in gì, nên không ảnh hưởng tới agent.
-- Hạn mức Claude đến từ hai nguồn: status line của AraNotch (chỉ chạy khi dùng `claude` trong Terminal; tab Code của app Claude không gọi status line) và, khi bật "Lấy giới hạn từ tài khoản Claude" trong Cài đặt › Agent, chính địa chỉ lệnh /usage đọc (`api.anthropic.com/api/oauth/usage`, không phải API công khai, Anthropic có thể đổi), mỗi 5 phút, bằng đăng nhập Claude Code trong Keychain. Đăng nhập được đọc qua công cụ `/usr/bin/security` của macOS, như chính Claude Code, vì mục đó tin công cụ này; đọc thẳng từ app thì mỗi bản dựng mới macOS lại hỏi mật khẩu (chứng thư tự tạo không có Team ID nên macOS nhận app theo mã băm của từng bản). AraNotch không bao giờ gia hạn đăng nhập đó: khi hết hạn phải chạy `claude` trong Terminal một lần. Số nào mới hơn thì dùng số đó. Khi mốc đặt lại đã qua mà chưa có số mới, app ghi "chưa có số mới" thay vì 0%.
+- Hạn mức Claude đến từ status line của AraNotch (chỉ chạy khi dùng `claude` trong Terminal; tab Code của app Claude không gọi status line) và, khi bật "Lấy giới hạn từ tài khoản Claude" trong Cài đặt › Agent, từ nguồn đầu tiên có số trong ba nguồn: (1) hỏi Claude Code như lệnh /usage (`get_usage` của giao thức điều khiển; chạy trần, không công cụ, không MCP, không hook, khoảng 1 giây rồi tắt; trả `rate_limits: null` thì lần sau chờ 10 phút, gấp đôi mỗi lần, tối đa 6 giờ; Claude Code 2.1.323 với tài khoản Pro của chủ dự án trả rỗng), (2) số app Claude lưu trong `~/Library/Application Support/Claude/plan-usage-history.json` khi còn mới dưới 30 phút (chỉ phần trăm, không có giờ đặt lại, nên không báo được "làm mới"), (3) chính địa chỉ lệnh /usage đọc (`api.anthropic.com/api/oauth/usage`, không phải API công khai, Anthropic có thể đổi), mỗi 5 phút, bằng đăng nhập Claude Code trong Keychain. Đăng nhập được đọc qua công cụ `/usr/bin/security` của macOS, như chính Claude Code, vì mục đó tin công cụ này; đọc thẳng từ app thì mỗi bản dựng mới macOS lại hỏi mật khẩu (chứng thư tự tạo không có Team ID nên macOS nhận app theo mã băm của từng bản). AraNotch không bao giờ gia hạn đăng nhập đó: khi hết hạn phải chạy `claude` trong Terminal một lần. Số nào mới hơn thì dùng số đó. Khi mốc đặt lại đã qua mà chưa có số mới, app ghi "chưa có số mới" thay vì 0%.
 - Theo dõi Codex dựa vào định dạng nhật ký phiên của Codex, vốn không phải giao diện được cam kết: bản Codex sau có thể đổi và làm mất tính năng này. Codex không báo khi nó chờ người dùng cho phép, nên chỉ có hai trạng thái đang chạy và đã xong. Hạn mức Codex là con số Codex ghi lần cuối; không có phiên mới thì không được cập nhật.
 - Cấu hình Codex không bị sửa dù chủ dự án đã cho phép: ô `notify` duy nhất của Codex đang được chính Codex Computer Use dùng, đặt chương trình khác vào sẽ làm hỏng nó, và nhật ký phiên đã đủ thông tin.
 - Bấm vào phiên agent chỉ đưa app chứa nó lên trước, không chọn đúng cửa sổ hay tab. Chỉ phiên Claude Code báo qua hook mới biết app; phiên Codex thì không. Agent chạy trong tmux hay qua SSH không có app nào để tìm.
@@ -92,3 +100,6 @@ Mỗi dòng: ngày — lỗi hoặc thay đổi — test đã thêm — commit.
 - 2026-10-26 — tái cấu trúc theo module (nhánh `refactor/feature-modules`): widget dùng `WidgetSize`, `WidgetAlert`.
 - 2026-11-16 — thanh hạn mức màu tím của trang, cam từ 80%, đỏ từ 95%, có vạch xanh ở mức dùng vừa đủ tới lúc đặt lại (`UsageWindow.pace(length:at:)`, `level`); trang trống khi chưa cài hook có nút "Cài hook" (D10, D8) — `AgentUsageTests`.
 - 2026-11-16 — đang làm: quỹ đạo tím quay và thanh hạn mức; xong lượt: dấu xong xanh và tên dự án; cần bạn: giữ biển lớn với biểu tượng bong bóng tím.
+- 2026-11-16 — app bớt tốn máy khi theo dõi agent (học từ Vorssaint): bỏ đọc tệp sự kiện mỗi giây và `ps` mỗi 20 giây suốt ngày; nhật ký Codex không còn đọc trên luồng giao diện (tệp 14 MB từng giữ notch khoảng 0,7 giây) và nhật ký đang mở được đọc lại; hạn mức tài khoản hỏi theo trang và lùi khi lỗi. Sửa kèm: bật "Theo dõi Codex" giữa chừng không còn báo lại các lượt cũ trên đĩa — `AgentPacingTests`, `CodexWatcherTests` (hai test mới), `AgentEventSpoolTests.aLineTheHookAppendsIsReadAsSoonAsTheSystemSaysSo` — nhánh `agent/nhe-may-theo-doi`.
+- 2026-11-16 — nhóm 2 phần agent: ngưỡng báo xong lượt, báo hạn mức chạm ngưỡng và làm mới, đồng hồ cạnh notch khi agent làm, lượt im 10 phút, đọc kết thúc lượt từ bản ghi — `AgentAlertsTests`, `TurnEndingTests` — nhánh `agent/nhe-may-theo-doi`.
+- 2026-11-17 — mục 6: hạn mức Claude hỏi Claude Code trước, rồi số app Claude lưu, chuỗi khoá làm dự phòng; Claude Code không có số thì hỏi thưa dần — `ClaudeUsageSourcesTests` — nhánh `agent/nhe-may-theo-doi`.

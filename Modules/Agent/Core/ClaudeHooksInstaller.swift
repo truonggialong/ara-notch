@@ -83,6 +83,9 @@ public struct AgentSettingsStore {
         public static let turnCostsClaude = "agents.turnCosts.claude"
         public static let turnCostsCodex = "agents.turnCosts.codex"
         public static let readsClaudeAccount = "agents.readsClaudeAccount"
+        public static let finishMinimum = "agents.finishMinimum"
+        public static let limitThreshold = "agents.limitThreshold"
+        public static let liveReadout = "agents.liveReadout"
     }
 
     private let defaults: UserDefaults
@@ -124,6 +127,24 @@ public struct AgentSettingsStore {
     public var readsClaudeAccount: Bool {
         get { defaults.object(forKey: Key.readsClaudeAccount) as? Bool ?? false }
         nonmutating set { defaults.set(newValue, forKey: Key.readsClaudeAccount) }
+    }
+
+    /// The shortest turn whose end is announced, in seconds (`FinishNotice`).
+    public var finishMinimum: TimeInterval {
+        get { defaults.object(forKey: Key.finishMinimum) as? Double ?? FinishNotice.standardMinimum }
+        nonmutating set { defaults.set(newValue, forKey: Key.finishMinimum) }
+    }
+
+    /// What rests beside the closed notch while agents work.
+    public var liveReadout: AgentLiveReadout {
+        get { (defaults.string(forKey: Key.liveReadout)).flatMap(AgentLiveReadout.init) ?? .standard }
+        nonmutating set { defaults.set(newValue.rawValue, forKey: Key.liveReadout) }
+    }
+
+    /// Percent of a limit used that earns a notice; 0 is off (`LimitAlerts`).
+    public var limitThreshold: Double {
+        get { defaults.object(forKey: Key.limitThreshold) as? Double ?? LimitAlerts.standardThreshold }
+        nonmutating set { defaults.set(newValue, forKey: Key.limitThreshold) }
     }
 
     /// Tell the user beside the notch when an agent finished its turn.

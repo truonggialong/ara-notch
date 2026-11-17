@@ -5,59 +5,109 @@ import Foundation
 /// Follows Codex by reading the session logs it writes itself (`~/.codex/sessions`). Nothing
 /// of Codex is changed. Only lines that say how a session is doing are decoded; lines that
 /// hold conversation content are skipped unread.
+///
+/// The logs are read on a queue of their own, never on the main thread: at the start the
+/// recent ones are read whole, and a few megabytes would stall the notch. The system reports a
+/// log as it is closed, and Codex keeps its log open for the whole session, so logs written in
+/// the last half hour are also read again every two seconds (`AgentPacing`).
 @MainActor
 final class CodexWatcher {
-    /// Logs not touched for this long are not opened at all.
-    private static let recentWindow: TimeInterval = 12 * 3600
-
-    /// Session events, with the Codex session id they belong to.
-    var onEvents: (([(sessionID: String, event: CodexRolloutEvent)]) -> Void)?
+    /// Session events, with the Codex session id they belong to. `isHistory` is true for what
+    /// was already on disk when watching began: it is known, not announced.
+    var onEvents: ((_ events: [(sessionID: String, event: CodexRolloutEvent)], _ isHistory: Bool) -> Void)?
 
     let directory: URL
-    private var stream: FSEventStreamRef?
-    /// How far each log was read, and the session it belongs to once that is known.
-    private var files: [String: (offset: UInt64, remainder: Data, sessionID: String?)] = [:]
+    private var reader: CodexLogReader?
 
     init(directory: URL? = nil) {
         self.directory = directory
             ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".codex/sessions")
     }
 
-    var isRunning: Bool { stream != nil }
+    var isRunning: Bool { reader != nil }
 
-    /// Reads the recent logs, then is told by the system whenever one changes: no polling.
     func start() {
-        guard stream == nil, FileManager.default.fileExists(atPath: directory.path) else { return }
-        scanRecent()
-
-        var context = FSEventStreamContext(
-            version: 0, info: Unmanaged.passUnretained(self).toOpaque(), retain: nil, release: nil,
-            copyDescription: nil)
-        let callback: FSEventStreamCallback = { _, info, count, paths, _, _ in
-            guard let info else { return }
-            let watcher = Unmanaged<CodexWatcher>.fromOpaque(info).takeUnretainedValue()
-            let changed = (unsafeBitCast(paths, to: NSArray.self) as? [String]) ?? []
-            // The stream is scheduled on the main queue.
-            MainActor.assumeIsolated { watcher.read(paths: Array(changed.prefix(count))) }
+        guard reader == nil, FileManager.default.fileExists(atPath: directory.path) else { return }
+        let reader = CodexLogReader(directory: directory) { [weak self] events, isHistory in
+            Task { @MainActor in self?.onEvents?(events, isHistory) }
         }
-        let flags = UInt32(
-            kFSEventStreamCreateFlagFileEvents | kFSEventStreamCreateFlagUseCFTypes | kFSEventStreamCreateFlagNoDefer)
-        guard let stream = FSEventStreamCreate(
-            kCFAllocatorDefault, callback, &context, [directory.path] as CFArray,
-            FSEventStreamEventId(kFSEventStreamEventIdSinceNow), 0.5, flags)
-        else { return }
-        FSEventStreamSetDispatchQueue(stream, .main)
-        FSEventStreamStart(stream)
-        self.stream = stream
+        reader.start()
+        self.reader = reader
     }
 
     func stop() {
-        guard let stream else { return }
-        FSEventStreamStop(stream)
-        FSEventStreamInvalidate(stream)
-        FSEventStreamRelease(stream)
-        self.stream = nil
-        files = [:]
+        reader?.stop()
+        reader = nil
+    }
+}
+
+/// The reading itself, confined to its own queue.
+private final class CodexLogReader: @unchecked Sendable {
+    /// Logs not touched for this long are not opened at all.
+    private static let recentWindow: TimeInterval = 12 * 3600
+
+    private let directory: URL
+    private let deliver: @Sendable ([(sessionID: String, event: CodexRolloutEvent)], Bool) -> Void
+    private let queue = DispatchQueue(label: "aranotch.codex-logs", qos: .utility)
+    private var watcher: FolderWatcher?
+    private var poller: DispatchSourceTimer?
+    private var isPolling = false
+    private var stopped = false
+    /// How far each log was read, and the session it belongs to once that is known.
+    private var files: [String: (offset: UInt64, remainder: Data, sessionID: String?)] = [:]
+    /// When each log last grew, for the ones read again while Codex holds them open.
+    private var lastWrites: [String: Date] = [:]
+
+    init(directory: URL, deliver: @escaping @Sendable ([(sessionID: String, event: CodexRolloutEvent)], Bool) -> Void) {
+        self.directory = directory
+        self.deliver = deliver
+    }
+
+    func start() {
+        queue.async { [self] in
+            scanRecent()
+            let watcher = FolderWatcher(folder: directory, queue: queue, latency: 0.5) { [weak self] paths in
+                self?.read(paths: paths, isHistory: false)
+            }
+            watcher.start()
+            self.watcher = watcher
+            let poller = DispatchSource.makeTimerSource(queue: queue)
+            poller.setEventHandler { [weak self] in self?.pollOpenLogs() }
+            poller.schedule(deadline: .distantFuture)
+            poller.resume()
+            self.poller = poller
+            updatePolling()
+        }
+    }
+
+    func stop() {
+        queue.async { [self] in
+            stopped = true
+            watcher?.stop()
+            watcher = nil
+            poller?.cancel()
+            poller = nil
+            files = [:]
+            lastWrites = [:]
+        }
+    }
+
+    private func pollOpenLogs() {
+        read(paths: AgentPacing.openLogs(lastWrites, now: Date()), isHistory: false)
+    }
+
+    /// Polls only while some log was written in the last half hour.
+    private func updatePolling() {
+        guard let poller else { return }
+        let wanted = !AgentPacing.openLogs(lastWrites, now: Date()).isEmpty
+        guard wanted != isPolling else { return }
+        isPolling = wanted
+        if wanted {
+            poller.schedule(
+                deadline: .now() + AgentPacing.openLogPoll, repeating: AgentPacing.openLogPoll, leeway: .milliseconds(500))
+        } else {
+            poller.schedule(deadline: .distantFuture)
+        }
     }
 
     private func scanRecent() {
@@ -83,23 +133,30 @@ final class CodexWatcher {
         if recent.isEmpty, let newest {
             recent = [newest]
         }
+        for (path, modified) in recent {
+            lastWrites[path] = modified
+        }
         // Oldest first, so the newest log's rate limits are the ones left standing.
-        read(paths: recent.sorted { $0.modified < $1.modified }.map(\.path))
+        read(paths: recent.sorted { $0.modified < $1.modified }.map(\.path), isHistory: true)
     }
 
-    private func read(paths: [String]) {
+    private func read(paths: [String], isHistory: Bool) {
+        guard !stopped else { return }
         var events: [(sessionID: String, event: CodexRolloutEvent)] = []
         for path in paths where path.hasSuffix(".jsonl") {
-            events += readNew(in: path)
+            let found = readNew(in: path)
+            events += found.events
+            if found.grew { lastWrites[path] = Date() }
         }
         if !events.isEmpty {
-            onEvents?(events)
+            deliver(events, isHistory)
         }
+        updatePolling()
     }
 
-    /// Reads what was appended to a log since the last time.
-    private func readNew(in path: String) -> [(sessionID: String, event: CodexRolloutEvent)] {
-        guard let handle = FileHandle(forReadingAtPath: path) else { return [] }
+    /// Reads what was appended to a log since the last time; `grew` when there was anything.
+    private func readNew(in path: String) -> (events: [(sessionID: String, event: CodexRolloutEvent)], grew: Bool) {
+        guard let handle = FileHandle(forReadingAtPath: path) else { return ([], false) }
         defer { try? handle.close() }
         var state = files[path] ?? (0, Data(), nil)
         let size = (try? handle.seekToEnd()) ?? 0
@@ -110,7 +167,7 @@ final class CodexWatcher {
               let data = try? handle.readToEnd(), !data.isEmpty
         else {
             files[path] = state
-            return []
+            return ([], false)
         }
         state.offset += UInt64(data.count)
         state.remainder.append(data)
@@ -135,7 +192,7 @@ final class CodexWatcher {
         }
         state.remainder = Data(state.remainder[start...])
         files[path] = state
-        return events
+        return (events, true)
     }
 
     /// "rollout-2026-10-07T01-15-31-<id>.jsonl": the id is what follows the time stamp.

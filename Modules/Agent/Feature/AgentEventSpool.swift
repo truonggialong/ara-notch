@@ -15,6 +15,9 @@ final class AgentEventSpool {
     private var offset: UInt64 = 0
     private var remainder = Data()
     private var timer: Timer?
+    private var watcher: FolderWatcher?
+    /// A slow look in case the system missed a change: it can drop events when busy.
+    private static let safetyInterval: TimeInterval = 30
 
     init(file: URL? = nil) {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
@@ -22,15 +25,25 @@ final class AgentEventSpool {
         self.file = file ?? base.appendingPathComponent("AraNotch/Agents/events.jsonl")
     }
 
-    /// Reads what is already there (sessions that began before the app did), then checks for
-    /// more once a second.
+    /// Reads what is already there (sessions that began before the app did), then reads more
+    /// whenever the system says the folder changed: the hook appends a line and closes the
+    /// file, the status line replaces its own. Nothing is looked at while no agent writes,
+    /// besides a slow look every 30 seconds in case a change went unreported.
     func start() {
         guard timer == nil else { return }
+        let folder = file.deletingLastPathComponent()
+        try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         trimIfLarge()
         readNew()
-        let timer = Timer(timeInterval: 1, repeats: true) { [weak self] _ in
+        let watcher = FolderWatcher(folder: folder, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.readNew() }
         }
+        watcher.start()
+        self.watcher = watcher
+        let timer = Timer(timeInterval: Self.safetyInterval, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated { self?.readNew() }
+        }
+        timer.tolerance = 5
         RunLoop.main.add(timer, forMode: .common)
         self.timer = timer
     }
@@ -38,6 +51,8 @@ final class AgentEventSpool {
     func stop() {
         timer?.invalidate()
         timer = nil
+        watcher?.stop()
+        watcher = nil
     }
 
     func readNew() {

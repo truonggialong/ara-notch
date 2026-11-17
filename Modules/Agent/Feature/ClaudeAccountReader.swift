@@ -1,9 +1,13 @@
 import AgentCore
 import Foundation
 
-/// Asks the Claude account for its rate limits every few minutes, as Claude Code's `/usage`
-/// does, with the sign-in Claude Code keeps in the keychain. This works whatever runs Claude
-/// Code, the desktop app's Code tab included, which never runs the status line.
+/// Reads Claude's rate limits now and then (`AgentPacing`), from the first source that has them:
+/// 1. Claude Code itself, asked as `/usage` asks (`ClaudeCodeUsageProbe`): no keychain read.
+///    While it answers without numbers it is asked less and less (`AgentPacing.claudeCodeWait`).
+/// 2. The history the Claude app saves as it checks (`ClaudeAppUsage`), when fresh.
+/// 3. The Claude account, asked with the sign-in Claude Code keeps in the keychain.
+/// This works whatever runs Claude Code, the desktop app's Code tab included, which never runs
+/// the status line.
 ///
 /// The access token is read from the keychain only when there is none in memory or it was
 /// refused, and is never written anywhere, logged or renewed: Claude Code renews it itself.
@@ -12,7 +16,7 @@ final class ClaudeAccountReader {
     enum State: Equatable {
         case off
         case reading
-        case read(at: Date)
+        case read(at: Date, source: Source)
         /// No Claude Code sign-in in the keychain.
         case noLogin
         /// The user did not allow the keychain read.
@@ -22,60 +26,124 @@ final class ClaudeAccountReader {
         case failed(status: Int)
     }
 
+    /// Where a reading came from.
+    enum Source: Equatable, Sendable {
+        case claudeCode, claudeApp, account
+    }
+
     var onUsage: ((AgentUsage) -> Void)?
     var onState: ((State) -> Void)?
 
-    /// Five minutes, like a glance at `/usage` now and then; the limits do not move faster.
-    static let interval: TimeInterval = 300
-
+    /// The next check, set after each one (`AgentPacing.accountDelay`): every minute while the
+    /// agent page shows, every five otherwise, and longer and longer after failed checks.
     private var timer: Timer?
+    private var isOn = false
     private var token: String?
     private var isReading = false
+    private var failures = 0
+    private var lastRead: Date?
+    private var pageShown = false
+    /// Answers from Claude Code without numbers in a row, and when to ask it again.
+    private var claudeCodeEmpties = 0
+    private var claudeCodeAskAfter = Date.distantPast
 
     func start() {
-        guard timer == nil else { return }
-        let timer = Timer(timeInterval: Self.interval, repeats: true) { [weak self] _ in
-            MainActor.assumeIsolated { self?.read() }
-        }
-        RunLoop.main.add(timer, forMode: .common)
-        self.timer = timer
+        guard !isOn else { return }
+        isOn = true
         read()
     }
 
     func stop() {
+        isOn = false
         timer?.invalidate()
         timer = nil
         token = nil
+        failures = 0
+        claudeCodeEmpties = 0
+        claudeCodeAskAfter = .distantPast
         onState?(.off)
     }
 
+    /// The agent page came into view or went away. In view, a reading over a minute old is
+    /// renewed at once.
+    func setPageShown(_ shown: Bool) {
+        guard shown != pageShown else { return }
+        pageShown = shown
+        guard isOn, !isReading else { return }
+        if shown, failures == 0, AgentPacing.accountIsStale(lastRead: lastRead, now: Date()) {
+            read()
+        } else {
+            schedule()
+        }
+    }
+
+    private func schedule() {
+        timer?.invalidate()
+        guard isOn else { return }
+        var delay = AgentPacing.accountDelay(pageShown: pageShown, failures: failures)
+        if failures == 0, let lastRead {
+            delay = max(delay - Date().timeIntervalSince(lastRead), 1)
+        }
+        let timer = Timer(timeInterval: delay, repeats: false) { [weak self] _ in
+            MainActor.assumeIsolated { self?.read() }
+        }
+        timer.tolerance = min(delay * 0.1, 10)
+        RunLoop.main.add(timer, forMode: .common)
+        self.timer = timer
+    }
+
     func read() {
-        guard timer != nil, !isReading else { return }
+        guard isOn, !isReading else { return }
+        timer?.invalidate()
+        timer = nil
         isReading = true
         onState?(.reading)
         let known = token
+        let asksClaudeCode = Date() >= claudeCodeAskAfter
         Task.detached(priority: .utility) {
-            let outcome = await Self.fetch(knownToken: known)
-            await MainActor.run { [weak self] in self?.finish(outcome) }
+            let code = asksClaudeCode ? ClaudeCodeUsageProbe.ask() : nil
+            let outcome: Outcome
+            if case .usage(let usage) = code {
+                outcome = .usage(usage, token: nil, source: .claudeCode)
+            } else if let data = try? Data(contentsOf: ClaudeAppUsage.historyURL()),
+                      let usage = ClaudeAppUsage.usage(from: data, now: Date()) {
+                outcome = .usage(usage, token: nil, source: .claudeApp)
+            } else {
+                outcome = await Self.fetch(knownToken: known)
+            }
+            await MainActor.run { [weak self] in self?.finish(outcome, claudeCode: code) }
         }
     }
 
-    private func finish(_ outcome: Outcome) {
+    private func finish(_ outcome: Outcome, claudeCode: ClaudeCodeUsageProbe.Outcome?) {
         isReading = false
-        guard timer != nil else { return }
+        guard isOn else { return }
+        switch claudeCode {
+        case nil: break
+        case .usage:
+            claudeCodeEmpties = 0
+            claudeCodeAskAfter = .distantPast
+        case .empty, .failed, .missing:
+            claudeCodeEmpties += 1
+            claudeCodeAskAfter = Date().addingTimeInterval(AgentPacing.claudeCodeWait(empties: claudeCodeEmpties))
+        }
         switch outcome {
-        case .usage(let usage, let token):
-            self.token = token
+        case .usage(let usage, let token, let source):
+            if let token { self.token = token }
+            failures = 0
+            lastRead = Date()
             onUsage?(usage)
-            onState?(.read(at: usage.updatedAt))
+            onState?(.read(at: usage.updatedAt, source: source))
         case .state(let state):
             token = nil
+            failures += 1
             onState?(state)
         }
+        schedule()
     }
 
     private enum Outcome: Sendable {
-        case usage(AgentUsage, token: String)
+        case usage(AgentUsage, token: String?, source: Source)
         case state(State)
     }
 
@@ -102,7 +170,7 @@ final class ClaudeAccountReader {
         switch status {
         case 200:
             guard let usage = ClaudeAccountUsage.usage(from: data, at: Date()) else { return .state(.failed(status: 200)) }
-            return .usage(usage, token: token)
+            return .usage(usage, token: token, source: .account)
         case 401:
             // A token kept from an earlier read may have been renewed by Claude Code since.
             return knownToken == nil ? .state(.expired) : await fetch(knownToken: nil)

@@ -23,21 +23,21 @@ enum ClaudeSessionProbe {
         return RunningClaudeSessions.ids(fromCommands: commands)
     }
 
-    /// Whether the session's transcript ends with the user stopping the turn. Only the last
-    /// 16 KB of `~/.claude/projects/<folder>/<session>.jsonl` are read.
-    static func wasInterrupted(sessionID: String, projects: URL) -> Bool {
+    /// How the session's last turn ended, by its transcript; nil while it goes on. Only the
+    /// last 16 KB of `~/.claude/projects/<folder>/<session>.jsonl` are read.
+    static func ending(sessionID: String, projects: URL) -> TranscriptEnding.Ending? {
         guard let transcript = transcript(of: sessionID, in: projects),
               let handle = try? FileHandle(forReadingFrom: transcript)
-        else { return false }
+        else { return nil }
         defer { try? handle.close() }
         let size = (try? handle.seekToEnd()) ?? 0
         let tail: UInt64 = 16 * 1024
         try? handle.seek(toOffset: size > tail ? size - tail : 0)
-        guard let data = try? handle.readToEnd() else { return false }
+        guard let data = try? handle.readToEnd() else { return nil }
         var lines = String(decoding: data, as: UTF8.self).split(separator: "\n").map(String.init)
         // The first line read may be cut; it is not looked at.
         if size > tail, !lines.isEmpty { lines.removeFirst() }
-        return TranscriptEnding.wasInterrupted(lastLines: lines)
+        return TranscriptEnding.ending(lastLines: lines)
     }
 
     private static func transcript(of sessionID: String, in projects: URL) -> URL? {
